@@ -6,6 +6,9 @@
     "dev": "bun run --watch src/index.ts"
   },
   "dependencies": {
+    "@elysiajs/opentelemetry": "^1.2.0",
+    "@elysiajs/swagger": "^1.2.0",
+    "@opentelemetry/exporter-trace-otlp-proto": "^0.57.1",
     "elysia": "latest"
   },
   "devDependencies": {
