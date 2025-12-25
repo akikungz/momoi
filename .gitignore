@@ -45,3 +45,7 @@ package-lock.json
 .env
 .env.*
 .envrc
+
+# Prisma
+**/prisma/generated/
+**/prisma/prismabox/
