@@ -33,4 +33,23 @@ export class CacheModule {
 
     await this.client.del(key);
   }
+
+  public async deleteCacheByPattern(pattern: string) {
+    if (!this.client) return;
+
+    const stream = this.client.scanStream({
+      match: pattern,
+      count: 100,
+    });
+
+    stream.on("data", (keys: string[]) => {
+      if (keys.length) {
+        const pipeline = this.client!.pipeline();
+        keys.forEach((key) => {
+          pipeline.del(key);
+        });
+        pipeline.exec();
+      }
+    });
+  }
 }

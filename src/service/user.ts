@@ -4,6 +4,7 @@ import type { CacheModule } from '@momoi/cache';
 import type { PrismaClient } from '@momoi/database/prisma/generated/client';
 
 import { getSSHKeyData, getSSHKeyResponse } from '@momoi/model/user';
+import { PrismaClientKnownRequestError } from '@momoi/database/prisma/generated/internal/prismaNamespace';
 
 export class UserService {
   constructor(
@@ -12,13 +13,35 @@ export class UserService {
   ) { }
 
   async addSSHKey(userId: number, name: string, publicKey: string): Promise<Static<typeof getSSHKeyData>> {
-    return this.prisma.platformSSHKey.create({
-      data: {
-        ownerId: userId,
-        name,
-        publicKey,
-      },
-    });
+    try {
+      const sshKey = await this.prisma.platformSSHKey.create({
+        data: {
+          ownerId: userId,
+          name,
+          publicKey,
+        },
+      });
+
+      // Clear relevant cache entries
+      const cacheKeyPattern = `user:${userId}:sshkeys:*`;
+      await this.cache.deleteCacheByPattern(cacheKeyPattern);
+
+      return sshKey;
+    } catch (error: unknown) {
+      if (error instanceof PrismaClientKnownRequestError) {
+        if (error.code === 'P2002') {
+          throw new Error('An SSH key with the same name or public key already exists for this user.');
+        }
+
+        if (error.code === 'P2025') {
+          throw new Error('User not found.');
+        }
+
+        throw new Error(`Database error: ${error.message}`);
+      }
+
+      throw new Error('An unexpected error occurred while adding the SSH key.');
+    }
   }
 
   async getSSHKeys(userId: number, page: number = 1, pageSize: number = 10): Promise<Static<typeof getSSHKeyResponse>> {
@@ -61,13 +84,29 @@ export class UserService {
   }
 
   async removeSSHKey(userId: number, keyIds: number[]): Promise<number> {
-    return this.prisma.platformSSHKey.deleteMany({
-      where: {
-        id: {
-          in: keyIds,
-        },
-        ownerId: userId,
-      },
-    }).then(result => result.count);
+    try {
+      const deleteResult = await this.prisma.platformSSHKey.deleteMany({
+        where: {
+          ownerId: userId,
+          id: { in: keyIds },
+        }
+      });
+
+      // Clear relevant cache entries
+      const cacheKeyPattern = `user:${userId}:sshkeys:*`;
+      await this.cache.deleteCacheByPattern(cacheKeyPattern);
+
+      return deleteResult.count;
+    } catch (error: unknown) {
+      if (error instanceof PrismaClientKnownRequestError) {
+        if (error.code === 'P2025') {
+          throw new Error('One or more SSH keys not found for the user.');
+        }
+
+        throw new Error(`Database error: ${error.message}`);
+      }
+
+      throw new Error('An unexpected error occurred while removing the SSH keys.');
+    }
   }
 }

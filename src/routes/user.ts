@@ -1,6 +1,6 @@
 import { Elysia, t } from "elysia";
 
-import { AuthMacro, authMacro } from "@momoi/auth";
+import { AuthMacro } from "@momoi/auth";
 import { CacheModule } from "@momoi/cache";
 import { PrismaClient } from "@momoi/database";
 import { pick } from "@momoi/utils/object";
@@ -21,12 +21,7 @@ export const userRoute = (
     return pick(user, ["id", "email", "name", "role"]);
   }, {
     response: {
-      200: t.Object({
-        id: t.Number(),
-        email: t.String(),
-        name: t.String(),
-        role: t.Union([t.Literal("ADMIN"), t.Literal("INSTRUCTOR"), t.Literal("STUDENT")]),
-      }),
+      200: "GetMeResponse",
     }
   })
   .get("/ssh-keys", async ({ userService, user, query }) => {

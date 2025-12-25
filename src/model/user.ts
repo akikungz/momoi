@@ -1,6 +1,19 @@
 import { Elysia, t } from "elysia";
 import { PaginationRequest, PaginationResponse } from "./shared/pagination";
 
+export const UserRole = t.Union([
+  t.Literal("ADMIN"),
+  t.Literal("INSTRUCTOR"),
+  t.Literal("STUDENT")
+], { description: "Role of the user in the system" });
+
+export const getMeResponse = t.Object({
+  id: t.Number({ description: "Unique identifier for the user" }),
+  name: t.String({ description: "Full name of the user" }),
+  email: t.String({ description: "Email address of the user" }),
+  role: UserRole,
+});
+
 export const getSSHKeyData = t.Object({
   id: t.Number({ description: "Unique identifier for the SSH key" }),
   name: t.String({ description: "Name of the SSH key" }),
@@ -28,6 +41,7 @@ export const removeSSHKeyRequestBody = t.Object({
 });
 
 export const userModel = new Elysia({ name: "user.model" })
+  .model("GetMeResponse", getMeResponse)
   .model("GetSSHKeyData", getSSHKeyData)
   .model("GetSSHKeyResponse", getSSHKeyResponse)
   .model("GetSSHKeyRequestQuery", getSSHKeyRequestQuery)
