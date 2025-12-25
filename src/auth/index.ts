@@ -1,15 +1,14 @@
-import { betterAuth } from "better-auth";
-import { prismaAdapter } from "better-auth/adapters/prisma";
-import { customSession, openAPI } from "better-auth/plugins";
-import { Elysia } from "elysia";
+import { betterAuth } from 'better-auth';
+import { prismaAdapter } from 'better-auth/adapters/prisma';
+import { customSession, openAPI } from 'better-auth/plugins';
+import { Elysia } from 'elysia';
 
-import { CacheModule } from "@momoi/cache";
-import { prisma } from "@momoi/database";
+import { CacheModule } from '@momoi/cache';
+import { prisma } from '@momoi/database';
+import { env } from '@momoi/env';
+import { isInstructorEmail, isItDepartmentEmail } from '@momoi/utils/user';
 
-import { env } from "@momoi/env";
-import { isInstructorEmail, isItDepartmentEmail } from "@momoi/utils/user";
-
-import { MockAuth } from "./mock";
+import { MockAuth } from './mock';
 
 export const auth = betterAuth({
   basePath: "/api/auth",

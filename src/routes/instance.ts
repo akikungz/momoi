@@ -1,11 +1,10 @@
-import { Elysia, t } from "elysia";
+import { Elysia, t } from 'elysia';
 
-import { AuthMacro } from "@momoi/auth";
-import { CacheModule } from "@momoi/cache";
-import { PrismaClient } from "@momoi/database";
-
-import { instanceModel } from "@momoi/model/instance";
-import { InstanceService } from "@momoi/service/instance";
+import { AuthMacro } from '@momoi/auth';
+import { CacheModule } from '@momoi/cache';
+import { PrismaClient } from '@momoi/database';
+import { instanceModel } from '@momoi/model/instance';
+import { InstanceService } from '@momoi/service/instance';
 
 export const instanceRoute = (
   prisma: PrismaClient,

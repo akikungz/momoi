@@ -1,12 +1,12 @@
-import { Elysia } from "elysia";
-import { openapi } from "@elysiajs/openapi";
+import { Elysia } from 'elysia';
 
-import { prisma } from "./database";
-import { CacheModule } from "./cache";
-import { authHandler, authMacro } from "./auth";
+import { openapi } from '@elysiajs/openapi';
 
-import { userRoute } from "./routes/user";
-import { instanceRoute } from "./routes/instance";
+import { authHandler, authMacro } from './auth';
+import { CacheModule } from './cache';
+import { prisma } from './database';
+import { instanceRoute } from './routes/instance';
+import { userRoute } from './routes/user';
 
 const cache = new CacheModule();
 

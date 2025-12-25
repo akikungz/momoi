@@ -1,12 +1,11 @@
-import { Elysia, t } from "elysia";
+import { Elysia, t } from 'elysia';
 
-import { AuthMacro } from "@momoi/auth";
-import { CacheModule } from "@momoi/cache";
-import { PrismaClient } from "@momoi/database";
-import { pick } from "@momoi/utils/object";
-
-import { userModel } from "@momoi/model/user";
-import { UserService } from "@momoi/service/user";
+import { AuthMacro } from '@momoi/auth';
+import { CacheModule } from '@momoi/cache';
+import { PrismaClient } from '@momoi/database';
+import { userModel } from '@momoi/model/user';
+import { UserService } from '@momoi/service/user';
+import { pick } from '@momoi/utils/object';
 
 export const userRoute = (
   prisma: PrismaClient,

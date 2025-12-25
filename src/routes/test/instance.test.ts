@@ -1,21 +1,15 @@
-import { beforeEach, describe, expect, it } from "bun:test";
+import { beforeEach, describe, expect, it } from 'bun:test';
 
-import { treaty } from "@elysiajs/eden";
-
-import { mockAdminAuth, mockInstructorAuth, mockStudentAuth } from "@momoi/auth/mock";
-import { MockCache } from "@momoi/cache/mock";
-import { createMockPrisma } from "@momoi/database/test";
+import { treaty } from '@elysiajs/eden';
+import { mockAdminAuth, mockInstructorAuth, mockStudentAuth } from '@momoi/auth/mock';
+import { MockCache } from '@momoi/cache/mock';
+import { createMockPrisma } from '@momoi/database/test';
 import {
-  createMockInstance,
-  createMockCourseOffering,
-  createMockCourse,
-  createMockSemester,
-  createMockPVETemplate,
-  createMockPVEVM,
-  resetMockFactoryCounters,
-} from "@momoi/database/test/mock-factory";
+    createMockCourse, createMockCourseOffering, createMockInstance, createMockPVETemplate,
+    createMockPVEVM, createMockSemester, resetMockFactoryCounters
+} from '@momoi/database/test/mock-factory';
 
-import { instanceRoute } from "../instance";
+import { instanceRoute } from '../instance';
 
 describe("Instance Route - Admin", () => {
   let mockPrisma: any;

@@ -1,7 +1,7 @@
-import { Elysia, t } from "elysia";
+import { Elysia, t } from 'elysia';
 
-import { PaginationRequest, PaginationResponse } from "./shared/pagination";
-import { TimestampResponse } from "./shared/timestamp";
+import { PaginationRequest, PaginationResponse } from './shared/pagination';
+import { TimestampResponse } from './shared/timestamp';
 
 export const InstanceStatus = t.Union([
   t.Literal("PENDING", { description: "Instance is being set up" }),

@@ -1,9 +1,9 @@
-import { Pool } from "pg";
-import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from 'pg';
 
-import { env } from "@momoi/env";
+import { env } from '@momoi/env';
+import { PrismaPg } from '@prisma/adapter-pg';
 
-import { PrismaClient } from "./prisma/generated/client";
+import { PrismaClient } from './prisma/generated/client';
 
 export const prisma = new PrismaClient({
   adapter: new PrismaPg(

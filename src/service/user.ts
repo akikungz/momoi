@@ -1,11 +1,12 @@
 import { Static } from 'elysia';
 
+import {
+    PrismaClientKnownRequestError
+} from '@momoi/database/prisma/generated/internal/prismaNamespace';
+import { addSSHKeyResponse, getSSHKeyData, getSSHKeyResponse } from '@momoi/model/user';
+
 import type { CacheModule } from '@momoi/cache';
 import type { PrismaClient } from '@momoi/database/prisma/generated/client';
-
-import { PrismaClientKnownRequestError } from '@momoi/database/prisma/generated/internal/prismaNamespace';
-
-import { addSSHKeyResponse, getSSHKeyData, getSSHKeyResponse } from '@momoi/model/user';
 
 export class UserService {
   constructor(

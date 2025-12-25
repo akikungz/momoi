@@ -5,15 +5,13 @@
  * This demonstrates how to test real application code using the mock Prisma utilities.
  */
 
-import { beforeEach, describe, expect, it } from "bun:test";
-import type { PrismaClient } from "@momoi/database";
-import {
-  createMockPrisma,
-  createMockUser,
-  createMockPlatformUser,
-  resetMockFactoryCounters
-} from "./index";
+import { beforeEach, describe, expect, it } from 'bun:test';
 
+import {
+    createMockPlatformUser, createMockPrisma, createMockUser, resetMockFactoryCounters
+} from './index';
+
+import type { PrismaClient } from "@momoi/database";
 // Example service that we want to test
 class UserService {
   constructor(private prisma: PrismaClient) { }

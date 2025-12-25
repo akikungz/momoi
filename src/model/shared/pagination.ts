@@ -1,4 +1,4 @@
-import { t } from "elysia";
+import { t } from 'elysia';
 
 export const PaginationRequest = t.Object({
   page: t.Optional(t.Number({ description: "Page number for pagination", default: 1 })),

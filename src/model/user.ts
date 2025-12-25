@@ -1,6 +1,7 @@
-import { Elysia, t } from "elysia";
-import { PaginationRequest, PaginationResponse } from "./shared/pagination";
-import { TimestampResponse } from "./shared/timestamp";
+import { Elysia, t } from 'elysia';
+
+import { PaginationRequest, PaginationResponse } from './shared/pagination';
+import { TimestampResponse } from './shared/timestamp';
 
 export const UserRole = t.Union([
   t.Literal("ADMIN"),

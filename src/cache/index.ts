@@ -1,5 +1,6 @@
-import { env } from "@momoi/env";
-import { Redis } from "ioredis";
+import { Redis } from 'ioredis';
+
+import { env } from '@momoi/env';
 
 export class CacheModule {
   public client: Redis | undefined;
