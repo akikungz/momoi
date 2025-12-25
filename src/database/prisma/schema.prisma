@@ -290,9 +290,9 @@ model Instance {
   pveTemplate   PVETemplate @relation(fields: [pveTemplateId], references: [id], onDelete: Restrict)
 
   // Specs copied from Request on approval
-  cpus     Int?
-  memoryMB Int?
-  diskGB   Int?
+  cpus     Int
+  memoryMB Int
+  diskGB   Int
 
   courseOfferingId Int?
   courseOffering   CourseOffering? @relation(fields: [courseOfferingId], references: [id], onDelete: Restrict)
@@ -443,12 +443,15 @@ model ExtendedRequestAuditLog {
 model PlatformSSHKey {
   id        Int          @id @default(autoincrement())
   name      String
-  publicKey String       @unique
+  publicKey String
   ownerId   Int
   owner     PlatformUser @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@unique([ownerId, name]) // Ensure unique key names per user
+  @@unique([ownerId, publicKey]) // Prevent duplicate keys for the same user
 }
 
 // --- End Platform SSH Key Models ---

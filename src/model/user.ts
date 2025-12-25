@@ -1,5 +1,6 @@
 import { Elysia, t } from "elysia";
 import { PaginationRequest, PaginationResponse } from "./shared/pagination";
+import { TimestampResponse } from "./shared/timestamp";
 
 export const UserRole = t.Union([
   t.Literal("ADMIN"),
@@ -18,8 +19,7 @@ export const getSSHKeyData = t.Object({
   id: t.Number({ description: "Unique identifier for the SSH key" }),
   name: t.String({ description: "Name of the SSH key" }),
   publicKey: t.String({ description: "Public key string" }),
-  createdAt: t.Date({ description: "Timestamp when the SSH key was created" }),
-  updatedAt: t.Date({ description: "Timestamp when the SSH key was last updated" }),
+  ...TimestampResponse.properties
 });
 
 export const getSSHKeyResponse = t.Object({
