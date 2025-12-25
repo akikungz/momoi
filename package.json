@@ -8,16 +8,19 @@
     "db:migrate": "prisma migrate dev"
   },
   "dependencies": {
-    "@prisma/adapter-libsql": "^7.2.0",
+    "@prisma/adapter-pg": "^7.2.0",
     "@prisma/client": "^7.2.0",
+    "@prisma/extension-accelerate": "^3.0.1",
     "better-auth": "^1.4.9",
     "elysia": "latest",
     "ioredis": "^5.8.2",
+    "pg": "^8.16.3",
     "prismabox": "^1.1.26",
     "zod": "^4.2.1"
   },
   "devDependencies": {
     "@elysiajs/eden": "^1.4.6",
+    "@types/pg": "^8.16.0",
     "bun-types": "latest",
     "prisma": "^7.2.0"
   },
