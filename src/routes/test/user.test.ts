@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'bun:test';
 
 import { treaty } from '@elysiajs/eden';
 import {
-    mockAdminAuth, mockInstructorAuth, mockOtherAuth, mockStudentAuth
+  mockAdminAuth, mockInstructorAuth, mockOtherAuth, mockStudentAuth
 } from '@momoi/auth/mock';
 import { MockCache } from '@momoi/cache/mock';
 import { createMockPrisma } from '@momoi/database/test';

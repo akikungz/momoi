@@ -8,7 +8,7 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
 
 import {
-    createMockPlatformUser, createMockPrisma, createMockUser, resetMockFactoryCounters
+  createMockPlatformUser, createMockPrisma, createMockUser, resetMockFactoryCounters
 } from './index';
 
 import type { PrismaClient } from "@momoi/database";

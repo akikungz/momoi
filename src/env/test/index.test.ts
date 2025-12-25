@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 
 import {
-    DatabaseEnvSchema, EnvSchema, GeneralEnvSchema, SecretEnvSchema, TelemetryEnvSchema
+  DatabaseEnvSchema, EnvSchema, GeneralEnvSchema, SecretEnvSchema, TelemetryEnvSchema
 } from '../';
 
 describe("GeneralEnvSchema", () => {

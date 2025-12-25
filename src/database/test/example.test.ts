@@ -2,8 +2,8 @@
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
 
 import {
-    createMockInstance, createMockPlatformUser, createMockScenario, createMockUser,
-    resetMockFactoryCounters
+  createMockInstance, createMockPlatformUser, createMockScenario, createMockUser,
+  resetMockFactoryCounters
 } from './mock-factory';
 import { createMockPrisma } from './mock-prisma';
 
