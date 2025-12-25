@@ -36,6 +36,8 @@ export const addSSHKeyRequestBody = t.Object({
   publicKey: t.String({ description: "Public key string" }),
 });
 
+export const addSSHKeyResponse = getSSHKeyData;
+
 export const removeSSHKeyRequestBody = t.Object({
   keyIds: t.Array(t.Number(), { description: "Unique identifiers for the SSH keys to be removed" }),
 });
@@ -46,4 +48,5 @@ export const userModel = new Elysia({ name: "user.model" })
   .model("GetSSHKeyResponse", getSSHKeyResponse)
   .model("GetSSHKeyRequestQuery", getSSHKeyRequestQuery)
   .model("AddSSHKeyRequestBody", addSSHKeyRequestBody)
+  .model("AddSSHKeyResponse", addSSHKeyResponse)
   .model("RemoveSSHKeyRequestBody", removeSSHKeyRequestBody);

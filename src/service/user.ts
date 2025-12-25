@@ -3,8 +3,9 @@ import { Static } from 'elysia';
 import type { CacheModule } from '@momoi/cache';
 import type { PrismaClient } from '@momoi/database/prisma/generated/client';
 
-import { getSSHKeyData, getSSHKeyResponse } from '@momoi/model/user';
 import { PrismaClientKnownRequestError } from '@momoi/database/prisma/generated/internal/prismaNamespace';
+
+import { addSSHKeyResponse, getSSHKeyData, getSSHKeyResponse } from '@momoi/model/user';
 
 export class UserService {
   constructor(
@@ -12,7 +13,7 @@ export class UserService {
     private cache: CacheModule,
   ) { }
 
-  async addSSHKey(userId: number, name: string, publicKey: string): Promise<Static<typeof getSSHKeyData>> {
+  async addSSHKey(userId: number, name: string, publicKey: string): Promise<Static<typeof addSSHKeyResponse>> {
     try {
       const sshKey = await this.prisma.platformSSHKey.create({
         data: {

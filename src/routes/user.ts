@@ -37,7 +37,7 @@ export const userRoute = (
   }, {
     body: "AddSSHKeyRequestBody",
     response: {
-      200: "GetSSHKeyData",
+      200: "AddSSHKeyResponse",
     },
   })
   .delete("/ssh-keys", async ({ userService, user, body }) => {
