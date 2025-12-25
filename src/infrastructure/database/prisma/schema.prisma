@@ -1,0 +1,457 @@
+generator client {
+  provider   = "prisma-client"
+  output     = "./generated"
+  engineType = "client"
+  runtime    = "bun"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+generator prismabox {
+  provider                    = "prismabox"
+  typeboxImportDependencyName = "elysia"
+  typeboxImportVariableName   = "t"
+  inputModel                  = true
+  output                      = "./prismabox"
+}
+
+// --- BetterAuth Models ---
+
+model User {
+  id            String   @id
+  name          String
+  email         String
+  emailVerified Boolean  @default(false)
+  image         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  sessions     Session[]
+  accounts     Account[]
+  platformUser PlatformUser?
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// --- End BetterAuth Models ---
+
+// --- PlatformUser Models ---
+
+enum PlatformRole {
+  ADMIN
+  INSTRUCTOR
+  STUDENT
+}
+
+model PlatformUser {
+  id     Int          @id @default(autoincrement())
+  userId String       @unique
+  user   User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  role   PlatformRole @default(STUDENT)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  courses                  Course[]                  @relation("CourseInstructors")
+  instances                Instance[]
+  requestsAsRequester      Request[]                 @relation("Requester")
+  requestsAsReviewer       Request[]                 @relation("Reviewer")
+  extendedRequests         ExtendedRequest[]         @relation("Requester")
+  extendedReviews          ExtendedRequest[]         @relation("Reviewer")
+  requestAuditLogs         RequestAuditLog[]
+  extendedRequestAuditLogs ExtendedRequestAuditLog[]
+  instanceAuditLogs        InstanceAuditLog[]
+  platformSSHKeys          PlatformSSHKey[]
+
+  @@map("platform_user")
+}
+
+// For searching instructors if instructor first time login
+model InstructorSearch {
+  id    Int    @id @default(autoincrement())
+  email String @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("instructor_search")
+}
+
+// --- End PlatformUser Models ---
+
+// --- Academic Models ---
+
+model Course {
+  id          Int     @id @default(autoincrement())
+  code        String  @unique
+  title       String
+  description String?
+
+  instructors     PlatformUser[]   @relation("CourseInstructors")
+  courseOfferings CourseOffering[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Semester {
+  id        Int      @id @default(autoincrement())
+  name      String
+  startDate DateTime
+  endDate   DateTime
+
+  courseOfferings CourseOffering[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CourseOffering {
+  id         Int      @id @default(autoincrement())
+  courseId   Int
+  course     Course   @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  semesterId Int
+  semester   Semester @relation(fields: [semesterId], references: [id], onDelete: Restrict)
+
+  instances Instance[]
+  requests  Request[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([courseId, semesterId])
+}
+
+// --- End Academic Models ---
+
+// --- Proxmox Models ---
+
+model PVENode {
+  id        Int    @id @default(autoincrement())
+  name      String @unique
+  ipAddress String @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  pveVMs PVEVM[]
+}
+
+model PVENetwork {
+  id      Int    @id @default(autoincrement())
+  name    String
+  subnet  String
+  gateway String
+
+  pveNetworkIPs PVENetworkIP[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PVENetworkIP {
+  id           Int        @id @default(autoincrement())
+  ipAddress    String     @unique
+  isAllocated  Boolean    @default(false)
+  pveNetworkId Int
+  pveNetwork   PVENetwork @relation(fields: [pveNetworkId], references: [id], onDelete: Cascade)
+
+  pveVMs PVEVM[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum PVEVMStatus {
+  RUNNING
+  STOPPED
+  SUSPENDED
+}
+
+enum PVEVMType {
+  QEMU
+  LXC
+}
+
+model PVETemplate {
+  id          Int       @id @default(autoincrement())
+  name        String
+  description String?
+  vmId        Int       @unique
+  type        PVEVMType
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  instances Instance[]
+  requests  Request[]
+}
+
+model PVEVM {
+  id       Int         @id @default(autoincrement())
+  vmId     Int         @unique
+  hostname String      @unique // Auto-generated hostname by worker
+  status   PVEVMStatus @default(STOPPED)
+  type     PVEVMType   @default(QEMU)
+
+  pveNodeId      Int
+  pveNode        PVENode       @relation(fields: [pveNodeId], references: [id], onDelete: Restrict)
+  pveNetworkIPId Int?          @unique
+  pveNetworkIP   PVENetworkIP? @relation(fields: [pveNetworkIPId], references: [id], onDelete: SetNull)
+
+  instances Instance[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// --- End Proxmox Models ---
+
+// --- Instance Models ---
+
+enum InstanceStatus {
+  PENDING // Instance is being prepared
+  ACTIVE // Instance is usable
+  PROMOTED // Instance is promoted to long-term / production use
+  INACTIVE // Active but not in use anymore and going to be deleted
+  DELETED // Instance is deleted
+}
+
+enum InstanceProvisionStatus {
+  NOT_STARTED // Provisioning not started
+  QUEUED // Waiting in queue
+  PROVISIONING // Currently being provisioned
+  COMPLETED // Successfully provisioned
+  FAILED // Provisioning failed
+}
+
+model Instance {
+  id Int @id @default(autoincrement())
+
+  platformUserId Int
+  platformUser   PlatformUser @relation(fields: [platformUserId], references: [id], onDelete: Restrict)
+
+  pveVMId Int?
+  pveVM   PVEVM? @relation(fields: [pveVMId], references: [id], onDelete: SetNull)
+
+  pveTemplateId Int
+  pveTemplate   PVETemplate @relation(fields: [pveTemplateId], references: [id], onDelete: Restrict)
+
+  // Specs copied from Request on approval
+  cpus     Int?
+  memoryMB Int?
+  diskGB   Int?
+
+  courseOfferingId Int?
+  courseOffering   CourseOffering? @relation(fields: [courseOfferingId], references: [id], onDelete: Restrict)
+
+  requestId Int?     @unique
+  request   Request? @relation(fields: [requestId], references: [id], onDelete: Restrict)
+
+  // Business status
+  status          InstanceStatus          @default(PENDING)
+  // Infrastructure status
+  provisionStatus InstanceProvisionStatus @default(NOT_STARTED)
+  provisionError  String?
+
+  extendedRequests       ExtendedRequest[]
+  instanceAuditLogs      InstanceAuditLog[]
+  instanceReverseProxies InstanceReverseProxy[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([platformUserId, courseOfferingId])
+  @@index([status, provisionStatus])
+}
+
+enum ReverseProxyType {
+  HTTPS // HTTPS reverse proxy
+  HTTP // HTTP reverse proxy
+}
+
+model InstanceReverseProxy {
+  id          Int              @id @default(autoincrement())
+  targetPort  Int
+  type        ReverseProxyType @default(HTTPS)
+  description String?
+
+  instanceId Int
+  instance   Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([instanceId, targetPort]) // Ensure no duplicate reverse proxies for the same instance and port
+}
+
+model InstanceAuditLog {
+  id            Int          @id @default(autoincrement())
+  instanceId    Int
+  instance      Instance     @relation(fields: [instanceId], references: [id], onDelete: Restrict)
+  action        String
+  performedById Int
+  performedBy   PlatformUser @relation(fields: [performedById], references: [id], onDelete: Restrict)
+  timestamp     DateTime     @default(now())
+  notes         String?
+}
+
+// --- End Instance Models ---
+
+// --- Approval Models ---
+
+enum ApprovalStatus {
+  PENDING // Waiting for review
+  APPROVED // Approved for provisioning
+  REJECTED // Rejected
+  CANCELLED // Cancelled by requester
+}
+
+model Request {
+  id          Int     @id @default(autoincrement())
+  title       String
+  description String?
+
+  courseOfferingId Int
+  courseOffering   CourseOffering @relation(fields: [courseOfferingId], references: [id], onDelete: Restrict)
+
+  pveTemplateId Int
+  pveTemplate   PVETemplate @relation(fields: [pveTemplateId], references: [id], onDelete: Restrict)
+
+  // Spec
+  cpus     Int
+  memoryMB Int
+  diskGB   Int
+
+  requesterId Int
+  requester   PlatformUser @relation("Requester", fields: [requesterId], references: [id], onDelete: Restrict)
+
+  reviewerId Int?
+  reviewer   PlatformUser? @relation("Reviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
+
+  status ApprovalStatus @default(PENDING)
+  reason String?
+
+  requestAuditLogs RequestAuditLog[]
+  instance         Instance?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ExtendedRequest {
+  id          Int     @id @default(autoincrement())
+  title       String
+  description String?
+
+  targetInstanceId Int
+  targetInstance   Instance @relation(fields: [targetInstanceId], references: [id], onDelete: Restrict)
+
+  requesterId Int
+  requester   PlatformUser @relation("Requester", fields: [requesterId], references: [id], onDelete: Restrict)
+
+  reviewerId Int?
+  reviewer   PlatformUser? @relation("Reviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
+
+  status ApprovalStatus @default(PENDING)
+  reason String?
+
+  extendedRequestAuditLogs ExtendedRequestAuditLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RequestAuditLog {
+  id            Int            @id @default(autoincrement())
+  requestId     Int
+  request       Request        @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  action        ApprovalStatus
+  performedById Int
+  performedBy   PlatformUser   @relation(fields: [performedById], references: [id], onDelete: Restrict)
+  timestamp     DateTime       @default(now())
+  notes         String?
+}
+
+model ExtendedRequestAuditLog {
+  id                Int             @id @default(autoincrement())
+  extendedRequestId Int
+  extendedRequest   ExtendedRequest @relation(fields: [extendedRequestId], references: [id], onDelete: Restrict)
+  action            ApprovalStatus
+  performedById     Int
+  performedBy       PlatformUser    @relation(fields: [performedById], references: [id], onDelete: Restrict)
+  timestamp         DateTime        @default(now())
+  notes             String?
+}
+
+// --- End Approval Models ---
+
+// --- Platform SSH Key Models ---
+
+model PlatformSSHKey {
+  id        Int          @id @default(autoincrement())
+  name      String
+  publicKey String       @unique
+  ownerId   Int
+  owner     PlatformUser @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// --- End Platform SSH Key Models ---
+
+// --- Object Storage Models ---
+// (To be implemented)

@@ -6,10 +6,14 @@
     "dev": "bun run --watch src/index.ts"
   },
   "dependencies": {
-    "elysia": "latest"
+    "@prisma/client": "^7.2.0",
+    "elysia": "latest",
+    "prismabox": "^1.1.26",
+    "zod": "^4.2.1"
   },
   "devDependencies": {
-    "bun-types": "latest"
+    "bun-types": "latest",
+    "prisma": "^7.2.0"
   },
   "module": "src/index.js"
 }
