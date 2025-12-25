@@ -3,6 +3,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { customSession, openAPI } from "better-auth/plugins";
 import { Elysia } from "elysia";
 
+import { CacheModule } from "@momoi/cache";
 import { prisma } from "@momoi/database";
 
 import { env } from "@momoi/env";
@@ -99,9 +100,18 @@ export const authHandler = new Elysia({ name: "auth.handler" })
   .mount("/auth", auth.handler);
 
 export const authMacro = new Elysia({ name: "auth.macro" })
+  .decorate("cache", new CacheModule())
   .macro({
     auth: {
-      resolve: async ({ status, request: { headers } }) => {
+      resolve: async ({ status, request: { headers }, cache }) => {
+        // Try to get session from cache first
+        const cacheKey = `session:${headers.get("authorization") || ""}`;
+        const cachedSession = await cache.getCacheValue(cacheKey);
+
+        if (cachedSession) {
+          return JSON.parse(cachedSession);
+        }
+
         const session = await auth.api.getSession({
           headers
         });
@@ -110,14 +120,15 @@ export const authMacro = new Elysia({ name: "auth.macro" })
           return status(401, "Unauthorized: No active session or invalid account");
         }
 
+        // Store session in cache
+        await cache.createCacheKey(cacheKey, JSON.stringify(session), 3600); // Cache for 60 minutes
+
         return session;
       }
     }
   });
 
-export const authGuard = (
-  macro: typeof authMacro | MockAuth = authMacro
-) => new Elysia({ name: "auth.guard" })
+export const authGuard = (macro: typeof authMacro | MockAuth = authMacro) => new Elysia({ name: "auth.guard" })
   .use(macro)
   .guard({ auth: true })
   .macro({
@@ -134,7 +145,7 @@ export const authGuard = (
     isInstructor: {
       resolve: async ({ user, status }) => {
         if (!user) return status(401, "Unauthorized: No active session or invalid account");
-        if (user.role !== "INSTRUCTOR") {
+        if (user.role === "STUDENT") {
           return status(403, "Forbidden: Instructors only");
         }
 
