@@ -83,6 +83,8 @@ export function createMockPrisma() {
  * Creates a mock for a Prisma model with all standard CRUD operations.
  */
 function createModelMock() {
+  let idCounter = 0;
+
   return {
     findUnique: mock(async () => null),
     findUniqueOrThrow: mock(async () => {
@@ -93,7 +95,13 @@ function createModelMock() {
       throw new Error("Record not found");
     }),
     findMany: mock(async () => []),
-    create: mock(async (data: any) => data.data),
+    create: mock(async (data: any) => {
+      const record = { ...data.data };
+      if (!record.id) {
+        record.id = ++idCounter;
+      }
+      return record;
+    }),
     createMany: mock(async () => ({ count: 0 })),
     update: mock(async (data: any) => data.data),
     updateMany: mock(async () => ({ count: 0 })),
