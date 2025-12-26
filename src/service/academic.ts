@@ -98,6 +98,8 @@ export class AcademicService {
         if (error.code === 'P2002') {
           throw new Error('This email is already in the mailing list.');
         }
+
+        throw new Error(`Database error: ${error.message}`);
       }
       throw new Error('Failed to add instructor mailing list entry.');
     }
@@ -113,6 +115,8 @@ export class AcademicService {
         if (error.code === 'P2025') {
           throw new Error('Mailing list entry not found.');
         }
+
+        throw new Error(`Database error: ${error.message}`);
       }
       throw new Error('Failed to remove instructor mailing list entry.');
     }
@@ -268,8 +272,10 @@ export class AcademicService {
         if (error.code === 'P2025') {
           throw new Error('Instructor not found.');
         }
+
+        throw new Error(`Database error: ${error.message}`);
       }
-      if (error instanceof Error) throw error;
+
       throw new Error('Failed to edit instructor.');
     }
   }
@@ -408,7 +414,10 @@ export class AcademicService {
         if (error.code === 'P2025') {
           throw new Error('Course not found.');
         }
+
+        throw new Error(`Database error: ${error.message}`);
       }
+
       throw new Error('Failed to edit course.');
     }
   }
@@ -465,7 +474,10 @@ export class AcademicService {
         if (error.code === 'P2025') {
           throw new Error('Course not found.');
         }
+
+        throw new Error(`Database error: ${error.message}`);
       }
+
       throw new Error('Failed to update course instructors.');
     }
   }
@@ -521,8 +533,10 @@ export class AcademicService {
         if (error.code === 'P2025') {
           throw new Error('Course not found.');
         }
+
+        throw new Error(`Database error: ${error.message}`);
       }
-      if (error instanceof Error) throw error;
+
       throw new Error('Failed to update course semesters.');
     }
   }
@@ -645,7 +659,10 @@ export class AcademicService {
         if (error.code === 'P2025') {
           throw new Error('Semester not found.');
         }
+
+        throw new Error(`Database error: ${error.message}`);
       }
+
       throw new Error('Failed to edit semester.');
     }
   }
@@ -701,8 +718,10 @@ export class AcademicService {
         if (error.code === 'P2025') {
           throw new Error('Semester not found.');
         }
+
+        throw new Error(`Database error: ${error.message}`);
       }
-      if (error instanceof Error) throw error;
+
       throw new Error('Failed to update semester courses.');
     }
   }
@@ -733,7 +752,10 @@ export class AcademicService {
         if (error.code === 'P2025') {
           throw new Error('Semester not found.');
         }
+
+        throw new Error(`Database error: ${error.message}`);
       }
+
       throw new Error('Failed to delete semester.');
     }
   }
