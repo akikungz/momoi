@@ -34,6 +34,7 @@ model User {
   platformUser PlatformUser?
 
   @@unique([email])
+  @@index([email])
   @@map("user")
 }
 
@@ -115,17 +116,20 @@ model PlatformUser {
   instanceAuditLogs        InstanceAuditLog[]
   platformSSHKeys          PlatformSSHKey[]
 
+  @@index([userId, role]) // For quick lookup by userId and role
   @@map("platform_user")
 }
 
 // For searching instructors if instructor first time login
 model InstructorSearch {
-  id    Int    @id @default(autoincrement())
-  email String @unique
+  id             Int     @id @default(autoincrement())
+  email          String  @unique
+  havePlatformId Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([email])
   @@map("instructor_search")
 }
 
@@ -138,12 +142,15 @@ model Course {
   code        String  @unique
   title       String
   description String?
+  isActive    Boolean @default(true)
 
   instructors     PlatformUser[]   @relation("CourseInstructors")
   courseOfferings CourseOffering[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([code, isActive])
 }
 
 model Semester {
@@ -151,6 +158,7 @@ model Semester {
   name      String
   startDate DateTime
   endDate   DateTime
+  isCurrent Boolean  @default(false)
 
   courseOfferings CourseOffering[]
 

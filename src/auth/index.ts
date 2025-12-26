@@ -60,7 +60,10 @@ export const auth = betterAuth({
         let userId = user.id;
         if (isInstructorEmail(user.email)) {
           const findMailListing = await prisma.instructorSearch.findUnique({
-            where: { email: user.email },
+            where: {
+              email: user.email,
+              havePlatformId: false
+            },
           });
 
           if (!findMailListing) {
@@ -72,6 +75,11 @@ export const auth = betterAuth({
               userId,
               role: "INSTRUCTOR",
             },
+          });
+
+          await prisma.instructorSearch.update({
+            where: { email: user.email },
+            data: { havePlatformId: true },
           });
         } else {
           platfromUser = await prisma.platformUser.create({
