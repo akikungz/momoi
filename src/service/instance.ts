@@ -55,6 +55,9 @@ export class InstanceService {
       const cacheKeyPattern = `user:${userId}:instances:*`;
       await this.cache.deleteCacheByPattern(cacheKeyPattern);
 
+      // TODO: Trigger background job to provision the instance VM
+      console.log(`Triggering VM provisioning for instance ID: ${instance.id}`);
+
       return {
         id: instance.id,
         courseOffering: instance.courseOffering ? {
@@ -546,6 +549,9 @@ export class InstanceService {
       // Clear relevant cache entries
       const cacheKey = `instance:${instanceId}`;
       await this.cache.deleteCacheByPattern(cacheKey);
+
+      // TODO: Trigger background job to deprovision the instance VM
+      console.log(`Change state to INACTIVE of instance ID: ${instanceId}`);
 
       return { success: true };
     } catch (error: unknown) {
