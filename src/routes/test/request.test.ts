@@ -209,7 +209,16 @@ describe("Request Route", () => {
     const client = treaty(requestRoute(mockPrisma, mockCache as any, mockStudentAuth));
 
     const instance = createMockInstance({ id: 50, platformUserId: 3 });
-    mockPrisma.instance.findUnique.mockResolvedValueOnce({ platformUserId: instance.platformUserId });
+    const currentSemesterEnd = new Date('2024-05-30T00:00:00.000Z');
+    mockPrisma.instance.findUnique.mockResolvedValueOnce({
+      platformUserId: instance.platformUserId,
+      courseOffering: {
+        semester: { id: 201, endDate: currentSemesterEnd },
+      }
+    });
+
+    const nextSemester = { id: 202, name: "Fall 2024", startDate: new Date('2024-08-15T00:00:00.000Z'), endDate: new Date('2024-12-20T00:00:00.000Z') };
+    mockPrisma.semester.findFirst.mockResolvedValueOnce(nextSemester);
 
     mockPrisma.extendedRequest.create.mockResolvedValueOnce({
       id: 60,
@@ -220,6 +229,7 @@ describe("Request Route", () => {
       targetInstanceId: instance.id,
       requesterId: 3,
       reviewerId: null,
+      nextSemester,
       targetInstance: {
         id: instance.id,
         courseOffering: {

@@ -217,7 +217,16 @@ describe("RequestService", () => {
   it("creates extended request when student owns instance", async () => {
     const ownerId = 5;
     const instance = createMockInstance({ id: 22, platformUserId: ownerId });
-    mockPrisma.instance.findUnique.mockResolvedValueOnce({ platformUserId: instance.platformUserId });
+    const currentSemesterEnd = new Date('2024-05-31T00:00:00.000Z');
+    mockPrisma.instance.findUnique.mockResolvedValueOnce({
+      platformUserId: instance.platformUserId,
+      courseOffering: {
+        semester: { id: 91, endDate: currentSemesterEnd },
+      }
+    });
+
+    const nextSemester = { id: 101, name: "Fall 2024", startDate: new Date('2024-08-15T00:00:00.000Z'), endDate: new Date('2024-12-20T00:00:00.000Z') };
+    mockPrisma.semester.findFirst.mockResolvedValueOnce(nextSemester);
 
     mockPrisma.extendedRequest.create.mockResolvedValueOnce({
       id: 30,
@@ -228,6 +237,7 @@ describe("RequestService", () => {
       targetInstanceId: instance.id,
       requesterId: ownerId,
       reviewerId: null,
+      nextSemester,
       targetInstance: {
         id: instance.id,
         courseOffering: {
@@ -247,6 +257,31 @@ describe("RequestService", () => {
 
     expect(result.id).toBe(30);
     expect(result.targetInstanceId).toBe(instance.id);
+    expect(mockPrisma.extendedRequest.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ nextSemesterId: nextSemester.id })
+    }));
+    expect(result.nextSemester?.id).toBe(nextSemester.id);
+  });
+
+  it("throws when no upcoming semester exists", async () => {
+    const ownerId = 6;
+    const instance = createMockInstance({ id: 23, platformUserId: ownerId });
+    const currentSemesterEnd = new Date('2024-05-31T00:00:00.000Z');
+
+    mockPrisma.instance.findUnique.mockResolvedValueOnce({
+      platformUserId: instance.platformUserId,
+      courseOffering: {
+        semester: { id: 92, endDate: currentSemesterEnd },
+      }
+    });
+
+    mockPrisma.semester.findFirst.mockResolvedValueOnce(null);
+
+    await expect(requestService.createExtendedRequest(ownerId, {
+      title: "Extend",
+      description: "more time",
+      targetInstanceId: instance.id,
+    } as any)).rejects.toThrow('No upcoming semester found for this extended request.');
   });
 
   it("rejects extended request when not owner", async () => {

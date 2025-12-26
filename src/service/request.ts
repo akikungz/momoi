@@ -47,6 +47,14 @@ const extendedRequestSelect = {
   targetInstanceId: true,
   requesterId: true,
   reviewerId: true,
+  nextSemester: {
+    select: {
+      id: true,
+      name: true,
+      startDate: true,
+      endDate: true,
+    }
+  },
   targetInstance: {
     select: {
       id: true,
@@ -189,6 +197,10 @@ export class RequestService {
       })
     ]);
 
+    if (updated.status === ApprovalActionStatus.APPROVED) {
+      // TODO: Trigger instance provisioning workflow
+    }
+
     await this.invalidateRequestCaches(request.requesterId);
 
     return this.mapRequest(updated);
@@ -197,11 +209,36 @@ export class RequestService {
   public async createExtendedRequest(userId: number, body: Static<typeof CreateExtendedRequestRequestBody>): Promise<Static<typeof CreateExtendedRequestResponse>> {
     const targetInstance = await this.prisma.instance.findUnique({
       where: { id: body.targetInstanceId },
-      select: { platformUserId: true },
+      select: {
+        platformUserId: true,
+        courseOffering: {
+          select: {
+            semester: {
+              select: { id: true, endDate: true },
+            }
+          }
+        }
+      },
     });
 
     if (!targetInstance || targetInstance.platformUserId !== userId) {
       throw new Error('Instance not found or not owned by the user.');
+    }
+
+    const currentSemesterEndDate = targetInstance.courseOffering?.semester?.endDate;
+    if (!currentSemesterEndDate) {
+      throw new Error('Unable to determine current semester for the instance.');
+    }
+
+    const nextSemester = await this.prisma.semester.findFirst({
+      where: {
+        startDate: { gte: currentSemesterEndDate },
+      },
+      orderBy: { startDate: 'asc' },
+    });
+
+    if (!nextSemester) {
+      throw new Error('No upcoming semester found for this extended request.');
     }
 
     try {
@@ -211,6 +248,7 @@ export class RequestService {
           description: body.description,
           targetInstanceId: body.targetInstanceId,
           requesterId: userId,
+          nextSemesterId: nextSemester.id,
         },
         select: extendedRequestSelect,
       });
@@ -320,6 +358,10 @@ export class RequestService {
         }
       })
     ]);
+
+    if (updated.status === ApprovalActionStatus.APPROVED) {
+      // TODO: Apply semester into the target instance
+    }
 
     await this.invalidateRequestCaches(extendedRequest.requesterId);
 
@@ -450,6 +492,12 @@ export class RequestService {
         courseCode: extendedRequest.targetInstance.courseOffering.course.code,
         courseTitle: extendedRequest.targetInstance.courseOffering.course.title,
         semester: extendedRequest.targetInstance.courseOffering.semester.name,
+      } : undefined,
+      nextSemester: extendedRequest.nextSemester ? {
+        id: extendedRequest.nextSemester.id,
+        name: extendedRequest.nextSemester.name,
+        startDate: extendedRequest.nextSemester.startDate,
+        endDate: extendedRequest.nextSemester.endDate,
       } : undefined,
       requesterId: extendedRequest.requesterId,
       reviewerId: extendedRequest.reviewerId ?? undefined,

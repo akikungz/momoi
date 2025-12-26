@@ -22,6 +22,13 @@ export const CourseOfferingSummary = t.Object({
   semester: t.String({ description: "Semester name" }),
 }, { description: "Summary of a course offering" });
 
+export const SemesterSummary = t.Object({
+  id: t.Number({ description: "Semester ID" }),
+  name: t.String({ description: "Semester name" }),
+  startDate: t.Date({ description: "Semester start date" }),
+  endDate: t.Date({ description: "Semester end date" }),
+}, { description: "Summary of a semester" });
+
 export const RequestSpecs = t.Object({
   cpus: t.Number({ description: "Number of CPUs requested" }),
   memoryMB: t.Number({ description: "Memory requested in MB" }),
@@ -80,6 +87,7 @@ export const ExtendedRequestItem = t.Object({
   reason: t.Optional(t.String({ description: "Reviewer or requester note" })),
   targetInstanceId: t.Number({ description: "Target instance ID" }),
   courseOffering: t.Optional(CourseOfferingSummary),
+  nextSemester: t.Optional(SemesterSummary),
   requesterId: t.Number({ description: "Requester platform user ID" }),
   reviewerId: t.Optional(t.Number({ description: "Reviewer platform user ID" })),
   ...TimestampResponse.properties,

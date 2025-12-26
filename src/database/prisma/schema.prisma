@@ -161,9 +161,11 @@ model Semester {
   isCurrent Boolean  @default(false)
 
   courseOfferings CourseOffering[]
+  instances       Instance[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  extendedRequests ExtendedRequest[]
 }
 
 model CourseOffering {
@@ -318,8 +320,10 @@ model Instance {
   instanceAuditLogs      InstanceAuditLog[]
   instanceReverseProxies InstanceReverseProxy[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  semester   Semester? @relation(fields: [semesterId], references: [id])
+  semesterId Int?
 
   @@unique([platformUserId, courseOfferingId])
   @@index([status, provisionStatus])
@@ -406,6 +410,9 @@ model ExtendedRequest {
 
   targetInstanceId Int
   targetInstance   Instance @relation(fields: [targetInstanceId], references: [id], onDelete: Restrict)
+
+  nextSemesterId Int
+  nextSemester   Semester @relation(fields: [nextSemesterId], references: [id], onDelete: Restrict)
 
   requesterId Int
   requester   PlatformUser @relation("Requester", fields: [requesterId], references: [id], onDelete: Restrict)

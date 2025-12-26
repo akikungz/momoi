@@ -216,15 +216,16 @@ export class AcademicService {
   }
 
   public async editInstructorById(instructorId: number, body: Static<typeof EditInstructorByIdRequestBody>): Promise<Static<typeof EditInstructorByIdResponse>> {
-    try {
-      const existing = await this.prisma.platformUser.findUnique({
-        where: { id: instructorId },
-        select: { id: true, courses: { select: { id: true } } },
-      });
+    const existing = await this.prisma.platformUser.findUnique({
+      where: { id: instructorId },
+      select: { id: true, courses: { select: { id: true } } },
+    });
 
-      if (!existing) {
-        throw new Error('Instructor not found.');
-      }
+    if (!existing) {
+      throw new Error('Instructor not found.');
+    }
+
+    try {
 
       const updated = await this.prisma.platformUser.update({
         where: { id: instructorId },
@@ -484,11 +485,12 @@ export class AcademicService {
   }
 
   public async editCourseSemesters(courseId: number, body: Static<typeof EditCourseSemesterRequestBody>): Promise<Static<typeof EditCourseSemesterResponse>> {
+    const semesters = await this.prisma.semester.findMany({ where: { id: { in: body.semesterIds } } });
+    if (semesters.length !== body.semesterIds.length) {
+      throw new Error('One or more semesters not found.');
+    }
+
     try {
-      const semesters = await this.prisma.semester.findMany({ where: { id: { in: body.semesterIds } } });
-      if (semesters.length !== body.semesterIds.length) {
-        throw new Error('One or more semesters not found.');
-      }
 
       const existingOfferings = await this.prisma.courseOffering.findMany({
         where: { courseId },
@@ -669,11 +671,12 @@ export class AcademicService {
   }
 
   public async editSemesterCourses(semesterId: number, body: Static<typeof EditSemesterCourseRequestBody>): Promise<Static<typeof EditSemesterCourseResponse>> {
+    const courses = await this.prisma.course.findMany({ where: { id: { in: body.courseIds } } });
+    if (courses.length !== body.courseIds.length) {
+      throw new Error('One or more courses not found.');
+    }
+
     try {
-      const courses = await this.prisma.course.findMany({ where: { id: { in: body.courseIds } } });
-      if (courses.length !== body.courseIds.length) {
-        throw new Error('One or more courses not found.');
-      }
 
       const existingOfferings = await this.prisma.courseOffering.findMany({
         where: { semesterId },
