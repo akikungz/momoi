@@ -8,13 +8,14 @@ import {
   AddInstructorMailingListResponse, AddSemesterRequestBody, AddSemesterResponse,
   CourseByIdRequestParams, DeleteSemesterByIdResponse, EditCourseByIdRequestBody,
   EditCourseInstructorRequestBody, EditCourseInstructorResponse, EditCourseSemesterRequestBody,
-  EditCourseSemesterResponse, EditInstructorByIdRequestBody, EditInstructorByIdResponse, EditSemesterByIdRequestBody, EditSemesterByIdResponse,
-  EditSemesterCourseRequestBody, EditSemesterCourseResponse, GetCourseByIdResponse,
-  GetCoursesRequestQuery, GetCoursesResponse, GetInstructorByIdResponse,
-  GetInstructorMailingListQuery, GetInstructorMailingListResponse, GetInstructorsRequestQuery,
-  GetInstructorsResponse, GetSemesterByIdResponse, GetSemestersRequestQuery, GetSemestersResponse,
-  InstructorByIdRequestParams, InstructorMailingListValue, InstructorValue,
-  RemoveInstructorMailingListResponse, SemesterByIdRequestParams, SemesterValue
+  EditCourseSemesterResponse, EditInstructorByIdRequestBody, EditInstructorByIdResponse,
+  EditSemesterByIdRequestBody, EditSemesterByIdResponse, EditSemesterCourseRequestBody,
+  EditSemesterCourseResponse, GetCourseByIdResponse, GetCoursesRequestQuery, GetCoursesResponse,
+  GetInstructorByIdResponse, GetInstructorMailingListQuery, GetInstructorMailingListResponse,
+  GetInstructorsRequestQuery, GetInstructorsResponse, GetSemesterByIdResponse,
+  GetSemestersRequestQuery, GetSemestersResponse, InstructorByIdRequestParams,
+  InstructorMailingListValue, InstructorValue, RemoveInstructorMailingListResponse,
+  SemesterByIdRequestParams, SemesterValue
 } from '@momoi/model/academic';
 
 import type { CacheModule } from '@momoi/cache';

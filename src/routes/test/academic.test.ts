@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
 
 import { treaty } from '@elysiajs/eden';
-import { mockAdminAuth, mockInstructorAuth, mockOtherAuth, mockStudentAuth } from '@momoi/auth/mock';
+import {
+  mockAdminAuth, mockInstructorAuth, mockOtherAuth, mockStudentAuth
+} from '@momoi/auth/mock';
 import { MockCache } from '@momoi/cache/mock';
 import { createMockPrisma } from '@momoi/database/test';
-import { createMockCourse, createMockSemester, createMockPlatformUser, resetMockFactoryCounters } from '@momoi/database/test/mock-factory';
+import {
+  createMockCourse, createMockPlatformUser, createMockSemester, resetMockFactoryCounters
+} from '@momoi/database/test/mock-factory';
 
 import { academicRoute } from '../academic';
 

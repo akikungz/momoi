@@ -6,13 +6,8 @@ import {
 } from '@momoi/database/prisma/generated/internal/prismaNamespace';
 import { createMockPrisma } from '@momoi/database/test';
 import {
-  createMockCourse,
-  createMockCourseOffering,
-  createMockInstance,
-  createMockPlatformUser,
-  createMockPVETemplate,
-  createMockRequest,
-  resetMockFactoryCounters
+  createMockCourse, createMockCourseOffering, createMockInstance, createMockPlatformUser,
+  createMockPVETemplate, createMockRequest, resetMockFactoryCounters
 } from '@momoi/database/test/mock-factory';
 
 import { RequestService } from '../request';

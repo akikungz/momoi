@@ -5,10 +5,10 @@ import { openapi } from '@elysiajs/openapi';
 import { authHandler, authMacro } from './auth';
 import { CacheModule } from './cache';
 import { prisma } from './database';
-import { instanceRoute } from './routes/instance';
 import { academicRoute } from './routes/academic';
-import { userRoute } from './routes/user';
+import { instanceRoute } from './routes/instance';
 import { requestRoute } from './routes/request';
+import { userRoute } from './routes/user';
 
 const cache = new CacheModule();
 

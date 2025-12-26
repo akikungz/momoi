@@ -5,13 +5,8 @@ import { mockAdminAuth, mockInstructorAuth, mockStudentAuth } from '@momoi/auth/
 import { MockCache } from '@momoi/cache/mock';
 import { createMockPrisma } from '@momoi/database/test';
 import {
-  createMockCourse,
-  createMockCourseOffering,
-  createMockInstance,
-  createMockPlatformUser,
-  createMockRequest,
-  createMockPVETemplate,
-  resetMockFactoryCounters
+  createMockCourse, createMockCourseOffering, createMockInstance, createMockPlatformUser,
+  createMockPVETemplate, createMockRequest, resetMockFactoryCounters
 } from '@momoi/database/test/mock-factory';
 
 import { requestRoute } from '../request';
