@@ -21,7 +21,11 @@ export const userRoute = (
   }, {
     response: {
       200: "GetMeResponse",
-    }
+    },
+    detail: {
+      summary: "Get current user",
+      description: "Retrieve the profile information of the currently authenticated user",
+    },
   })
   .get("/ssh-keys", async ({ userService, user, query }) => {
     return userService.getSSHKeys(user.id, query.page, query.pageSize);
@@ -29,6 +33,10 @@ export const userRoute = (
     query: "GetSSHKeyRequestQuery",
     response: {
       200: "GetSSHKeyResponse",
+    },
+    detail: {
+      summary: "Get user SSH keys",
+      description: "Retrieve a paginated list of SSH keys for the current user",
     },
   })
   .post("/ssh-keys", async ({ userService, user, body }) => {
@@ -38,6 +46,10 @@ export const userRoute = (
     response: {
       200: "AddSSHKeyResponse",
     },
+    detail: {
+      summary: "Add SSH key",
+      description: "Add a new SSH public key to the current user's account",
+    },
   })
   .delete("/ssh-keys", async ({ userService, user, body }) => {
     return userService.removeSSHKey(user.id, body.keyIds);
@@ -45,5 +57,9 @@ export const userRoute = (
     body: "RemoveSSHKeyRequestBody",
     response: {
       200: t.Number({ description: "Number of SSH keys removed" }),
+    },
+    detail: {
+      summary: "Remove SSH keys",
+      description: "Remove one or more SSH keys from the current user's account",
     },
   });
