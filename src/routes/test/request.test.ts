@@ -108,7 +108,7 @@ describe("Request Route", () => {
       targetInstanceId: 123,
     });
 
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(404);
   });
 
   it("requester can cancel their request", async () => {
@@ -165,7 +165,44 @@ describe("Request Route", () => {
       reason: "no",
     });
 
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(403);
+  });
+
+  it("non-student cannot create request (403)", async () => {
+    const client = treaty(requestRoute(mockPrisma, mockCache as any, mockInstructorAuth));
+
+    const response = await client.requests.post({
+      title: "Need VM",
+      description: "For lab",
+      courseOfferingId: 1,
+      pveTemplateId: 1,
+      cpus: 2,
+      memoryMB: 2048,
+      diskGB: 30,
+    });
+
+    expect(response.status).toBe(403);
+    expect(response.data).toBeNull();
+  });
+
+  it("get request audit logs returns 404 when request missing", async () => {
+    const client = treaty(requestRoute(mockPrisma, mockCache as any, mockStudentAuth));
+
+    mockPrisma.request.findUnique.mockResolvedValueOnce(null);
+
+    const response = await client.requests({ requestId: 999 })['audit-logs'].get({ page: 1, pageSize: 10 });
+
+    expect(response.status).toBe(404);
+  });
+
+  it("get extended request audit logs returns 404 when extended request missing", async () => {
+    const client = treaty(requestRoute(mockPrisma, mockCache as any, mockStudentAuth));
+
+    mockPrisma.extendedRequest.findUnique.mockResolvedValueOnce(null);
+
+    const response = await client['extended-requests']({ extendedRequestId: 888 })['audit-logs'].get({ page: 1, pageSize: 10 });
+
+    expect(response.status).toBe(404);
   });
 
   it("admin can approve any request", async () => {

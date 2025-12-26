@@ -117,6 +117,40 @@ export const CreateExtendedRequestResponse = ExtendedRequestItem;
 export const UpdateExtendedRequestStatusRequestBody = UpdateRequestStatusRequestBody;
 export const UpdateExtendedRequestStatusResponse = ExtendedRequestItem;
 
+export const RequestAuditLogItem = t.Object({
+  id: t.Number({ description: "Audit log entry ID" }),
+  action: ApprovalStatus,
+  performedBy: t.Object({
+    id: t.Number({ description: "Platform user ID" }),
+    name: t.String({ description: "User name" }),
+    email: t.String({ description: "User email" }),
+  }),
+  timestamp: t.Date({ description: "When the action was performed" }),
+  notes: t.Optional(t.String({ description: "Additional notes about the action" })),
+}, { description: "Request audit log entry" });
+
+export const ExtendedRequestAuditLogItem = t.Object({
+  id: t.Number({ description: "Audit log entry ID" }),
+  action: ApprovalStatus,
+  performedBy: t.Object({
+    id: t.Number({ description: "Platform user ID" }),
+    name: t.String({ description: "User name" }),
+    email: t.String({ description: "User email" }),
+  }),
+  timestamp: t.Date({ description: "When the action was performed" }),
+  notes: t.Optional(t.String({ description: "Additional notes about the action" })),
+}, { description: "Extended request audit log entry" });
+
+export const GetRequestAuditLogsResponse = t.Object({
+  values: t.Array(RequestAuditLogItem, { description: "List of request audit log entries" }),
+  ...PaginationResponse.properties
+});
+
+export const GetExtendedRequestAuditLogsResponse = t.Object({
+  values: t.Array(ExtendedRequestAuditLogItem, { description: "List of extended request audit log entries" }),
+  ...PaginationResponse.properties
+});
+
 export const requestModel = new Elysia({ name: "request.model" })
   .model("ApprovalStatus", ApprovalStatus)
   .model("RequestItem", RequestItem)
@@ -132,4 +166,6 @@ export const requestModel = new Elysia({ name: "request.model" })
   .model("GetExtendedRequestsRequestQuery", GetExtendedRequestsRequestQuery)
   .model("GetExtendedRequestsResponse", GetExtendedRequestsResponse)
   .model("UpdateExtendedRequestStatusRequestBody", UpdateExtendedRequestStatusRequestBody)
-  .model("UpdateExtendedRequestStatusResponse", UpdateExtendedRequestStatusResponse);
+  .model("UpdateExtendedRequestStatusResponse", UpdateExtendedRequestStatusResponse)
+  .model("GetRequestAuditLogsResponse", GetRequestAuditLogsResponse)
+  .model("GetExtendedRequestAuditLogsResponse", GetExtendedRequestAuditLogsResponse);

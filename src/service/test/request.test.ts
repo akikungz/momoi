@@ -164,6 +164,32 @@ describe("RequestService", () => {
     expect(result.reviewerId).toBe(1);
   });
 
+  it("updateRequestStatus returns 404 when request not found", async () => {
+    mockPrisma.request.findUnique.mockResolvedValueOnce(null);
+
+    await expect(requestService.updateRequestStatus({ id: 1, role: "ADMIN" }, 12345, {
+      status: "APPROVED",
+      reason: "ok",
+    } as any)).rejects.toThrow('Request not found.');
+  });
+
+  it("updateRequestStatus returns 400 when request already processed", async () => {
+    const requestRecord = createMockRequest({ id: 55, requesterId: 7 });
+    mockPrisma.request.findUnique.mockResolvedValueOnce({
+      ...requestRecord,
+      status: "APPROVED",
+      courseOffering: {
+        course: { code: "CS123", title: "Processed", instructors: [{ id: 2 }] },
+        semester: { name: "Fall" },
+      },
+    });
+
+    await expect(requestService.updateRequestStatus({ id: 2, role: "INSTRUCTOR" }, requestRecord.id, {
+      status: "REJECTED",
+      reason: "late",
+    } as any)).rejects.toThrow('Request has already been processed.');
+  });
+
   it("allows instructor to approve when teaching course", async () => {
     const requestRecord = createMockRequest({ id: 8, requesterId: 3 });
     const course = createMockCourse({ id: 1 });
@@ -433,5 +459,44 @@ describe("RequestService", () => {
 
     expect(result.status).toBe("APPROVED");
     expect(result.reviewerId).toBe(1);
+  });
+
+  it("updateExtendedRequestStatus returns 404 when extended request not found", async () => {
+    mockPrisma.extendedRequest.findUnique.mockResolvedValueOnce(null);
+
+    await expect(requestService.updateExtendedRequestStatus({ id: 1, role: "ADMIN" }, 99999, {
+      status: "APPROVED",
+      reason: "ok",
+    } as any)).rejects.toThrow('Extended request not found.');
+  });
+
+  it("updateExtendedRequestStatus returns 400 when extended request already processed", async () => {
+    const extendedRequest = {
+      id: 66,
+      title: "Extend",
+      description: "desc",
+      status: "APPROVED" as const,
+      reason: "",
+      targetInstanceId: 22,
+      requesterId: 3,
+      reviewerId: 2,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    mockPrisma.extendedRequest.findUnique.mockResolvedValueOnce({
+      ...extendedRequest,
+      targetInstance: {
+        courseOffering: {
+          course: { code: "CS205", title: "Approved", instructors: [{ id: 2 }] },
+          semester: { name: "Fall" },
+        },
+      },
+    });
+
+    await expect(requestService.updateExtendedRequestStatus({ id: 2, role: "INSTRUCTOR" }, extendedRequest.id, {
+      status: "REJECTED",
+      reason: "late",
+    } as any)).rejects.toThrow('Extended request has already been processed.');
   });
 });

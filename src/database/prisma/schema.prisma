@@ -151,6 +151,7 @@ model Course {
   updatedAt DateTime @updatedAt
 
   @@index([code, isActive])
+  @@map("course")
 }
 
 model Semester {
@@ -160,12 +161,14 @@ model Semester {
   endDate   DateTime
   isCurrent Boolean  @default(false)
 
-  courseOfferings CourseOffering[]
-  instances       Instance[]
-
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  courseOfferings  CourseOffering[]
   extendedRequests ExtendedRequest[]
+  instances        Instance[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("semester")
 }
 
 model CourseOffering {
@@ -182,6 +185,7 @@ model CourseOffering {
   updatedAt DateTime @updatedAt
 
   @@unique([courseId, semesterId])
+  @@map("course_offering")
 }
 
 // --- End Academic Models ---
@@ -193,10 +197,13 @@ model PVENode {
   name      String @unique
   ipAddress String @unique
 
+  pveVMs PVEVM[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  pveVMs PVEVM[]
+  @@index([name])
+  @@map("pve_node")
 }
 
 model PVENetwork {
@@ -209,6 +216,9 @@ model PVENetwork {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@unique([name, subnet])
+  @@map("pve_network")
 }
 
 model PVENetworkIP {
@@ -222,6 +232,9 @@ model PVENetworkIP {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([ipAddress, isAllocated])
+  @@map("pve_network_ip")
 }
 
 enum PVEVMStatus {
@@ -242,11 +255,14 @@ model PVETemplate {
   vmId        Int       @unique
   type        PVEVMType
 
+  instances Instance[]
+  requests  Request[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  instances Instance[]
-  requests  Request[]
+  @@unique([name, type])
+  @@map("pve_template")
 }
 
 model PVEVM {
@@ -265,6 +281,8 @@ model PVEVM {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@map("pve_vm")
 }
 
 // --- End Proxmox Models ---
@@ -327,6 +345,7 @@ model Instance {
 
   @@unique([platformUserId, courseOfferingId])
   @@index([status, provisionStatus])
+  @@map("instance")
 }
 
 enum ReverseProxyType {
@@ -347,6 +366,7 @@ model InstanceReverseProxy {
   updatedAt DateTime @updatedAt
 
   @@unique([instanceId, targetPort]) // Ensure no duplicate reverse proxies for the same instance and port
+  @@map("instance_reverse_proxy")
 }
 
 model InstanceAuditLog {
@@ -358,6 +378,8 @@ model InstanceAuditLog {
   performedBy   PlatformUser @relation(fields: [performedById], references: [id], onDelete: Restrict)
   timestamp     DateTime     @default(now())
   notes         String?
+
+  @@map("instance_audit_log")
 }
 
 // --- End Instance Models ---
@@ -401,6 +423,9 @@ model Request {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@unique([requesterId, courseOfferingId])
+  @@map("request")
 }
 
 model ExtendedRequest {
@@ -427,6 +452,9 @@ model ExtendedRequest {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@unique([requesterId, targetInstanceId, nextSemesterId])
+  @@map("extended_request")
 }
 
 model RequestAuditLog {
@@ -438,6 +466,8 @@ model RequestAuditLog {
   performedBy   PlatformUser   @relation(fields: [performedById], references: [id], onDelete: Restrict)
   timestamp     DateTime       @default(now())
   notes         String?
+
+  @@map("request_audit_log")
 }
 
 model ExtendedRequestAuditLog {
@@ -449,6 +479,8 @@ model ExtendedRequestAuditLog {
   performedBy       PlatformUser    @relation(fields: [performedById], references: [id], onDelete: Restrict)
   timestamp         DateTime        @default(now())
   notes             String?
+
+  @@map("extended_request_audit_log")
 }
 
 // --- End Approval Models ---
@@ -467,6 +499,7 @@ model PlatformSSHKey {
 
   @@unique([ownerId, name]) // Ensure unique key names per user
   @@unique([ownerId, publicKey]) // Prevent duplicate keys for the same user
+  @@map("platform_ssh_key")
 }
 
 // --- End Platform SSH Key Models ---

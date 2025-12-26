@@ -9,10 +9,14 @@ export const SecretEnvSchema = z.object({
   JWT_SECRET: z.string().min(32),
   GOOGLE_OAUTH_CLIENT_ID: z.string().optional(),
   GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional(),
+  // Allow origins for CORS can be added here in the future
+  ALLOW_CORS_ORIGINS: z.string()
+    .transform((val) => val.split(",").map((origin) => origin.trim()))
+    .default(["*"]),
 });
 
 export const DatabaseEnvSchema = z.object({
-  POSTGRES_URL: z.url({ pattern: /^postgres(?:ql)?:\/\// }),
+  DATABASE_URL: z.url({ pattern: /^postgres(?:ql)?:\/\// }),
   REDIS_URL: z.url().optional(),
 });
 
@@ -44,7 +48,7 @@ function getEnv(): z.infer<typeof EnvSchema> {
       LOG_LEVEL: "info",
       LOG_FORMAT: "plain",
       JWT_SECRET: process.env.JWT_SECRET || "test-secret-key-minimum-32-characters-long",
-      POSTGRES_URL: process.env.POSTGRES_URL || "postgresql://test:test@localhost:5432/momoi_test",
+      DATABASE_URL: process.env.DATABASE_URL || "postgresql://test:test@localhost:5432/momoi_test",
       GOOGLE_OAUTH_CLIENT_ID: process.env.GOOGLE_OAUTH_CLIENT_ID,
       GOOGLE_OAUTH_CLIENT_SECRET: process.env.GOOGLE_OAUTH_CLIENT_SECRET,
       REDIS_URL: process.env.REDIS_URL,

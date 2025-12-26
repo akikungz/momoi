@@ -4,9 +4,12 @@ import {
   PrismaClientKnownRequestError
 } from '@momoi/database/prisma/generated/internal/prismaNamespace';
 import {
-  CreateInstanceRequestBody, CreateInstanceResponse, DeleteInstanceResponse, GetInstanceResponse,
-  GetInstancesRequestQuery, GetInstancesResponse
+  CreateInstanceRequestBody, CreateInstanceResponse, CreateReverseProxyRequestBody,
+  CreateReverseProxyResponse, DeleteInstanceResponse, DeleteReverseProxyResponse,
+  GetInstanceAuditLogsResponse, GetInstanceResponse, GetInstancesRequestQuery, GetInstancesResponse,
+  GetReverseProxiesResponse, PromoteInstanceResponse
 } from '@momoi/model/instance';
+import { ServiceError } from '@momoi/utils/error';
 
 import type { CacheModule } from '@momoi/cache';
 import type { PrismaClient } from '@momoi/database/prisma/generated/client';
@@ -72,13 +75,13 @@ export class InstanceService {
     } catch (error: unknown) {
       if (error instanceof PrismaClientKnownRequestError) {
         if (error.code === 'P2025') {
-          throw new Error('Related resource not found.');
+          throw new ServiceError('Related resource not found.', 404);
         }
 
-        throw new Error(`Database error: ${error.message}`);
+        throw new ServiceError(`Database error: ${error.message}`, 500);
       }
 
-      throw new Error('An unexpected error occurred while creating the instance.');
+      throw new ServiceError('An unexpected error occurred while creating the instance.', 500);
     }
   }
 
@@ -189,13 +192,13 @@ export class InstanceService {
     } catch (error: unknown) {
       if (error instanceof PrismaClientKnownRequestError) {
         if (error.code === 'P2025') {
-          throw new Error('Related resource not found.');
+          throw new ServiceError('Related resource not found.', 404);
         }
 
-        throw new Error(`Database error: ${error.message}`);
+        throw new ServiceError(`Database error: ${error.message}`, 500);
       }
 
-      throw new Error('An unexpected error occurred while retrieving instances for the user.');
+      throw new ServiceError('An unexpected error occurred while retrieving instances for the user.', 500);
     }
   }
 
@@ -314,13 +317,13 @@ export class InstanceService {
     } catch (error: unknown) {
       if (error instanceof PrismaClientKnownRequestError) {
         if (error.code === 'P2025') {
-          throw new Error('Related resource not found.');
+          throw new ServiceError('Related resource not found.', 404);
         }
 
-        throw new Error(`Database error: ${error.message}`);
+        throw new ServiceError(`Database error: ${error.message}`, 500);
       }
 
-      throw new Error('An unexpected error occurred while retrieving instances for the instructor.');
+      throw new ServiceError('An unexpected error occurred while retrieving instances for the instructor.', 500);
     }
   }
 
@@ -429,13 +432,13 @@ export class InstanceService {
     } catch (error: unknown) {
       if (error instanceof PrismaClientKnownRequestError) {
         if (error.code === 'P2025') {
-          throw new Error('Related resource not found.');
+          throw new ServiceError('Related resource not found.', 404);
         }
 
-        throw new Error(`Database error: ${error.message}`);
+        throw new ServiceError(`Database error: ${error.message}`, 500);
       }
 
-      throw new Error('An unexpected error occurred while retrieving instances.');
+      throw new ServiceError('An unexpected error occurred while retrieving instances.', 500);
     }
   }
 
@@ -497,7 +500,7 @@ export class InstanceService {
       });
 
       if (!instance) {
-        throw new Error('Instance not found.');
+        throw new ServiceError('Instance not found.', 404);
       }
 
       const response: Static<typeof GetInstanceResponse> = {
@@ -530,13 +533,13 @@ export class InstanceService {
     } catch (error: unknown) {
       if (error instanceof PrismaClientKnownRequestError) {
         if (error.code === 'P2025') {
-          throw new Error('Instance not found.');
+          throw new ServiceError('Instance not found.', 404);
         }
 
-        throw new Error(`Database error: ${error.message}`);
+        throw new ServiceError(`Database error: ${error.message}`, 500);
       }
 
-      throw new Error('An unexpected error occurred while retrieving the instance.');
+      throw new ServiceError('An unexpected error occurred while retrieving the instance.', 500);
     }
   }
 
@@ -557,13 +560,280 @@ export class InstanceService {
     } catch (error: unknown) {
       if (error instanceof PrismaClientKnownRequestError) {
         if (error.code === 'P2025') {
-          throw new Error('Instance not found.');
+          throw new ServiceError('Instance not found.', 404);
         }
 
-        throw new Error(`Database error: ${error.message}`);
+        throw new ServiceError(`Database error: ${error.message}`, 500);
       }
 
-      throw new Error('An unexpected error occurred while deleting the instance.');
+      throw new ServiceError('An unexpected error occurred while deleting the instance.', 500);
+    }
+  }
+
+  // Reverse Proxy Management
+  public async createReverseProxy(
+    instanceId: number,
+    body: Static<typeof CreateReverseProxyRequestBody>
+  ): Promise<Static<typeof CreateReverseProxyResponse>> {
+    try {
+      // Verify instance exists
+      const instance = await this.prisma.instance.findUnique({
+        where: { id: instanceId },
+        select: { id: true },
+      });
+
+      if (!instance) {
+        throw new ServiceError('Instance not found.', 404);
+      }
+
+      const reverseProxy = await this.prisma.instanceReverseProxy.create({
+        data: {
+          instanceId,
+          targetPort: body.targetPort,
+          type: body.type,
+          description: body.description,
+        },
+        select: {
+          id: true,
+          targetPort: true,
+          type: true,
+          description: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      // Clear cache for this instance
+      await this.cache.deleteCacheByPattern(`instance:${instanceId}`);
+
+      return {
+        id: reverseProxy.id,
+        targetPort: reverseProxy.targetPort,
+        type: reverseProxy.type,
+        description: reverseProxy.description ?? undefined,
+        createdAt: reverseProxy.createdAt,
+        updatedAt: reverseProxy.updatedAt,
+      };
+    } catch (error: unknown) {
+      if (error instanceof PrismaClientKnownRequestError) {
+        if (error.code === 'P2002') {
+          throw new ServiceError('Reverse proxy for this port already exists on this instance.', 409);
+        }
+        if (error.code === 'P2025') {
+          throw new ServiceError('Instance not found.', 404);
+        }
+        throw new ServiceError(`Database error: ${error.message}`, 500);
+      }
+
+      if (error instanceof ServiceError) {
+        throw error;
+      }
+
+      throw new ServiceError('An unexpected error occurred while creating the reverse proxy.', 500);
+    }
+  }
+
+  public async getReverseProxies(instanceId: number): Promise<Static<typeof GetReverseProxiesResponse>> {
+    try {
+      const instance = await this.prisma.instance.findUnique({
+        where: { id: instanceId },
+        select: {
+          instanceReverseProxies: {
+            select: {
+              id: true,
+              targetPort: true,
+              type: true,
+              description: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+            orderBy: { createdAt: 'desc' },
+          },
+        },
+      });
+
+      if (!instance) {
+        throw new ServiceError('Instance not found.', 404);
+      }
+
+      return instance.instanceReverseProxies.map(proxy => ({
+        id: proxy.id,
+        targetPort: proxy.targetPort,
+        type: proxy.type,
+        description: proxy.description ?? undefined,
+        createdAt: proxy.createdAt,
+        updatedAt: proxy.updatedAt,
+      }));
+    } catch (error: unknown) {
+      if (error instanceof ServiceError) {
+        throw error;
+      }
+
+      throw new ServiceError('An unexpected error occurred while retrieving reverse proxies.', 500);
+    }
+  }
+
+  public async deleteReverseProxy(instanceId: number, proxyId: number): Promise<Static<typeof DeleteReverseProxyResponse>> {
+    try {
+      await this.prisma.instanceReverseProxy.delete({
+        where: {
+          id: proxyId,
+          instanceId: instanceId,
+        },
+      });
+
+      // Clear cache for this instance
+      await this.cache.deleteCacheByPattern(`instance:${instanceId}`);
+
+      return { success: true };
+    } catch (error: unknown) {
+      if (error instanceof PrismaClientKnownRequestError) {
+        if (error.code === 'P2025') {
+          throw new ServiceError('Reverse proxy not found.', 404);
+        }
+        throw new ServiceError(`Database error: ${error.message}`, 500);
+      }
+
+      throw new ServiceError('An unexpected error occurred while deleting the reverse proxy.', 500);
+    }
+  }
+
+  // Instance Promotion
+  public async promoteInstance(instanceId: number, performedById: number): Promise<Static<typeof PromoteInstanceResponse>> {
+    try {
+      const instance = await this.prisma.instance.findUnique({
+        where: { id: instanceId },
+        select: {
+          id: true,
+          status: true,
+        },
+      });
+
+      if (!instance) {
+        throw new ServiceError('Instance not found.', 404);
+      }
+
+      if (instance.status === 'PROMOTED') {
+        throw new ServiceError('Instance is already promoted.', 400);
+      }
+
+      if (instance.status !== 'ACTIVE') {
+        throw new ServiceError('Only ACTIVE instances can be promoted.', 400);
+      }
+
+      const updatedInstance = await this.prisma.instance.update({
+        where: { id: instanceId },
+        data: { status: 'PROMOTED' },
+        select: { id: true, status: true },
+      });
+
+      // Create audit log entry
+      await this.prisma.instanceAuditLog.create({
+        data: {
+          instanceId,
+          action: 'PROMOTED',
+          performedById,
+          notes: 'Instance promoted to long-term/production status',
+        },
+      });
+
+      // Clear cache for this instance
+      await this.cache.deleteCacheByPattern(`instance:${instanceId}`);
+
+      return {
+        id: updatedInstance.id,
+        status: updatedInstance.status,
+        message: 'Instance successfully promoted.',
+      };
+    } catch (error: unknown) {
+      if (error instanceof ServiceError) {
+        throw error;
+      }
+
+      if (error instanceof PrismaClientKnownRequestError) {
+        if (error.code === 'P2025') {
+          throw new ServiceError('Instance not found.', 404);
+        }
+        throw new ServiceError(`Database error: ${error.message}`, 500);
+      }
+
+      throw new ServiceError('An unexpected error occurred while promoting the instance.', 500);
+    }
+  }
+
+  // Audit Logs
+  public async getInstanceAuditLogs(
+    instanceId: number,
+    page: number = 1,
+    pageSize: number = 10
+  ): Promise<Static<typeof GetInstanceAuditLogsResponse>> {
+    try {
+      const skip = (page - 1) * pageSize;
+
+      // Verify instance exists
+      const instance = await this.prisma.instance.findUnique({
+        where: { id: instanceId },
+        select: { id: true },
+      });
+
+      if (!instance) {
+        throw new ServiceError('Instance not found.', 404);
+      }
+
+      const [totalItems, logs] = await Promise.all([
+        this.prisma.instanceAuditLog.count({
+          where: { instanceId },
+        }),
+        this.prisma.instanceAuditLog.findMany({
+          where: { instanceId },
+          skip,
+          take: pageSize,
+          orderBy: { timestamp: 'desc' },
+          select: {
+            id: true,
+            action: true,
+            performedBy: {
+              select: {
+                id: true,
+                user: {
+                  select: {
+                    name: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+            timestamp: true,
+            notes: true,
+          },
+        }),
+      ]);
+
+      const totalPages = Math.ceil(totalItems / pageSize);
+
+      return {
+        values: logs.map(log => ({
+          id: log.id,
+          action: log.action,
+          performedBy: {
+            id: log.performedBy.id,
+            name: log.performedBy.user.name,
+            email: log.performedBy.user.email,
+          },
+          timestamp: log.timestamp,
+          notes: log.notes ?? undefined,
+        })),
+        currentPage: page,
+        pageSize,
+        totalItems,
+        totalPages,
+      };
+    } catch (error: unknown) {
+      if (error instanceof ServiceError) {
+        throw error;
+      }
+
+      throw new ServiceError('An unexpected error occurred while retrieving audit logs.', 500);
     }
   }
 }

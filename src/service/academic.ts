@@ -17,6 +17,7 @@ import {
   InstructorMailingListValue, InstructorValue, RemoveInstructorMailingListResponse,
   SemesterByIdRequestParams, SemesterValue
 } from '@momoi/model/academic';
+import { ServiceError } from '@momoi/utils/error';
 
 import type { CacheModule } from '@momoi/cache';
 import type { PrismaClient } from '@momoi/database/prisma/generated/client';
@@ -44,16 +45,13 @@ export class AcademicService {
     if (cached) return JSON.parse(cached);
 
     const where = query.email
-      ? { email: { contains: query.email, mode: 'insensitive' as const } }
-      : {};
+      ? { email: { contains: query.email, mode: 'insensitive' as const }, havePlatformId: false }
+      : { havePlatformId: false };
 
     const [totalItems, values] = await Promise.all([
       this.prisma.instructorSearch.count({ where }),
       this.prisma.instructorSearch.findMany({
-        where: {
-          ...where,
-          havePlatformId: false
-        },
+        where,
         skip,
         take,
         orderBy: { createdAt: 'desc' },
@@ -97,12 +95,12 @@ export class AcademicService {
     } catch (error: unknown) {
       if (error instanceof PrismaClientKnownRequestError) {
         if (error.code === 'P2002') {
-          throw new Error('This email is already in the mailing list.');
+          throw new ServiceError('This email is already in the mailing list.', 409);
         }
 
-        throw new Error(`Database error: ${error.message}`);
+        throw new ServiceError(`Database error: ${error.message}`, 500);
       }
-      throw new Error('Failed to add instructor mailing list entry.');
+      throw new ServiceError('Failed to add instructor mailing list entry.', 500);
     }
   }
 
@@ -114,12 +112,12 @@ export class AcademicService {
     } catch (error: unknown) {
       if (error instanceof PrismaClientKnownRequestError) {
         if (error.code === 'P2025') {
-          throw new Error('Mailing list entry not found.');
+          throw new ServiceError('Mailing list entry not found.', 404);
         }
 
-        throw new Error(`Database error: ${error.message}`);
+        throw new ServiceError(`Database error: ${error.message}`, 500);
       }
-      throw new Error('Failed to remove instructor mailing list entry.');
+      throw new ServiceError('Failed to remove instructor mailing list entry.', 500);
     }
   }
 
@@ -190,7 +188,7 @@ export class AcademicService {
     });
 
     if (!instructor) {
-      throw new Error('Instructor not found.');
+      throw new ServiceError('Instructor not found.', 404);
     }
 
     const response: Static<typeof GetInstructorByIdResponse> = {
@@ -222,7 +220,7 @@ export class AcademicService {
     });
 
     if (!existing) {
-      throw new Error('Instructor not found.');
+      throw new ServiceError('Instructor not found.', 404);
     }
 
     try {
@@ -272,13 +270,13 @@ export class AcademicService {
     } catch (error: unknown) {
       if (error instanceof PrismaClientKnownRequestError) {
         if (error.code === 'P2025') {
-          throw new Error('Instructor not found.');
+          throw new ServiceError('Instructor not found.', 404);
         }
 
-        throw new Error(`Database error: ${error.message}`);
+        throw new ServiceError(`Database error: ${error.message}`, 500);
       }
 
-      throw new Error('Failed to edit instructor.');
+      throw new ServiceError('Failed to edit instructor.', 500);
     }
   }
 
@@ -339,7 +337,7 @@ export class AcademicService {
     });
 
     if (!course) {
-      throw new Error('Course not found.');
+      throw new ServiceError('Course not found.', 404);
     }
 
     const semesters: Static<typeof SemesterValue>[] = course.courseOfferings.map((co) => ({
@@ -414,13 +412,13 @@ export class AcademicService {
     } catch (error: unknown) {
       if (error instanceof PrismaClientKnownRequestError) {
         if (error.code === 'P2025') {
-          throw new Error('Course not found.');
+          throw new ServiceError('Course not found.', 404);
         }
 
-        throw new Error(`Database error: ${error.message}`);
+        throw new ServiceError(`Database error: ${error.message}`, 500);
       }
 
-      throw new Error('Failed to edit course.');
+      throw new ServiceError('Failed to edit course.', 500);
     }
   }
 
@@ -432,7 +430,7 @@ export class AcademicService {
       });
 
       if (!existing) {
-        throw new Error('Course not found.');
+        throw new ServiceError('Course not found.', 404);
       }
 
       const updated = await this.prisma.course.update({
@@ -474,20 +472,20 @@ export class AcademicService {
     } catch (error: unknown) {
       if (error instanceof PrismaClientKnownRequestError) {
         if (error.code === 'P2025') {
-          throw new Error('Course not found.');
+          throw new ServiceError('Course not found.', 404);
         }
 
-        throw new Error(`Database error: ${error.message}`);
+        throw new ServiceError(`Database error: ${error.message}`, 500);
       }
 
-      throw new Error('Failed to update course instructors.');
+      throw new ServiceError('Failed to update course instructors.', 500);
     }
   }
 
   public async editCourseSemesters(courseId: number, body: Static<typeof EditCourseSemesterRequestBody>): Promise<Static<typeof EditCourseSemesterResponse>> {
     const semesters = await this.prisma.semester.findMany({ where: { id: { in: body.semesterIds } } });
     if (semesters.length !== body.semesterIds.length) {
-      throw new Error('One or more semesters not found.');
+      throw new ServiceError('One or more semesters not found.', 404);
     }
 
     try {
@@ -534,13 +532,13 @@ export class AcademicService {
     } catch (error: unknown) {
       if (error instanceof PrismaClientKnownRequestError) {
         if (error.code === 'P2025') {
-          throw new Error('Course not found.');
+          throw new ServiceError('Course not found.', 404);
         }
 
-        throw new Error(`Database error: ${error.message}`);
+        throw new ServiceError(`Database error: ${error.message}`, 500);
       }
 
-      throw new Error('Failed to update course semesters.');
+      throw new ServiceError('Failed to update course semesters.', 500);
     }
   }
 
@@ -601,7 +599,7 @@ export class AcademicService {
     });
 
     if (!semester) {
-      throw new Error('Semester not found.');
+      throw new ServiceError('Semester not found.', 404);
     }
 
     const courses = semester.courseOfferings.map((co) => co.course).map((course) => ({
@@ -660,20 +658,20 @@ export class AcademicService {
     } catch (error: unknown) {
       if (error instanceof PrismaClientKnownRequestError) {
         if (error.code === 'P2025') {
-          throw new Error('Semester not found.');
+          throw new ServiceError('Semester not found.', 404);
         }
 
-        throw new Error(`Database error: ${error.message}`);
+        throw new ServiceError(`Database error: ${error.message}`, 500);
       }
 
-      throw new Error('Failed to edit semester.');
+      throw new ServiceError('Failed to edit semester.', 500);
     }
   }
 
   public async editSemesterCourses(semesterId: number, body: Static<typeof EditSemesterCourseRequestBody>): Promise<Static<typeof EditSemesterCourseResponse>> {
     const courses = await this.prisma.course.findMany({ where: { id: { in: body.courseIds } } });
     if (courses.length !== body.courseIds.length) {
-      throw new Error('One or more courses not found.');
+      throw new ServiceError('One or more courses not found.', 404);
     }
 
     try {
@@ -720,13 +718,13 @@ export class AcademicService {
     } catch (error: unknown) {
       if (error instanceof PrismaClientKnownRequestError) {
         if (error.code === 'P2025') {
-          throw new Error('Semester not found.');
+          throw new ServiceError('Semester not found.', 404);
         }
 
-        throw new Error(`Database error: ${error.message}`);
+        throw new ServiceError(`Database error: ${error.message}`, 500);
       }
 
-      throw new Error('Failed to update semester courses.');
+      throw new ServiceError('Failed to update semester courses.', 500);
     }
   }
 
@@ -754,13 +752,13 @@ export class AcademicService {
     } catch (error: unknown) {
       if (error instanceof PrismaClientKnownRequestError) {
         if (error.code === 'P2025') {
-          throw new Error('Semester not found.');
+          throw new ServiceError('Semester not found.', 404);
         }
 
-        throw new Error(`Database error: ${error.message}`);
+        throw new ServiceError(`Database error: ${error.message}`, 500);
       }
 
-      throw new Error('Failed to delete semester.');
+      throw new ServiceError('Failed to delete semester.', 500);
     }
   }
 }

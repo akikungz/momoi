@@ -5,11 +5,12 @@ import {
 } from '@momoi/database/prisma/generated/internal/prismaNamespace';
 import {
   ApprovalActionStatus, CreateExtendedRequestRequestBody, CreateExtendedRequestResponse,
-  CreateRequestRequestBody, CreateRequestResponse, GetExtendedRequestsRequestQuery,
-  GetExtendedRequestsResponse, GetRequestsRequestQuery, GetRequestsResponse,
-  UpdateExtendedRequestStatusRequestBody, UpdateExtendedRequestStatusResponse,
-  UpdateRequestStatusRequestBody, UpdateRequestStatusResponse
+  CreateRequestRequestBody, CreateRequestResponse, GetExtendedRequestAuditLogsResponse,
+  GetExtendedRequestsRequestQuery, GetExtendedRequestsResponse, GetRequestAuditLogsResponse,
+  GetRequestsRequestQuery, GetRequestsResponse, UpdateExtendedRequestStatusRequestBody,
+  UpdateExtendedRequestStatusResponse, UpdateRequestStatusRequestBody, UpdateRequestStatusResponse
 } from '@momoi/model/request';
+import { ServiceError } from '@momoi/utils/error';
 
 import type { CacheModule } from '@momoi/cache';
 import type { Prisma, PrismaClient } from '@momoi/database/prisma/generated/client';
@@ -101,13 +102,13 @@ export class RequestService {
     } catch (error: unknown) {
       if (error instanceof PrismaClientKnownRequestError) {
         if (error.code === 'P2025') {
-          throw new Error('Related resource not found for request creation.');
+          throw new ServiceError('Related resource not found for request creation.', 404);
         }
 
-        throw new Error(`Database error: ${error.message}`);
+        throw new ServiceError(`Database error: ${error.message}`, 500);
       }
 
-      throw new Error('An unexpected error occurred while creating the request.');
+      throw new ServiceError('An unexpected error occurred while creating the request.', 500);
     }
   }
 
@@ -154,11 +155,11 @@ export class RequestService {
     });
 
     if (!request) {
-      throw new Error('Request not found.');
+      throw new ServiceError('Request not found.', 404);
     }
 
     if (request.status !== 'PENDING') {
-      throw new Error('Request has already been processed.');
+      throw new ServiceError('Request has already been processed.', 400);
     }
 
     const isAdmin = user.role === 'ADMIN';
@@ -167,11 +168,11 @@ export class RequestService {
 
     if (body.status === 'CANCELLED') {
       if (!isRequester) {
-        throw new Error('Only the requester can cancel this request.');
+        throw new ServiceError('Only the requester can cancel this request.', 403);
       }
     } else {
       if (!isAdmin && !(user.role === 'INSTRUCTOR' && isInstructorForCourse)) {
-        throw new Error('You are not authorized to act on this request.');
+        throw new ServiceError('You are not authorized to act on this request.', 403);
       }
     }
 
@@ -222,12 +223,12 @@ export class RequestService {
     });
 
     if (!targetInstance || targetInstance.platformUserId !== userId) {
-      throw new Error('Instance not found or not owned by the user.');
+      throw new ServiceError('Instance not found or not owned by the user.', 404);
     }
 
     const currentSemesterEndDate = targetInstance.courseOffering?.semester?.endDate;
     if (!currentSemesterEndDate) {
-      throw new Error('Unable to determine current semester for the instance.');
+      throw new ServiceError('Unable to determine current semester for the instance.', 400);
     }
 
     const nextSemester = await this.prisma.semester.findFirst({
@@ -238,7 +239,7 @@ export class RequestService {
     });
 
     if (!nextSemester) {
-      throw new Error('No upcoming semester found for this extended request.');
+      throw new ServiceError('No upcoming semester found for this extended request.', 404);
     }
 
     try {
@@ -259,13 +260,13 @@ export class RequestService {
     } catch (error: unknown) {
       if (error instanceof PrismaClientKnownRequestError) {
         if (error.code === 'P2025') {
-          throw new Error('Related resource not found for extended request creation.');
+          throw new ServiceError('Related resource not found for extended request creation.', 404);
         }
 
-        throw new Error(`Database error: ${error.message}`);
+        throw new ServiceError(`Database error: ${error.message}`, 500);
       }
 
-      throw new Error('An unexpected error occurred while creating the extended request.');
+      throw new ServiceError('An unexpected error occurred while creating the extended request.', 500);
     }
   }
 
@@ -316,11 +317,11 @@ export class RequestService {
     });
 
     if (!extendedRequest) {
-      throw new Error('Extended request not found.');
+      throw new ServiceError('Extended request not found.', 404);
     }
 
     if (extendedRequest.status !== 'PENDING') {
-      throw new Error('Extended request has already been processed.');
+      throw new ServiceError('Extended request has already been processed.', 400);
     }
 
     const isAdmin = user.role === 'ADMIN';
@@ -329,11 +330,11 @@ export class RequestService {
 
     if (body.status === 'CANCELLED') {
       if (!isRequester) {
-        throw new Error('Only the requester can cancel this extended request.');
+        throw new ServiceError('Only the requester can cancel this extended request.', 403);
       }
     } else {
       if (!isAdmin && !(user.role === 'INSTRUCTOR' && isInstructorForCourse)) {
-        throw new Error('You are not authorized to act on this extended request.');
+        throw new ServiceError('You are not authorized to act on this extended request.', 403);
       }
     }
 
@@ -509,5 +510,156 @@ export class RequestService {
   private async invalidateRequestCaches(userId: number) {
     const pattern = `user:${userId}:requests:*`;
     await this.cache.deleteCacheByPattern(pattern);
+  }
+
+  // Audit Logs
+  public async getRequestAuditLogs(
+    requestId: number,
+    page: number = 1,
+    pageSize: number = 10
+  ): Promise<Static<typeof GetRequestAuditLogsResponse>> {
+    try {
+      const skip = (page - 1) * pageSize;
+
+      // Verify request exists
+      const request = await this.prisma.request.findUnique({
+        where: { id: requestId },
+        select: { id: true },
+      });
+
+      if (!request) {
+        throw new ServiceError('Request not found.', 404);
+      }
+
+      const [totalItems, logs] = await Promise.all([
+        this.prisma.requestAuditLog.count({
+          where: { requestId },
+        }),
+        this.prisma.requestAuditLog.findMany({
+          where: { requestId },
+          skip,
+          take: pageSize,
+          orderBy: { timestamp: 'desc' },
+          select: {
+            id: true,
+            action: true,
+            performedBy: {
+              select: {
+                id: true,
+                user: {
+                  select: {
+                    name: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+            timestamp: true,
+            notes: true,
+          },
+        }),
+      ]);
+
+      const totalPages = Math.ceil(totalItems / pageSize);
+
+      return {
+        values: logs.map(log => ({
+          id: log.id,
+          action: log.action,
+          performedBy: {
+            id: log.performedBy.id,
+            name: log.performedBy.user.name,
+            email: log.performedBy.user.email,
+          },
+          timestamp: log.timestamp,
+          notes: log.notes ?? undefined,
+        })),
+        currentPage: page,
+        pageSize,
+        totalItems,
+        totalPages,
+      };
+    } catch (error: unknown) {
+      if (error instanceof ServiceError) {
+        throw error;
+      }
+
+      throw new ServiceError('An unexpected error occurred while retrieving request audit logs.', 500);
+    }
+  }
+
+  public async getExtendedRequestAuditLogs(
+    extendedRequestId: number,
+    page: number = 1,
+    pageSize: number = 10
+  ): Promise<Static<typeof GetExtendedRequestAuditLogsResponse>> {
+    try {
+      const skip = (page - 1) * pageSize;
+
+      // Verify extended request exists
+      const extendedRequest = await this.prisma.extendedRequest.findUnique({
+        where: { id: extendedRequestId },
+        select: { id: true },
+      });
+
+      if (!extendedRequest) {
+        throw new ServiceError('Extended request not found.', 404);
+      }
+
+      const [totalItems, logs] = await Promise.all([
+        this.prisma.extendedRequestAuditLog.count({
+          where: { extendedRequestId },
+        }),
+        this.prisma.extendedRequestAuditLog.findMany({
+          where: { extendedRequestId },
+          skip,
+          take: pageSize,
+          orderBy: { timestamp: 'desc' },
+          select: {
+            id: true,
+            action: true,
+            performedBy: {
+              select: {
+                id: true,
+                user: {
+                  select: {
+                    name: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+            timestamp: true,
+            notes: true,
+          },
+        }),
+      ]);
+
+      const totalPages = Math.ceil(totalItems / pageSize);
+
+      return {
+        values: logs.map(log => ({
+          id: log.id,
+          action: log.action,
+          performedBy: {
+            id: log.performedBy.id,
+            name: log.performedBy.user.name,
+            email: log.performedBy.user.email,
+          },
+          timestamp: log.timestamp,
+          notes: log.notes ?? undefined,
+        })),
+        currentPage: page,
+        pageSize,
+        totalItems,
+        totalPages,
+      };
+    } catch (error: unknown) {
+      if (error instanceof ServiceError) {
+        throw error;
+      }
+
+      throw new ServiceError('An unexpected error occurred while retrieving extended request audit logs.', 500);
+    }
   }
 }

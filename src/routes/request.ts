@@ -4,6 +4,7 @@ import { AuthMacro } from '@momoi/auth';
 import { CacheModule } from '@momoi/cache';
 import { PrismaClient } from '@momoi/database';
 import { requestModel } from '@momoi/model/request';
+import { ErrorResponse } from '@momoi/model/shared/error';
 import { RequestService } from '@momoi/service/request';
 
 export const requestRoute = (
@@ -20,7 +21,7 @@ export const requestRoute = (
   .group("/requests", app => app
     .post("/", async ({ requestService, user, body, status }) => {
       if (user.role !== "STUDENT") {
-        return status(403, "Forbidden: Only students can create requests");
+        return status(403, { status: 403, message: "Forbidden: Only students can create requests" });
       }
 
       return requestService.createRequest(user.id, body);
@@ -28,7 +29,7 @@ export const requestRoute = (
       body: "CreateRequestRequestBody",
       response: {
         200: "CreateRequestResponse",
-        403: t.String(),
+        403: ErrorResponse,
       },
       detail: {
         summary: "Create a new request",
@@ -54,12 +55,30 @@ export const requestRoute = (
       body: "UpdateRequestStatusRequestBody",
       response: {
         200: "UpdateRequestStatusResponse",
-        403: t.String(),
       },
       detail: {
         summary: "Act on a request",
         description: "Approve, reject, or cancel a request depending on role",
         tags: ["Requests"],
+      }
+    })
+    .get("/:requestId/audit-logs", async ({ requestService, params, query }) => {
+      return requestService.getRequestAuditLogs(
+        params.requestId,
+        query.page,
+        query.pageSize
+      );
+    }, {
+      params: t.Object({ requestId: t.Number({ description: "Request ID" }) }),
+      query: t.Object({
+        page: t.Optional(t.Number({ minimum: 1, default: 1 })),
+        pageSize: t.Optional(t.Number({ minimum: 1, maximum: 100, default: 10 })),
+      }),
+      response: "GetRequestAuditLogsResponse",
+      detail: {
+        summary: "Get request audit logs",
+        description: "Retrieve audit log entries for the request",
+        tags: ["Requests", "Audit Logs"],
       }
     })
   )
@@ -68,7 +87,7 @@ export const requestRoute = (
   .group("/extended-requests", app => app
     .post("/", async ({ requestService, user, body, status }) => {
       if (user.role !== "STUDENT") {
-        return status(403, "Forbidden: Only students can create extended requests");
+        return status(403, { status: 403, message: "Forbidden: Only students can create extended requests" });
       }
 
       return requestService.createExtendedRequest(user.id, body);
@@ -76,7 +95,7 @@ export const requestRoute = (
       body: "CreateExtendedRequestRequestBody",
       response: {
         200: "CreateExtendedRequestResponse",
-        403: t.String(),
+        403: ErrorResponse,
       },
       detail: {
         summary: "Create an extended request",
@@ -102,12 +121,30 @@ export const requestRoute = (
       body: "UpdateExtendedRequestStatusRequestBody",
       response: {
         200: "UpdateExtendedRequestStatusResponse",
-        403: t.String(),
       },
       detail: {
         summary: "Act on an extended request",
         description: "Approve, reject, or cancel an extended request depending on role",
         tags: ["Extended Requests"],
+      }
+    })
+    .get("/:extendedRequestId/audit-logs", async ({ requestService, params, query }) => {
+      return requestService.getExtendedRequestAuditLogs(
+        params.extendedRequestId,
+        query.page,
+        query.pageSize
+      );
+    }, {
+      params: t.Object({ extendedRequestId: t.Number({ description: "Extended request ID" }) }),
+      query: t.Object({
+        page: t.Optional(t.Number({ minimum: 1, default: 1 })),
+        pageSize: t.Optional(t.Number({ minimum: 1, maximum: 100, default: 10 })),
+      }),
+      response: "GetExtendedRequestAuditLogsResponse",
+      detail: {
+        summary: "Get extended request audit logs",
+        description: "Retrieve audit log entries for the extended request",
+        tags: ["Extended Requests", "Audit Logs"],
       }
     })
   );

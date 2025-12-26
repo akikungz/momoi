@@ -103,28 +103,26 @@ export const auth = betterAuth({
   ],
 });
 
-export const authHandler = new Elysia({ name: "auth.handler" })
-  .mount("/auth", auth.handler);
+export const authHandler = new Elysia({ name: "auth.handler", prefix: "/auth" })
+  .mount(auth.handler);
 
 export const authMacro = new Elysia({ name: "auth.macro" })
   .decorate("cache", new CacheModule())
   .macro({
     auth: {
-      resolve: async ({ status, request: { headers }, cache }) => {
+      resolve: async ({ status, request: { headers }, cache, cookie }) => {
         // Try to get session from cache first
-        const cacheKey = `session:${headers.get("authorization") || ""}`;
+        const cacheKey = `session:${headers.get("authorization") || cookie["better-auth.session_token"] || ""}`;
         const cachedSession = await cache.getCacheValue(cacheKey);
 
         if (cachedSession) {
           return JSON.parse(cachedSession);
         }
 
-        const session = await auth.api.getSession({
-          headers
-        });
+        const session = await auth.api.getSession({ headers });
 
         if (!session) {
-          return status(401, "Unauthorized: No active session or invalid account");
+          return status(401, { status: 401, message: "Unauthorized: No active session or invalid account" });
         }
 
         // Store session in cache
@@ -141,9 +139,9 @@ export const authGuard = (macro: typeof authMacro | MockAuth = authMacro) => new
   .macro({
     isAdmin: {
       resolve: async ({ user, status }) => {
-        if (!user) return status(401, "Unauthorized: No active session or invalid account");
+        if (!user) return status(401, { status: 401, message: "Unauthorized: No active session or invalid account" });
         if (user.role !== "ADMIN") {
-          return status(403, "Forbidden: Admins only");
+          return status(403, { status: 403, message: "Forbidden: Admins only" });
         }
 
         return { user };
@@ -151,9 +149,9 @@ export const authGuard = (macro: typeof authMacro | MockAuth = authMacro) => new
     },
     isInstructor: {
       resolve: async ({ user, status }) => {
-        if (!user) return status(401, "Unauthorized: No active session or invalid account");
+        if (!user) return status(401, { status: 401, message: "Unauthorized: No active session or invalid account" });
         if (user.role === "STUDENT") {
-          return status(403, "Forbidden: Instructors only");
+          return status(403, { status: 403, message: "Forbidden: Instructors and Admins only" });
         }
 
         return { user };
@@ -161,9 +159,9 @@ export const authGuard = (macro: typeof authMacro | MockAuth = authMacro) => new
     },
     isStudent: {
       resolve: async ({ user, status }) => {
-        if (!user) return status(401, "Unauthorized: No active session or invalid account");
+        if (!user) return status(401, { status: 401, message: "Unauthorized: No active session or invalid account" });
         if (user.role !== "STUDENT") {
-          return status(403, "Forbidden: Students only");
+          return status(403, { status: 403, message: "Forbidden: Students only" });
         }
 
         return { user };

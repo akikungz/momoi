@@ -114,33 +114,33 @@ describe("SecretEnvSchema", () => {
 describe("DatabaseEnvSchema", () => {
   it("should accept valid postgres URL", () => {
     const result = DatabaseEnvSchema.safeParse({
-      POSTGRES_URL: "postgres://user:password@localhost:5432/dbname",
+      DATABASE_URL: "postgres://user:password@localhost:5432/dbname",
     });
     expect(result.success).toBe(true);
   });
 
   it("should accept postgresql URL variant", () => {
     const result = DatabaseEnvSchema.safeParse({
-      POSTGRES_URL: "postgresql://user:password@localhost:5432/dbname",
+      DATABASE_URL: "postgresql://user:password@localhost:5432/dbname",
     });
     expect(result.success).toBe(true);
   });
 
-  it("should require POSTGRES_URL", () => {
+  it("should require DATABASE_URL", () => {
     const result = DatabaseEnvSchema.safeParse({});
     expect(result.success).toBe(false);
   });
 
-  it("should reject invalid URL format for POSTGRES_URL", () => {
+  it("should reject invalid URL format for DATABASE_URL", () => {
     const result = DatabaseEnvSchema.safeParse({
-      POSTGRES_URL: "not-a-url",
+      DATABASE_URL: "not-a-url",
     });
     expect(result.success).toBe(false);
   });
 
   it("should accept optional REDIS_URL", () => {
     const result = DatabaseEnvSchema.safeParse({
-      POSTGRES_URL: "postgres://localhost/db",
+      DATABASE_URL: "postgres://localhost/db",
       REDIS_URL: "redis://localhost:6379",
     });
     expect(result.success).toBe(true);
@@ -151,7 +151,7 @@ describe("DatabaseEnvSchema", () => {
 
   it("should allow REDIS_URL to be undefined", () => {
     const result = DatabaseEnvSchema.safeParse({
-      POSTGRES_URL: "postgres://localhost/db",
+      DATABASE_URL: "postgres://localhost/db",
     });
     expect(result.success).toBe(true);
     if (result.success) {
@@ -161,7 +161,7 @@ describe("DatabaseEnvSchema", () => {
 
   it("should reject invalid URL format for REDIS_URL", () => {
     const result = DatabaseEnvSchema.safeParse({
-      POSTGRES_URL: "postgres://localhost/db",
+      DATABASE_URL: "postgres://localhost/db",
       REDIS_URL: "not-a-url",
     });
     expect(result.success).toBe(false);
@@ -260,7 +260,7 @@ describe("EnvSchema", () => {
       NODE_ENV: "development",
       PORT: "3000",
       JWT_SECRET: "a".repeat(32),
-      POSTGRES_URL: "postgres://localhost/db",
+      DATABASE_URL: "postgres://localhost/db",
       OTEL_SERVICE_NAME: "momoi",
       LOG_LEVEL: "info",
       LOG_FORMAT: "plain",
@@ -271,7 +271,7 @@ describe("EnvSchema", () => {
   it("should apply all defaults", () => {
     const result = EnvSchema.safeParse({
       JWT_SECRET: "a".repeat(32),
-      POSTGRES_URL: "postgres://localhost/db",
+      DATABASE_URL: "postgres://localhost/db",
     });
     expect(result.success).toBe(true);
     if (result.success) {
@@ -285,12 +285,12 @@ describe("EnvSchema", () => {
 
   it("should reject missing required JWT_SECRET", () => {
     const result = EnvSchema.safeParse({
-      POSTGRES_URL: "postgres://localhost/db",
+      DATABASE_URL: "postgres://localhost/db",
     });
     expect(result.success).toBe(false);
   });
 
-  it("should reject missing required POSTGRES_URL", () => {
+  it("should reject missing required DATABASE_URL", () => {
     const result = EnvSchema.safeParse({
       JWT_SECRET: "a".repeat(32),
     });
@@ -304,7 +304,7 @@ describe("EnvSchema", () => {
       JWT_SECRET: "a".repeat(32),
       GOOGLE_OAUTH_CLIENT_ID: "client-id",
       GOOGLE_OAUTH_CLIENT_SECRET: "secret",
-      POSTGRES_URL: "postgres://localhost/db",
+      DATABASE_URL: "postgres://localhost/db",
       REDIS_URL: "redis://localhost:6379",
       OTEL_SERVICE_NAME: "custom-service",
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://localhost:4317",

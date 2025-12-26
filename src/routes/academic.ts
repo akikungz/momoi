@@ -16,7 +16,7 @@ export const academicRoute = (
   .guard({ auth: true })
   .onBeforeHandle(({ user, status }) => {
     if (user.role !== "ADMIN") {
-      return status(403, "Forbidden: Admins only");
+      return status(403, { status: 403, message: "Forbidden: Admins only" });
     }
   })
   .decorate("academicService", new AcademicService(prisma, cache))

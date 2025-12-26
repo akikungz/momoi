@@ -4,6 +4,7 @@ import { AuthMacro } from '@momoi/auth';
 import { CacheModule } from '@momoi/cache';
 import { PrismaClient } from '@momoi/database';
 import { instanceModel } from '@momoi/model/instance';
+import { ErrorResponse } from '@momoi/model/shared/error';
 import { InstanceService } from '@momoi/service/instance';
 
 export const instanceRoute = (
@@ -18,14 +19,14 @@ export const instanceRoute = (
   .post(
     "/",
     async ({ instanceService, user, body, status }) => {
-      if (user.role === "STUDENT") return status(403, "Forbidden: Students cannot create instances");
+      if (user.role === "STUDENT") return status(403, { status: 403, message: "Forbidden: Students cannot create instances" });
       return await instanceService.createInstanceByInstructor(user.id, body);
     },
     {
       body: "CreateInstanceRequestBody",
       response: {
         200: "CreateInstanceResponse",
-        403: t.String({ description: "Forbidden: Students cannot create instances" }),
+        403: ErrorResponse,
       },
       detail: {
         summary: "Create a new instance",
@@ -109,6 +110,113 @@ export const instanceRoute = (
         summary: "Delete an instance",
         description: "Delete a specific instance by ID",
         tags: ["Instances"],
+      },
+    }
+  )
+  // Reverse Proxy Management
+  .post(
+    "/:instanceId/reverse-proxies",
+    async ({ instanceService, params, body }) => {
+      return await instanceService.createReverseProxy(params.instanceId, body);
+    },
+    {
+      params: t.Object({
+        instanceId: t.Number({ description: "Unique identifier for the instance" }),
+      }),
+      body: "CreateReverseProxyRequestBody",
+      response: "CreateReverseProxyResponse",
+      detail: {
+        summary: "Create a reverse proxy",
+        description: "Create a reverse proxy configuration for the instance",
+        tags: ["Instances", "Reverse Proxy"],
+      },
+    }
+  )
+  .get(
+    "/:instanceId/reverse-proxies",
+    async ({ instanceService, params }) => {
+      return await instanceService.getReverseProxies(params.instanceId);
+    },
+    {
+      params: t.Object({
+        instanceId: t.Number({ description: "Unique identifier for the instance" }),
+      }),
+      response: "GetReverseProxiesResponse",
+      detail: {
+        summary: "Get reverse proxies",
+        description: "Retrieve all reverse proxy configurations for the instance",
+        tags: ["Instances", "Reverse Proxy"],
+      },
+    }
+  )
+  .delete(
+    "/:instanceId/reverse-proxies/:proxyId",
+    async ({ instanceService, params }) => {
+      return await instanceService.deleteReverseProxy(params.instanceId, params.proxyId);
+    },
+    {
+      params: "DeleteReverseProxyRequestParams",
+      response: "DeleteReverseProxyResponse",
+      detail: {
+        summary: "Delete a reverse proxy",
+        description: "Delete a specific reverse proxy configuration from the instance",
+        tags: ["Instances", "Reverse Proxy"],
+      },
+    }
+  )
+  // Instance Promotion
+  .patch(
+    "/:instanceId/promote",
+    async ({ instanceService, user, params, status }) => {
+      if (user.role !== "ADMIN") {
+        return status(403, { status: 403, message: "Forbidden: Only admins can promote instances" });
+      }
+
+      return await instanceService.promoteInstance(params.instanceId, user.id);
+    },
+    {
+      params: "PromoteInstanceRequestParams",
+      response: {
+        200: "PromoteInstanceResponse",
+        403: ErrorResponse,
+      },
+      detail: {
+        summary: "Promote instance",
+        description: "Promote an instance to long-term/production status",
+        tags: ["Instances"],
+      },
+    }
+  )
+  // Audit Logs
+  .get(
+    "/:instanceId/audit-logs",
+    async ({ instanceService, params, query, user, status }) => {
+      if (user.role === "STUDENT") {
+        return status(403, { status: 403, message: "Forbidden: Students cannot view instance audit logs" });
+      }
+
+      return await instanceService.getInstanceAuditLogs(
+        params.instanceId,
+        query.page,
+        query.pageSize
+      );
+    },
+    {
+      params: t.Object({
+        instanceId: t.Number({ description: "Unique identifier for the instance" }),
+      }),
+      query: t.Object({
+        page: t.Optional(t.Number({ minimum: 1, default: 1 })),
+        pageSize: t.Optional(t.Number({ minimum: 1, maximum: 100, default: 10 })),
+      }),
+      response: {
+        200: "GetInstanceAuditLogsResponse",
+        403: ErrorResponse,
+      },
+      detail: {
+        summary: "Get instance audit logs",
+        description: "Retrieve audit log entries for the instance",
+        tags: ["Instances", "Audit Logs"],
       },
     }
   );

@@ -8,7 +8,7 @@ import { PrismaClient } from './prisma/generated/client';
 export const prisma = new PrismaClient({
   adapter: new PrismaPg(
     new Pool({
-      connectionString: env.POSTGRES_URL,
+      connectionString: env.DATABASE_URL,
       max: 10,
     })
   ),

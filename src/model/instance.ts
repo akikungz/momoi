@@ -90,6 +90,67 @@ export const DeleteInstanceResponse = t.Object({
   success: t.Boolean({ description: "Indicates whether the deletion was successful" }),
 });
 
+export const ReverseProxyType = t.Union([
+  t.Literal("HTTPS", { description: "HTTPS reverse proxy" }),
+  t.Literal("HTTP", { description: "HTTP reverse proxy" })
+], { description: "Type of reverse proxy" });
+
+export const ReverseProxyItem = t.Object({
+  id: t.Number({ description: "Unique identifier for the reverse proxy" }),
+  targetPort: t.Number({ description: "Target port on the instance" }),
+  type: ReverseProxyType,
+  description: t.Optional(t.String({ description: "Description of the reverse proxy" })),
+  ...TimestampResponse.properties
+}, { description: "Reverse proxy configuration" });
+
+export const CreateReverseProxyRequestBody = t.Object({
+  targetPort: t.Number({ description: "Target port on the instance", minimum: 1, maximum: 65535 }),
+  type: ReverseProxyType,
+  description: t.Optional(t.String({ description: "Description of the reverse proxy" })),
+});
+
+export const CreateReverseProxyResponse = ReverseProxyItem;
+
+export const GetReverseProxiesResponse = t.Array(ReverseProxyItem, {
+  description: "List of reverse proxy configurations"
+});
+
+export const DeleteReverseProxyRequestParams = t.Object({
+  instanceId: t.Number({ description: "Unique identifier for the instance" }),
+  proxyId: t.Number({ description: "Unique identifier for the reverse proxy to delete" }),
+});
+
+export const DeleteReverseProxyResponse = t.Object({
+  success: t.Boolean({ description: "Indicates whether the deletion was successful" }),
+});
+
+export const PromoteInstanceRequestParams = t.Object({
+  instanceId: t.Number({ description: "Unique identifier for the instance to promote" }),
+});
+
+export const PromoteInstanceResponse = t.Object({
+  id: t.Number({ description: "Unique identifier for the promoted instance" }),
+  status: InstanceStatus,
+  message: t.String({ description: "Success message" }),
+});
+
+export const InstanceAuditLogItem = t.Object({
+  id: t.Number({ description: "Unique identifier for the audit log entry" }),
+  action: t.String({ description: "Action performed on the instance" }),
+  performedBy: t.Object({
+    id: t.Number({ description: "Platform user ID" }),
+    name: t.String({ description: "User name" }),
+    email: t.String({ description: "User email" }),
+  }),
+  timestamp: t.Date({ description: "When the action was performed" }),
+  notes: t.Optional(t.String({ description: "Additional notes about the action" })),
+}, { description: "Instance audit log entry" });
+
+export const GetInstanceAuditLogsResponse = t.Object({
+  values: t.Array(InstanceAuditLogItem, { description: "List of audit log entries" }),
+  ...PaginationResponse.properties
+});
+
 export const instanceModel = new Elysia({ name: "instance.model" })
   .model("GetInstancesRequestQuery", GetInstancesRequestQuery)
   .model("GetInstancesResponse", GetInstancesResponse)
@@ -98,4 +159,12 @@ export const instanceModel = new Elysia({ name: "instance.model" })
   .model("CreateInstanceRequestBody", CreateInstanceRequestBody)
   .model("CreateInstanceResponse", CreateInstanceResponse)
   .model("DeleteInstanceRequestParams", DeleteInstanceRequestParams)
-  .model("DeleteInstanceResponse", DeleteInstanceResponse);
+  .model("DeleteInstanceResponse", DeleteInstanceResponse)
+  .model("CreateReverseProxyRequestBody", CreateReverseProxyRequestBody)
+  .model("CreateReverseProxyResponse", CreateReverseProxyResponse)
+  .model("GetReverseProxiesResponse", GetReverseProxiesResponse)
+  .model("DeleteReverseProxyRequestParams", DeleteReverseProxyRequestParams)
+  .model("DeleteReverseProxyResponse", DeleteReverseProxyResponse)
+  .model("PromoteInstanceRequestParams", PromoteInstanceRequestParams)
+  .model("PromoteInstanceResponse", PromoteInstanceResponse)
+  .model("GetInstanceAuditLogsResponse", GetInstanceAuditLogsResponse);

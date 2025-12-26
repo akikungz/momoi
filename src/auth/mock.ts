@@ -77,7 +77,7 @@ export const mockOtherAuth = new Elysia({ name: "auth.mock.other" })
   .macro({
     auth: {
       resolve: async ({ status }) => {
-        return status(401, "Unauthorized: No active session or invalid account");
+        return status(401, { status: 401, message: "Unauthorized: No active session or invalid account" });
       }
     }
   });

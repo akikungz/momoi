@@ -4,6 +4,7 @@ import {
   PrismaClientKnownRequestError
 } from '@momoi/database/prisma/generated/internal/prismaNamespace';
 import { addSSHKeyResponse, getSSHKeyResponse } from '@momoi/model/user';
+import { ServiceError } from '@momoi/utils/error';
 
 import type { CacheModule } from '@momoi/cache';
 import type { PrismaClient } from '@momoi/database/prisma/generated/client';
@@ -32,17 +33,17 @@ export class UserService {
     } catch (error: unknown) {
       if (error instanceof PrismaClientKnownRequestError) {
         if (error.code === 'P2002') {
-          throw new Error('An SSH key with the same name or public key already exists for this user.');
+          throw new ServiceError('An SSH key with the same name or public key already exists for this user.', 409);
         }
 
         if (error.code === 'P2025') {
-          throw new Error('User not found.');
+          throw new ServiceError('User not found.', 404);
         }
 
-        throw new Error(`Database error: ${error.message}`);
+        throw new ServiceError(`Database error: ${error.message}`, 500);
       }
 
-      throw new Error('An unexpected error occurred while adding the SSH key.');
+      throw new ServiceError('An unexpected error occurred while adding the SSH key.', 500);
     }
   }
 
@@ -102,13 +103,13 @@ export class UserService {
     } catch (error: unknown) {
       if (error instanceof PrismaClientKnownRequestError) {
         if (error.code === 'P2025') {
-          throw new Error('One or more SSH keys not found for the user.');
+          throw new ServiceError('One or more SSH keys not found for the user.', 404);
         }
 
-        throw new Error(`Database error: ${error.message}`);
+        throw new ServiceError(`Database error: ${error.message}`, 500);
       }
 
-      throw new Error('An unexpected error occurred while removing the SSH keys.');
+      throw new ServiceError('An unexpected error occurred while removing the SSH keys.', 500);
     }
   }
 }

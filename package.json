@@ -5,14 +5,21 @@
     "dev": "bun run --watch src/index.ts",
     "start": "bun run src/index.ts",
     "db:gen": "prisma generate",
-    "db:migrate": "prisma migrate dev"
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:studio": "prisma studio"
   },
   "dependencies": {
+    "@elysiajs/cors": "^1.4.0",
+    "@elysiajs/openapi": "^1.4.12",
+    "@elysiajs/opentelemetry": "^1.4.10",
+    "@elysiajs/server-timing": "^1.4.0",
     "@prisma/adapter-pg": "^7.2.0",
     "@prisma/client": "^7.2.0",
     "@prisma/extension-accelerate": "^3.0.1",
     "better-auth": "^1.4.9",
     "elysia": "latest",
+    "elysia-remote-dts": "^1.0.3",
     "ioredis": "^5.8.2",
     "pg": "^8.16.3",
     "prismabox": "^1.1.26",
