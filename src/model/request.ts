@@ -1,0 +1,127 @@
+import { Elysia, t } from 'elysia';
+
+import { PaginationRequest, PaginationResponse } from './shared/pagination';
+import { TimestampResponse } from './shared/timestamp';
+
+export const ApprovalStatus = t.Union([
+  t.Literal("PENDING", { description: "Waiting for review" }),
+  t.Literal("APPROVED", { description: "Approved by reviewer" }),
+  t.Literal("REJECTED", { description: "Rejected by reviewer" }),
+  t.Literal("CANCELLED", { description: "Cancelled by requester" })
+], { description: "Approval status" });
+
+export const ApprovalActionStatus = t.Union([
+  t.Literal("APPROVED"),
+  t.Literal("REJECTED"),
+  t.Literal("CANCELLED"),
+], { description: "Statuses allowed when acting on a request" });
+
+export const CourseOfferingSummary = t.Object({
+  courseCode: t.String({ description: "Course code" }),
+  courseTitle: t.String({ description: "Course title" }),
+  semester: t.String({ description: "Semester name" }),
+}, { description: "Summary of a course offering" });
+
+export const RequestSpecs = t.Object({
+  cpus: t.Number({ description: "Number of CPUs requested" }),
+  memoryMB: t.Number({ description: "Memory requested in MB" }),
+  diskGB: t.Number({ description: "Disk size requested in GB" }),
+});
+
+export const RequestItem = t.Object({
+  id: t.Number({ description: "Request ID" }),
+  title: t.String({ description: "Request title" }),
+  description: t.Optional(t.String({ description: "Request description" })),
+  status: ApprovalStatus,
+  reason: t.Optional(t.String({ description: "Reviewer or requester note" })),
+  courseOffering: t.Optional(CourseOfferingSummary),
+  specs: RequestSpecs,
+  templateName: t.Optional(t.String({ description: "Chosen template name" })),
+  requesterId: t.Number({ description: "Requester platform user ID" }),
+  reviewerId: t.Optional(t.Number({ description: "Reviewer platform user ID" })),
+  ...TimestampResponse.properties,
+}, { description: "Request data" });
+
+export const GetRequestsRequestQuery = t.Object({
+  ...PaginationRequest.properties,
+  status: t.Optional(ApprovalStatus),
+  courseId: t.Optional(t.Number({ description: "Filter by course ID" })),
+  semesterId: t.Optional(t.Number({ description: "Filter by semester ID" })),
+});
+
+export const GetRequestsResponse = t.Object({
+  values: t.Array(RequestItem),
+  ...PaginationResponse.properties,
+});
+
+export const CreateRequestRequestBody = t.Object({
+  title: t.String({ description: "Request title" }),
+  description: t.Optional(t.String({ description: "Request description" })),
+  courseOfferingId: t.Number({ description: "Course offering ID" }),
+  pveTemplateId: t.Number({ description: "Template ID" }),
+  ...RequestSpecs.properties,
+});
+
+export const CreateRequestResponse = RequestItem;
+
+export const UpdateRequestStatusRequestBody = t.Object({
+  status: ApprovalActionStatus,
+  reason: t.Optional(t.String({ description: "Reason for the action" })),
+});
+
+export const UpdateRequestStatusResponse = RequestItem;
+
+// Extended Request
+export const ExtendedRequestItem = t.Object({
+  id: t.Number({ description: "Extended request ID" }),
+  title: t.String({ description: "Extended request title" }),
+  description: t.Optional(t.String({ description: "Extended request description" })),
+  status: ApprovalStatus,
+  reason: t.Optional(t.String({ description: "Reviewer or requester note" })),
+  targetInstanceId: t.Number({ description: "Target instance ID" }),
+  courseOffering: t.Optional(CourseOfferingSummary),
+  requesterId: t.Number({ description: "Requester platform user ID" }),
+  reviewerId: t.Optional(t.Number({ description: "Reviewer platform user ID" })),
+  ...TimestampResponse.properties,
+}, { description: "Extended request data" });
+
+export const GetExtendedRequestsRequestQuery = t.Object({
+  ...PaginationRequest.properties,
+  status: t.Optional(ApprovalStatus),
+  courseId: t.Optional(t.Number({ description: "Filter by course ID" })),
+  semesterId: t.Optional(t.Number({ description: "Filter by semester ID" })),
+  instanceId: t.Optional(t.Number({ description: "Filter by instance ID" })),
+});
+
+export const GetExtendedRequestsResponse = t.Object({
+  values: t.Array(ExtendedRequestItem),
+  ...PaginationResponse.properties,
+});
+
+export const CreateExtendedRequestRequestBody = t.Object({
+  title: t.String({ description: "Extended request title" }),
+  description: t.Optional(t.String({ description: "Extended request description" })),
+  targetInstanceId: t.Number({ description: "Instance to be extended" }),
+});
+
+export const CreateExtendedRequestResponse = ExtendedRequestItem;
+
+export const UpdateExtendedRequestStatusRequestBody = UpdateRequestStatusRequestBody;
+export const UpdateExtendedRequestStatusResponse = ExtendedRequestItem;
+
+export const requestModel = new Elysia({ name: "request.model" })
+  .model("ApprovalStatus", ApprovalStatus)
+  .model("RequestItem", RequestItem)
+  .model("ExtendedRequestItem", ExtendedRequestItem)
+  .model("CreateRequestRequestBody", CreateRequestRequestBody)
+  .model("CreateRequestResponse", CreateRequestResponse)
+  .model("GetRequestsRequestQuery", GetRequestsRequestQuery)
+  .model("GetRequestsResponse", GetRequestsResponse)
+  .model("UpdateRequestStatusRequestBody", UpdateRequestStatusRequestBody)
+  .model("UpdateRequestStatusResponse", UpdateRequestStatusResponse)
+  .model("CreateExtendedRequestRequestBody", CreateExtendedRequestRequestBody)
+  .model("CreateExtendedRequestResponse", CreateExtendedRequestResponse)
+  .model("GetExtendedRequestsRequestQuery", GetExtendedRequestsRequestQuery)
+  .model("GetExtendedRequestsResponse", GetExtendedRequestsResponse)
+  .model("UpdateExtendedRequestStatusRequestBody", UpdateExtendedRequestStatusRequestBody)
+  .model("UpdateExtendedRequestStatusResponse", UpdateExtendedRequestStatusResponse);
