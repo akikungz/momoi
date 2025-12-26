@@ -25,6 +25,7 @@ export const userRoute = (
     detail: {
       summary: "Get current user",
       description: "Retrieve the profile information of the currently authenticated user",
+      tags: ["User"],
     },
   })
   .get("/ssh-keys", async ({ userService, user, query }) => {
@@ -37,6 +38,7 @@ export const userRoute = (
     detail: {
       summary: "Get user SSH keys",
       description: "Retrieve a paginated list of SSH keys for the current user",
+      tags: ["User", "SSH Keys"],
     },
   })
   .post("/ssh-keys", async ({ userService, user, body }) => {
@@ -49,6 +51,7 @@ export const userRoute = (
     detail: {
       summary: "Add SSH key",
       description: "Add a new SSH public key to the current user's account",
+      tags: ["User", "SSH Keys"],
     },
   })
   .delete("/ssh-keys", async ({ userService, user, body }) => {
@@ -61,5 +64,6 @@ export const userRoute = (
     detail: {
       summary: "Remove SSH keys",
       description: "Remove one or more SSH keys from the current user's account",
+      tags: ["User", "SSH Keys"],
     },
   });

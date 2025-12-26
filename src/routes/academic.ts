@@ -30,6 +30,7 @@ export const academicRoute = (
     detail: {
       summary: "Get instructor mailing list",
       description: "Retrieve the list of instructor email addresses for mailing purposes",
+      tags: ["Academic", "Mailing List"],
     },
   })
   .post("/mailing-list", async ({ academicService, body }) => {
@@ -40,6 +41,7 @@ export const academicRoute = (
     detail: {
       summary: "Add instructor to mailing list",
       description: "Add a new instructor email address to the mailing list",
+      tags: ["Academic", "Mailing List"],
     },
   })
   .delete("/mailing-list/:mailingId", async ({ academicService, params }) => {
@@ -50,6 +52,7 @@ export const academicRoute = (
     detail: {
       summary: "Remove instructor from mailing list",
       description: "Remove an instructor email address from the mailing list by ID",
+      tags: ["Academic", "Mailing List"],
     },
   })
 
@@ -62,6 +65,7 @@ export const academicRoute = (
     detail: {
       summary: "Get all instructors",
       description: "Retrieve a paginated list of all instructors in the system",
+      tags: ["Academic", "Instructors"],
     },
   })
   .get("/instructors/:instructorId", async ({ academicService, params }) => {
@@ -72,6 +76,7 @@ export const academicRoute = (
     detail: {
       summary: "Get instructor by ID",
       description: "Retrieve detailed information about a specific instructor",
+      tags: ["Academic", "Instructors"],
     },
   })
   .patch("/instructors/:instructorId", async ({ academicService, params, body }) => {
@@ -83,6 +88,7 @@ export const academicRoute = (
     detail: {
       summary: "Update instructor",
       description: "Update the information of a specific instructor by ID",
+      tags: ["Academic", "Instructors"],
     },
   })
 
@@ -95,6 +101,7 @@ export const academicRoute = (
     detail: {
       summary: "Get all courses",
       description: "Retrieve a paginated list of all courses in the system",
+      tags: ["Academic", "Courses"],
     },
   })
   .get("/courses/:courseId", async ({ academicService, params }) => {
@@ -105,6 +112,7 @@ export const academicRoute = (
     detail: {
       summary: "Get course by ID",
       description: "Retrieve detailed information about a specific course",
+      tags: ["Academic", "Courses"],
     },
   })
   .post("/courses", async ({ academicService, body }) => {
@@ -115,6 +123,7 @@ export const academicRoute = (
     detail: {
       summary: "Create a new course",
       description: "Add a new course to the system",
+      tags: ["Academic", "Courses"],
     },
   })
   .patch("/courses/:courseId", async ({ academicService, params, body }) => {
@@ -126,6 +135,7 @@ export const academicRoute = (
     detail: {
       summary: "Update course",
       description: "Update the information of a specific course by ID",
+      tags: ["Academic", "Courses"],
     },
   })
   .patch("/courses/:courseId/instructors", async ({ academicService, params, body }) => {
@@ -137,6 +147,7 @@ export const academicRoute = (
     detail: {
       summary: "Update course instructors",
       description: "Assign or update instructors for a specific course",
+      tags: ["Academic", "Courses"],
     },
   })
   .patch("/courses/:courseId/semesters", async ({ academicService, params, body }) => {
@@ -148,6 +159,7 @@ export const academicRoute = (
     detail: {
       summary: "Update course semesters",
       description: "Assign or update semesters for a specific course",
+      tags: ["Academic", "Courses"],
     },
   })
 
@@ -160,6 +172,7 @@ export const academicRoute = (
     detail: {
       summary: "Get all semesters",
       description: "Retrieve a paginated list of all semesters in the system",
+      tags: ["Academic", "Semesters"],
     },
   })
   .get("/semesters/:semesterId", async ({ academicService, params }) => {
@@ -170,6 +183,7 @@ export const academicRoute = (
     detail: {
       summary: "Get semester by ID",
       description: "Retrieve detailed information about a specific semester",
+      tags: ["Academic", "Semesters"],
     },
   })
   .post("/semesters", async ({ academicService, body }) => {
@@ -180,6 +194,7 @@ export const academicRoute = (
     detail: {
       summary: "Create a new semester",
       description: "Add a new semester to the system",
+      tags: ["Academic", "Semesters"],
     },
   })
   .patch("/semesters/:semesterId", async ({ academicService, params, body }) => {
@@ -191,6 +206,7 @@ export const academicRoute = (
     detail: {
       summary: "Update semester",
       description: "Update the information of a specific semester by ID",
+      tags: ["Academic", "Semesters"],
     },
   })
   .patch("/semesters/:semesterId/courses", async ({ academicService, params, body }) => {
@@ -202,6 +218,7 @@ export const academicRoute = (
     detail: {
       summary: "Update semester courses",
       description: "Assign or update courses for a specific semester",
+      tags: ["Academic", "Semesters"],
     },
   })
   .delete("/semesters/:semesterId", async ({ academicService, params }) => {
@@ -212,5 +229,6 @@ export const academicRoute = (
     detail: {
       summary: "Delete semester",
       description: "Delete a specific semester from the system by ID",
+      tags: ["Academic", "Semesters"],
     },
   });

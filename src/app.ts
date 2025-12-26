@@ -18,9 +18,17 @@ export const app = new Elysia({ name: "momoi.api", prefix: "/api" })
       info: {
         title: "Momoi API",
         version: "1.0.0",
-        description: "API documentation for Momoi platform."
-      }
-    }
+        description: "API documentation for Momoi platform.",
+      },
+      tags: [
+        { name: "User", description: "User related endpoints" },
+        { name: "SSH Keys", description: "Endpoints for managing SSH keys" },
+        { name: "Instances", description: "Instance management endpoints" },
+        { name: "Academic", description: "Academic related endpoints" },
+        { name: "Mailing List", description: "Endpoints for managing mailing lists" },
+        { name: "Requests", description: "Instance request management endpoints" },
+      ]
+    },
   }))
   .use(authHandler)
   .use(userRoute(prisma, cache, authMacro))

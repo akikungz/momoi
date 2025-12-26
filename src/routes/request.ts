@@ -33,6 +33,7 @@ export const requestRoute = (
       detail: {
         summary: "Create a new request",
         description: "Students submit an instance request for instructor/admin review",
+        tags: ["Requests"],
       }
     })
     .get("/", async ({ requestService, user, query }) => {
@@ -43,6 +44,7 @@ export const requestRoute = (
       detail: {
         summary: "List requests",
         description: "List requests visible to the current user",
+        tags: ["Requests"],
       }
     })
     .patch("/:requestId/status", async ({ requestService, user, params, body }) => {
@@ -57,6 +59,7 @@ export const requestRoute = (
       detail: {
         summary: "Act on a request",
         description: "Approve, reject, or cancel a request depending on role",
+        tags: ["Requests"],
       }
     })
   )
@@ -78,6 +81,7 @@ export const requestRoute = (
       detail: {
         summary: "Create an extended request",
         description: "Students request changes related to an existing instance",
+        tags: ["Extended Requests"],
       }
     })
     .get("/", async ({ requestService, user, query }) => {
@@ -88,6 +92,7 @@ export const requestRoute = (
       detail: {
         summary: "List extended requests",
         description: "List extended requests visible to the current user",
+        tags: ["Extended Requests"],
       }
     })
     .patch("/:extendedRequestId/status", async ({ requestService, user, params, body }) => {
@@ -102,6 +107,7 @@ export const requestRoute = (
       detail: {
         summary: "Act on an extended request",
         description: "Approve, reject, or cancel an extended request depending on role",
+        tags: ["Extended Requests"],
       }
     })
   );

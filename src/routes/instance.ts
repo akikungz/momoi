@@ -30,6 +30,7 @@ export const instanceRoute = (
       detail: {
         summary: "Create a new instance",
         description: "Create a new instance as an instructor",
+        tags: ["Instances"],
       },
     }
   )
@@ -44,6 +45,7 @@ export const instanceRoute = (
       detail: {
         summary: "Get instances for the current user",
         description: "Retrieve all instances created by the current user",
+        tags: ["Instances"],
       },
     }
   )
@@ -58,6 +60,7 @@ export const instanceRoute = (
       detail: {
         summary: "Get all instances (admin)",
         description: "Retrieve all instances in the system",
+        tags: ["Instances"],
       },
     }
   )
@@ -75,6 +78,7 @@ export const instanceRoute = (
       detail: {
         summary: "Get instances for a specific instructor",
         description: "Retrieve all instances created by a specific instructor",
+        tags: ["Instances"],
       },
     }
   )
@@ -89,6 +93,7 @@ export const instanceRoute = (
       detail: {
         summary: "Get a specific instance",
         description: "Retrieve details of a specific instance by ID",
+        tags: ["Instances"],
       },
     }
   )
@@ -103,6 +108,7 @@ export const instanceRoute = (
       detail: {
         summary: "Delete an instance",
         description: "Delete a specific instance by ID",
+        tags: ["Instances"],
       },
     }
   );
