@@ -232,7 +232,7 @@ describe("Instance Route - Admin", () => {
     mockPrisma.instance.count.mockResolvedValueOnce(1);
     mockPrisma.instance.findMany.mockResolvedValueOnce(mockInstances);
 
-    const response = await client.instances.instructor({ instructorId: 5 }).get({
+    const response = await client.instances.instructor.get({
       query: {
         page: 1,
         pageSize: 10,
@@ -310,6 +310,11 @@ describe("Instance Route - Admin", () => {
   it("should delete instance", async () => {
     const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockAdminAuth));
 
+    mockPrisma.instance.findUnique.mockResolvedValueOnce({
+      id: 1,
+      platformUserId: 1,
+      status: true,
+    });
     mockPrisma.instance.delete.mockResolvedValueOnce({ id: 1 });
 
     const response = await client.instances({ instanceId: 1 }).delete();
@@ -472,6 +477,11 @@ describe("Instance Route - Student", () => {
   it("should delete own instance", async () => {
     const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockStudentAuth));
 
+    mockPrisma.instance.findUnique.mockResolvedValueOnce({
+      id: 1,
+      platformUserId: 1,
+      status: true,
+    });
     mockPrisma.instance.delete.mockResolvedValueOnce({ id: 1 });
 
     const response = await client.instances({ instanceId: 1 }).delete();

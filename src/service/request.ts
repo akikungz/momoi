@@ -14,6 +14,7 @@ import { ServiceError } from '@momoi/utils/error';
 
 import type { CacheModule } from '@momoi/cache';
 import type { Prisma, PrismaClient } from '@momoi/database/prisma/generated/client';
+import { QueueModule } from '@momoi/queue';
 
 type CurrentUser = { id: number, role: "ADMIN" | "INSTRUCTOR" | "STUDENT" };
 
@@ -78,6 +79,7 @@ export class RequestService {
   constructor(
     private prisma: PrismaClient,
     private cache: CacheModule,
+    private queue: QueueModule
   ) { }
 
   public async createRequest(userId: number, body: Static<typeof CreateRequestRequestBody>): Promise<Static<typeof CreateRequestResponse>> {
@@ -199,7 +201,30 @@ export class RequestService {
     ]);
 
     if (updated.status === ApprovalActionStatus.APPROVED) {
-      // TODO: Trigger instance provisioning workflow
+      // TODO: Create instance based on request specs and trigger provisioning
+      const instance = await this.prisma.instance.create({
+        data: {
+          courseOfferingId: request.courseOfferingId,
+          pveTemplateId: request.pveTemplateId,
+          cpus: request.cpus,
+          memoryMB: request.memoryMB,
+          diskGB: request.diskGB,
+          platformUserId: request.requesterId,
+        },
+      });
+
+      // Invalidate instance list cache for the user
+      const cacheKeyPattern = `user:${request.requesterId}:instances:*`;
+      await this.cache.deleteCacheByPattern(cacheKeyPattern);
+
+      // Queue the VM provisioning job (trigger only, worker queries database)
+      await this.queue.provisionInstanceQueue.add(
+        'provision',
+        {
+          instanceId: instance.id,
+          userId: request.requesterId,
+        }
+      );
     }
 
     await this.invalidateRequestCaches(request.requesterId);

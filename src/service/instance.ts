@@ -10,6 +10,7 @@ import {
   GetReverseProxiesResponse, PromoteInstanceResponse
 } from '@momoi/model/instance';
 import { ServiceError } from '@momoi/utils/error';
+import { QueueModule } from '@momoi/queue';
 
 import type { CacheModule } from '@momoi/cache';
 import type { PrismaClient } from '@momoi/database/prisma/generated/client';
@@ -18,6 +19,7 @@ export class InstanceService {
   constructor(
     private prisma: PrismaClient,
     private cache: CacheModule,
+    private queue: QueueModule
   ) { }
 
   public async createInstanceByInstructor(userId: number, body: Static<typeof CreateInstanceRequestBody>): Promise<Static<typeof CreateInstanceResponse>> {
@@ -58,8 +60,21 @@ export class InstanceService {
       const cacheKeyPattern = `user:${userId}:instances:*`;
       await this.cache.deleteCacheByPattern(cacheKeyPattern);
 
-      // TODO: Trigger background job to provision the instance VM
-      console.log(`Triggering VM provisioning for instance ID: ${instance.id}`);
+      // Queue the VM provisioning job (trigger only, worker queries database)
+      await this.queue.provisionInstanceQueue.add(
+        'provision',
+        {
+          instanceId: instance.id,
+          userId,
+        },
+        {
+          jobId: `provision-${instance.id}`,
+          removeOnComplete: true,
+          removeOnFail: false,
+        }
+      );
+
+      console.log(`📋 VM provisioning queued for instance ID: ${instance.id}`);
 
       return {
         id: instance.id,
@@ -545,6 +560,21 @@ export class InstanceService {
 
   public async deleteInstance(instanceId: number): Promise<Static<typeof DeleteInstanceResponse>> {
     try {
+      // Get the instance details before deleting
+      const instance = await this.prisma.instance.findUnique({
+        where: { id: instanceId },
+        select: {
+          id: true,
+          platformUserId: true,
+          status: true,
+        },
+      });
+
+      if (!instance) {
+        throw new ServiceError('Instance not found.', 404);
+      }
+
+      // Delete the instance from database
       await this.prisma.instance.delete({
         where: { id: instanceId },
       });
@@ -553,11 +583,28 @@ export class InstanceService {
       const cacheKey = `instance:${instanceId}`;
       await this.cache.deleteCacheByPattern(cacheKey);
 
-      // TODO: Trigger background job to deprovision the instance VM
-      console.log(`Change state to INACTIVE of instance ID: ${instanceId}`);
+      // Queue the VM deprovisioning job
+      await this.queue.deprovisionInstanceQueue.add(
+        'deprovision',
+        {
+          instanceId,
+          userId: instance.platformUserId,
+        },
+        {
+          jobId: `deprovision-${instanceId}`,
+          removeOnComplete: true,
+          removeOnFail: false,
+        }
+      );
+
+      console.log(`📋 VM deprovisioning queued for instance ID: ${instanceId}`);
 
       return { success: true };
     } catch (error: unknown) {
+      if (error instanceof ServiceError) {
+        throw error;
+      }
+
       if (error instanceof PrismaClientKnownRequestError) {
         if (error.code === 'P2025') {
           throw new ServiceError('Instance not found.', 404);

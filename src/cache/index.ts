@@ -53,4 +53,14 @@ export class CacheModule {
       }
     });
   }
+
+  public async flushAll() {
+    if (!this.client) return;
+
+    await this.client.flushall();
+  }
+
+  public async getClient(): Promise<Redis | undefined> {
+    return this.client;
+  }
 }

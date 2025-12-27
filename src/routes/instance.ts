@@ -6,6 +6,7 @@ import { PrismaClient } from '@momoi/database';
 import { instanceModel } from '@momoi/model/instance';
 import { ErrorResponse } from '@momoi/model/shared/error';
 import { InstanceService } from '@momoi/service/instance';
+import { QueueModule } from '@momoi/queue';
 
 export const instanceRoute = (
   prisma: PrismaClient,
@@ -15,7 +16,7 @@ export const instanceRoute = (
   .use(auth)
   .use(instanceModel)
   .guard({ auth: true })
-  .decorate("instanceService", new InstanceService(prisma, cache))
+  .decorate("instanceService", new InstanceService(prisma, cache, new QueueModule()))
   .post(
     "/",
     async ({ instanceService, user, body, status }) => {
@@ -66,20 +67,27 @@ export const instanceRoute = (
     }
   )
   .get(
-    "/instructor/:instructorId",
-    async ({ instanceService, params, query }) => {
-      return await instanceService.getInstancesByInstructor(params.instructorId, query);
+    "/instructor",
+    async ({ instanceService, query, user, status }) => {
+      if (user.role === "STUDENT") return status(403, { status: 403, message: "Forbidden: Students cannot view instructor instances" });
+
+      return await instanceService.getInstancesByInstructor(user.id, query);
     },
     {
-      params: t.Object({
-        instructorId: t.Number({ description: "Unique identifier for the instructor" }),
-      }),
       query: "GetInstancesRequestQuery",
-      response: "GetInstancesResponse",
+      response: {
+        200: "GetInstancesResponse",
+        403: ErrorResponse,
+      },
       detail: {
         summary: "Get instances for a specific instructor",
         description: "Retrieve all instances created by a specific instructor",
         tags: ["Instances"],
+      },
+      guard: {
+        auth: {
+          roles: ["ADMIN", "INSTRUCTOR"],
+        }
       },
     }
   )

@@ -9,16 +9,28 @@ import { createMockScenario, resetMockFactoryCounters } from '@momoi/database/te
 
 import { InstanceService } from '../instance';
 
+// Mock queue module
+const createMockQueue = () => ({
+  provisionInstanceQueue: {
+    add: async () => ({ id: 'mock-job-id' }),
+  },
+  deprovisionInstanceQueue: {
+    add: async () => ({ id: 'mock-job-id' }),
+  },
+});
+
 describe("InstanceService", () => {
   let mockPrisma: any;
   let mockCache: MockCache;
+  let mockQueue: any;
   let instanceService: InstanceService;
 
   beforeEach(() => {
     resetMockFactoryCounters();
     mockPrisma = createMockPrisma() as any;
     mockCache = new MockCache();
-    instanceService = new InstanceService(mockPrisma, mockCache as any);
+    mockQueue = createMockQueue();
+    instanceService = new InstanceService(mockPrisma, mockCache as any, mockQueue as any);
   });
 
   describe("createInstance", () => {
@@ -538,6 +550,11 @@ describe("InstanceService", () => {
     it("should delete an instance", async () => {
       const instanceId = 1;
 
+      mockPrisma.instance.findUnique.mockResolvedValueOnce({
+        id: instanceId,
+        platformUserId: 1,
+        status: true,
+      });
       mockPrisma.instance.delete.mockResolvedValueOnce({ id: instanceId });
 
       const result = await instanceService.deleteInstance(instanceId);
@@ -548,6 +565,11 @@ describe("InstanceService", () => {
     it("should clear cache after deletion", async () => {
       const instanceId = 1;
 
+      mockPrisma.instance.findUnique.mockResolvedValueOnce({
+        id: instanceId,
+        platformUserId: 1,
+        status: true,
+      });
       mockPrisma.instance.delete.mockResolvedValueOnce({ id: instanceId });
 
       await instanceService.deleteInstance(instanceId);
@@ -575,6 +597,11 @@ describe("InstanceService", () => {
     it("should throw error on database error during deletion", async () => {
       const instanceId = 1;
 
+      mockPrisma.instance.findUnique.mockResolvedValueOnce({
+        id: instanceId,
+        platformUserId: 1,
+        status: true,
+      });
       const error = new PrismaClientKnownRequestError(
         "Database error",
         { code: "P2002", clientVersion: "0.0.1" }
@@ -592,6 +619,11 @@ describe("InstanceService", () => {
     it("should throw error on unexpected error", async () => {
       const instanceId = 1;
 
+      mockPrisma.instance.findUnique.mockResolvedValueOnce({
+        id: instanceId,
+        platformUserId: 1,
+        status: true,
+      });
       mockPrisma.instance.delete.mockRejectedValueOnce(new Error("Unexpected error"));
 
       try {
