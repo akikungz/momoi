@@ -1,10 +1,10 @@
-import { Elysia } from 'elysia';
+import { Elysia } from "elysia";
 
-import { AuthMacro } from '@momoi/auth';
-import { CacheModule } from '@momoi/cache';
-import { PrismaClient } from '@momoi/database';
-import { academicModel } from '@momoi/model/academic';
-import { AcademicService } from '@momoi/service/academic';
+import { AuthMacro } from "@momoi/auth";
+import { CacheModule } from "@momoi/cache";
+import { PrismaClient } from "@momoi/database";
+import { academicModel } from "@momoi/model/academic";
+import { AcademicService } from "@momoi/service/academic";
 
 export const academicRoute = (
   prisma: PrismaClient,

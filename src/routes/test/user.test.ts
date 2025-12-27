@@ -1,13 +1,13 @@
-import { beforeEach, describe, expect, it } from 'bun:test';
+import { beforeEach, describe, expect, it } from "bun:test";
 
-import { treaty } from '@elysiajs/eden';
+import { treaty } from "@elysiajs/eden";
 import {
   mockAdminAuth, mockInstructorAuth, mockOtherAuth, mockStudentAuth
-} from '@momoi/auth/mock';
-import { MockCache } from '@momoi/cache/mock';
-import { createMockPrisma } from '@momoi/database/test';
+} from "@momoi/auth/mock";
+import { MockCache } from "@momoi/cache/mock";
+import { createMockPrisma } from "@momoi/database/test";
 
-import { userRoute } from '../user';
+import { userRoute } from "../user";
 
 describe("User Route - Admin", () => {
   let mockPrisma: any;

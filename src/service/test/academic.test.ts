@@ -1,15 +1,15 @@
-import { beforeEach, describe, expect, it } from 'bun:test';
+import { beforeEach, describe, expect, it } from "bun:test";
 
-import { MockCache } from '@momoi/cache/mock';
+import { MockCache } from "@momoi/cache/mock";
 import {
   PrismaClientKnownRequestError
-} from '@momoi/database/prisma/generated/internal/prismaNamespace';
+} from "@momoi/database/prisma/generated/internal/prismaNamespace";
 import {
   createMockCourse, createMockPlatformUser, createMockPrisma, createMockSemester,
   resetMockFactoryCounters
-} from '@momoi/database/test';
+} from "@momoi/database/test";
 
-import { AcademicService } from '../academic';
+import { AcademicService } from "../academic";
 
 describe("AcademicService", () => {
   let mockPrisma: any;

@@ -1,6 +1,6 @@
-import { Elysia } from 'elysia';
+import { Elysia } from "elysia";
 
-import { PlatformRole } from '@momoi/database/prisma/generated/browser';
+import { PlatformRole } from "@momoi/database/prisma/generated/browser";
 
 export interface MockUser {
   id: number;

@@ -1,8 +1,8 @@
-import { Elysia, t } from 'elysia';
+import { Elysia, t } from "elysia";
 
-import { PaginationRequest, PaginationResponse } from './shared/pagination';
-import { TimestampResponse } from './shared/timestamp';
-import { UserRole } from './user';
+import { PaginationRequest, PaginationResponse } from "./shared/pagination";
+import { TimestampResponse } from "./shared/timestamp";
+import { UserRole } from "./user";
 
 export const InstructorMailingListValue = t.Object(
   {

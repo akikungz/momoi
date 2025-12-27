@@ -1,4 +1,4 @@
-import { mock } from 'bun:test';
+import { mock } from "bun:test";
 
 import type { PrismaClient } from "../prisma/generated/client";
 

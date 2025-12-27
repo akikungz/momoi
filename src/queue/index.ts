@@ -1,7 +1,8 @@
-import { Queue } from 'bullmq';
-import Redis from 'ioredis';
+import { Queue } from "bullmq";
+import Redis from "ioredis";
 
-import { env } from '@momoi/env';
+import { env } from "@momoi/env";
+
 import type {
   ProvisionInstanceJobData,
   DeprovisionInstanceJobData,

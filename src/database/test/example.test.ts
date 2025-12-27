@@ -1,11 +1,11 @@
 // @ts-nocheck
-import { beforeEach, describe, expect, it, mock } from 'bun:test';
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 
 import {
   createMockInstance, createMockPlatformUser, createMockScenario, createMockUser,
   resetMockFactoryCounters
-} from './mock-factory';
-import { createMockPrisma } from './mock-prisma';
+} from "./mock-factory";
+import { createMockPrisma } from "./mock-prisma";
 
 /**
  * Example unit tests demonstrating how to use the mock Prisma client.

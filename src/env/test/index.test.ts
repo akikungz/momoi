@@ -1,8 +1,8 @@
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it } from "bun:test";
 
 import {
   DatabaseEnvSchema, EnvSchema, GeneralEnvSchema, SecretEnvSchema, TelemetryEnvSchema
-} from '../';
+} from "../";
 
 describe("GeneralEnvSchema", () => {
   it("should accept valid NODE_ENV values", () => {

@@ -1,4 +1,4 @@
-import { t } from 'elysia';
+import { t } from "elysia";
 
 export const ErrorResponse = t.Object({
   status: t.Number({ description: "HTTP status code" }),

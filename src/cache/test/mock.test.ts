@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it } from 'bun:test';
+import { beforeEach, describe, expect, it } from "bun:test";
 
-import { MockCache } from '../mock';
+import { MockCache } from "../mock";
 
 describe("MockCache", () => {
   let mockCache: MockCache;

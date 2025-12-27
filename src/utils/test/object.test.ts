@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it } from 'bun:test';
+import { beforeEach, describe, expect, it } from "bun:test";
 
-import { deepClone, isObjectEmpty, mergeObjects, omit, pick } from '../object';
+import { deepClone, isObjectEmpty, mergeObjects, omit, pick } from "../object";
 
 describe("Object Utilities", () => {
   describe("pick", () => {

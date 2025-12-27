@@ -1,26 +1,25 @@
-import { Elysia } from 'elysia';
-import { dts } from 'elysia-remote-dts';
+import { Elysia } from "elysia";
 
-import { cors } from '@elysiajs/cors';
-import { openapi } from '@elysiajs/openapi';
-import { opentelemetry } from '@elysiajs/opentelemetry';
-import serverTiming from '@elysiajs/server-timing';
-import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc';
-import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
+import { cors } from "@elysiajs/cors";
+import { openapi } from "@elysiajs/openapi";
+import { opentelemetry } from "@elysiajs/opentelemetry";
+import { serverTiming } from "@elysiajs/server-timing";
+import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-grpc";
+import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-base";
 
-import { authHandler, authMacro } from './auth';
-import { CacheModule } from './cache';
-import { prisma } from './database';
-import { env } from './env';
-import { academicRoute } from './routes/academic';
-import { instanceRoute } from './routes/instance';
-import { requestRoute } from './routes/request';
-import { userRoute } from './routes/user';
-import { ServiceError } from './utils/error';
+import { authHandler, authMacro } from "./auth";
+import { CacheModule } from "./cache";
+import { prisma } from "./database";
+import { env } from "./env";
+import { academicRoute } from "./routes/academic";
+import { instanceRoute } from "./routes/instance";
+import { requestRoute } from "./routes/request";
+import { userRoute } from "./routes/user";
+import { ServiceError } from "./utils/error";
 
 const cache = new CacheModule();
 
-export const app = new Elysia({ name: "momoi.api", prefix: "/api" })
+export const api = new Elysia({ name: "momoi.api", prefix: "/api" })
   .use(
     openapi({
       documentation: {
@@ -62,7 +61,6 @@ export const app = new Elysia({ name: "momoi.api", prefix: "/api" })
       origin: env.ALLOW_CORS_ORIGINS,
     })
   )
-  .use(dts("./src/index.ts"))
   .onError(({ error, status }) => {
     if (error instanceof ServiceError) {
       return status(error.status, { status: error.status, message: error.message });
@@ -80,4 +78,4 @@ export const app = new Elysia({ name: "momoi.api", prefix: "/api" })
   .use(academicRoute(prisma, cache, authMacro))
   .use(requestRoute(prisma, cache, authMacro));
 
-export type App = typeof app;
+export type Api = typeof api;

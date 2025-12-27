@@ -1,16 +1,16 @@
-import { Static } from 'elysia';
+import { Static } from "elysia";
 
 import {
   PrismaClientKnownRequestError
-} from '@momoi/database/prisma/generated/internal/prismaNamespace';
+} from "@momoi/database/prisma/generated/internal/prismaNamespace";
 import {
   CreateInstanceRequestBody, CreateInstanceResponse, CreateReverseProxyRequestBody,
   CreateReverseProxyResponse, DeleteInstanceResponse, DeleteReverseProxyResponse,
   GetInstanceAuditLogsResponse, GetInstanceResponse, GetInstancesRequestQuery, GetInstancesResponse,
   GetReverseProxiesResponse, PromoteInstanceResponse
-} from '@momoi/model/instance';
-import { ServiceError } from '@momoi/utils/error';
-import { QueueModule } from '@momoi/queue';
+} from "@momoi/model/instance";
+import { QueueModule } from "@momoi/queue";
+import { ServiceError } from "@momoi/utils/error";
 
 import type { CacheModule } from '@momoi/cache';
 import type { PrismaClient } from '@momoi/database/prisma/generated/client';

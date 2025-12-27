@@ -1,8 +1,8 @@
-import { Static } from 'elysia';
+import { Static } from "elysia";
 
 import {
   PrismaClientKnownRequestError
-} from '@momoi/database/prisma/generated/internal/prismaNamespace';
+} from "@momoi/database/prisma/generated/internal/prismaNamespace";
 import {
   AddCourseRequestBody, AddCourseResponse, AddInstructorMailingListRequestBody,
   AddInstructorMailingListResponse, AddSemesterRequestBody, AddSemesterResponse,
@@ -16,8 +16,8 @@ import {
   GetSemestersRequestQuery, GetSemestersResponse, InstructorByIdRequestParams,
   InstructorMailingListValue, InstructorValue, RemoveInstructorMailingListResponse,
   SemesterByIdRequestParams, SemesterValue
-} from '@momoi/model/academic';
-import { ServiceError } from '@momoi/utils/error';
+} from "@momoi/model/academic";
+import { ServiceError } from "@momoi/utils/error";
 
 import type { CacheModule } from '@momoi/cache';
 import type { PrismaClient } from '@momoi/database/prisma/generated/client';
