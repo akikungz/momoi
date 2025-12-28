@@ -11,9 +11,12 @@ import type {
   PVETemplate,
   PVEVM,
   PVENode,
+  PlatformFile,
+  PlatformFileVersion,
+  PlatformFilePermission,
 } from "../prisma/generated/client";
 
-import type { PlatformRole, InstanceStatus, ApprovalStatus, PVEVMStatus, PVEVMType, InstanceProvisionStatus } from "../prisma/generated/enums";
+import type { PlatformRole, InstanceStatus, ApprovalStatus, PVEVMStatus, PVEVMType, InstanceProvisionStatus, PlatformFileType, PlatformFileViewerRole } from "../prisma/generated/enums";
 
 /**
  * Factory functions to create mock data for testing.
@@ -29,6 +32,9 @@ let requestIdCounter = 1;
 let templateIdCounter = 1;
 let vmIdCounter = 1000;
 let nodeIdCounter = 1;
+let platformFileIdCounter = 1;
+let platformFileVersionIdCounter = 1;
+let platformFilePermissionIdCounter = 1;
 
 /**
  * Reset all ID counters. Call this in beforeEach to ensure test isolation.
@@ -43,6 +49,9 @@ export function resetMockFactoryCounters() {
   templateIdCounter = 1;
   vmIdCounter = 1000;
   nodeIdCounter = 1;
+  platformFileIdCounter = 1;
+  platformFileVersionIdCounter = 1;
+  platformFilePermissionIdCounter = 1;
 }
 
 /**
@@ -263,6 +272,7 @@ export function createMockInstance(overrides?: Partial<Instance>): Instance {
     status: "PENDING" as InstanceStatus,
     provisionStatus: "NOT_STARTED" as InstanceProvisionStatus,
     provisionError: null,
+    semesterId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -307,5 +317,127 @@ export function createMockScenario() {
     vm,
     request,
     instance,
+  };
+}
+
+/**
+ * Creates a mock PlatformFile
+ */
+export function createMockPlatformFile(overrides?: Partial<PlatformFile>): PlatformFile {
+  const id = `file-${platformFileIdCounter++}`;
+  return {
+    id,
+    name: `Test File ${platformFileIdCounter}`,
+    type: "FILE" as PlatformFileType,
+    sizeBytes: 1024,
+    visibility: "OWNER" as PlatformFileViewerRole,
+    parentId: null,
+    platformUserId: overrides?.platformUserId || 1,
+    isPublic: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  };
+}
+
+/**
+ * Creates a mock PlatformFile folder
+ */
+export function createMockPlatformFolder(overrides?: Partial<PlatformFile>): PlatformFile {
+  const id = `folder-${platformFileIdCounter++}`;
+  return {
+    id,
+    name: `Test Folder ${platformFileIdCounter}`,
+    type: "FOLDER" as PlatformFileType,
+    sizeBytes: 0,
+    visibility: "OWNER" as PlatformFileViewerRole,
+    parentId: null,
+    platformUserId: overrides?.platformUserId || 1,
+    isPublic: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  };
+}
+
+/**
+ * Creates a mock PlatformFileVersion
+ */
+export function createMockPlatformFileVersion(overrides?: Partial<PlatformFileVersion>): PlatformFileVersion {
+  const id = platformFileVersionIdCounter++;
+  return {
+    id,
+    platformFileId: overrides?.platformFileId || "file-1",
+    versionNumber: overrides?.versionNumber || 1,
+    sizeBytes: 1024,
+    storagePath: `/storage/files/file-1/v${id}`,
+    createdAt: new Date(),
+    ...overrides,
+  };
+}
+
+/**
+ * Creates a mock PlatformFilePermission
+ */
+export function createMockPlatformFilePermission(overrides?: Partial<PlatformFilePermission>): PlatformFilePermission {
+  const id = platformFilePermissionIdCounter++;
+  return {
+    id,
+    platformFileId: overrides?.platformFileId || "file-1",
+    platformUserId: overrides?.platformUserId || 2,
+    permission: "VIEWER" as PlatformFileViewerRole,
+    ...overrides,
+  };
+}
+
+/**
+ * Creates a mock file hierarchy scenario
+ */
+export function createMockFileHierarchy(platformUserId: number = 1) {
+  const rootFolder = createMockPlatformFolder({
+    id: "folder-root",
+    name: "Root Folder",
+    platformUserId,
+  });
+
+  const subFolder = createMockPlatformFolder({
+    id: "folder-sub",
+    name: "Sub Folder",
+    parentId: rootFolder.id,
+    platformUserId,
+  });
+
+  const file1 = createMockPlatformFile({
+    id: "file-1",
+    name: "document.txt",
+    parentId: rootFolder.id,
+    platformUserId,
+  });
+
+  const file2 = createMockPlatformFile({
+    id: "file-2",
+    name: "image.png",
+    parentId: subFolder.id,
+    platformUserId,
+    sizeBytes: 2048,
+  });
+
+  const version1 = createMockPlatformFileVersion({
+    platformFileId: file1.id,
+    versionNumber: 1,
+  });
+
+  const version2 = createMockPlatformFileVersion({
+    platformFileId: file1.id,
+    versionNumber: 2,
+  });
+
+  return {
+    rootFolder,
+    subFolder,
+    file1,
+    file2,
+    version1,
+    version2,
   };
 }

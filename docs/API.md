@@ -137,6 +137,51 @@ Remove one or more SSH keys from the user's account.
 
 ---
 
+#### Storage (Files)
+
+Storage endpoints are prefixed with `/api/storage`.
+
+**Important behavior notes**
+- `GET /api/storage/files` and `GET /api/storage/files/search` return **only the caller's own files**.
+- `GET /api/storage/files/:fileId` and `GET /api/storage/files/:fileId/versions` are governed by **file access control**:
+  - ✅ Owner can access
+  - ✅ Users with explicit permissions can access
+  - ✅ Public files can be viewed (`VIEWER` access)
+
+##### `GET /api/storage/files`
+List files/folders owned by the current user.
+
+**Query Parameters:**
+| Parameter | Type   | Default | Description                                |
+| --------- | ------ | ------- | ------------------------------------------ |
+| page      | number | 1       | Page number                                |
+| pageSize  | number | 10      | Items per page                             |
+| parentId  | string | -       | Filter by parent folder ID (omit for root) |
+| type      | string | -       | `FILE` or `FOLDER`                         |
+
+##### `GET /api/storage/files/search`
+Search files/folders owned by the current user.
+
+**Query Parameters:**
+| Parameter | Type   | Default | Description                                   |
+| --------- | ------ | ------- | --------------------------------------------- |
+| query     | string | -       | Search term (name contains, case-insensitive) |
+| type      | string | -       | `FILE` or `FOLDER`                            |
+| page      | number | 1       | Page number                                   |
+| pageSize  | number | 10      | Items per page                                |
+
+##### `GET /api/storage/files/:fileId`
+Get file/folder details.
+
+**Access control:** Owner / explicit permission / public view.
+
+##### `GET /api/storage/files/:fileId/versions`
+Get version history for a file.
+
+**Access control:** Same as file view (Owner / explicit permission / public view).
+
+---
+
 #### Instance Management (Read Access)
 
 ##### `GET /api/instances`
@@ -281,6 +326,22 @@ Delete a reverse proxy configuration.
 Students have access to all [All Authenticated Users](#all-authenticated-users) endpoints, **EXCEPT**:
 - ❌ `POST /api/instances/` - Students **cannot** create instances
 - ❌ `GET /api/instances/:instanceId/audit-logs` - Students **cannot** view audit logs
+
+Storage restrictions for students:
+- ✅ Read-only access to Storage (subject to file access control):
+  - `GET /api/storage/files`
+  - `GET /api/storage/files/search`
+  - `GET /api/storage/files/:fileId`
+  - `GET /api/storage/files/:fileId/versions`
+- ❌ Students cannot create/manage/delete storage files:
+  - `POST /api/storage/files`
+  - `PATCH /api/storage/files/:fileId`
+  - `DELETE /api/storage/files/:fileId`
+  - `POST /api/storage/files/:fileId/move`
+  - `POST /api/storage/files/:fileId/copy`
+  - `POST /api/storage/files/:fileId/versions`
+  - `DELETE /api/storage/files/:fileId/versions/:versionId`
+  - `POST|PATCH|DELETE /api/storage/files/:fileId/permissions/*`
 
 Students have **additional access** to these request endpoints:
 
@@ -460,6 +521,18 @@ Get audit log entries for a specific extended request.
 
 Instructors have access to all [All Authenticated Users](#all-authenticated-users) endpoints, plus additional capabilities:
 
+#### Storage Management
+
+Instructors can manage their own storage (and can share files using permissions):
+- `POST /api/storage/files`
+- `PATCH /api/storage/files/:fileId`
+- `DELETE /api/storage/files/:fileId`
+- `POST /api/storage/files/:fileId/move`
+- `POST /api/storage/files/:fileId/copy`
+- `POST /api/storage/files/:fileId/versions`
+- `DELETE /api/storage/files/:fileId/versions/:versionId`
+- `GET|POST|PATCH|DELETE /api/storage/files/:fileId/permissions/*` (owner-only)
+
 #### Instance Management (Create & Advanced)
 
 ##### `POST /api/instances/`
@@ -582,6 +655,9 @@ Approve or reject extended requests.
 ### Admin Role
 
 Admins have **full access** to all endpoints, including:
+
+> Note: Storage is still governed by file access control (owner / permission / public view).
+> Admin role does not implicitly bypass Storage ACLs.
 
 #### All Academic Endpoints (Admin Only)
 
@@ -1016,6 +1092,14 @@ Approve or reject any extended request.
 }
 ```
 
+#### Student trying to create a storage file:
+```json
+{
+  "status": 403,
+  "message": "Forbidden: Students cannot create files"
+}
+```
+
 #### Non-admin accessing academic endpoints:
 ```json
 {
@@ -1036,27 +1120,48 @@ Approve or reject any extended request.
 
 ## Quick Reference: Role Access Matrix
 
-| Endpoint                                  | Student    | Instructor         | Admin   |
-| ----------------------------------------- | ---------- | ------------------ | ------- |
-| `GET /api/user/me`                        | ✅          | ✅                  | ✅       |
-| `GET /api/user/ssh-keys`                  | ✅          | ✅                  | ✅       |
-| `POST /api/user/ssh-keys`                 | ✅          | ✅                  | ✅       |
-| `DELETE /api/user/ssh-keys`               | ✅          | ✅                  | ✅       |
-| `POST /api/instances`                     | ❌          | ✅                  | ✅       |
-| `GET /api/instances`                      | ✅          | ✅                  | ✅       |
-| `GET /api/instances/admin`                | ❌          | ❌                  | ✅       |
-| `GET /api/instances/:id`                  | ✅          | ✅                  | ✅       |
-| `DELETE /api/instances/:id`               | ✅          | ✅                  | ✅       |
-| `GET /api/instances/:id/audit-logs`       | ❌          | ✅                  | ✅       |
-| `PATCH /api/instances/:id/promote`        | ❌          | ❌                  | ✅       |
-| `POST /api/requests`                      | ✅          | ❌                  | ❌       |
-| `GET /api/requests`                       | ✅ (own)    | ✅ (course)         | ✅ (all) |
-| `PATCH /api/requests/:id/status`          | ✅ (cancel) | ✅ (approve/reject) | ✅ (all) |
-| `POST /api/extended-requests`             | ✅          | ❌                  | ❌       |
-| `GET /api/extended-requests`              | ✅ (own)    | ✅ (course)         | ✅ (all) |
-| `PATCH /api/extended-requests/:id/status` | ✅ (cancel) | ✅ (approve/reject) | ✅ (all) |
-| `/api/academic/*`                         | ❌          | ❌                  | ✅       |
+| Endpoint                                    | Student    | Instructor         | Admin   |
+| ------------------------------------------- | ---------- | ------------------ | ------- |
+| `GET /api/user/me`                          | ✅          | ✅                  | ✅       |
+| `GET /api/user/ssh-keys`                    | ✅          | ✅                  | ✅       |
+| `POST /api/user/ssh-keys`                   | ✅          | ✅                  | ✅       |
+| `DELETE /api/user/ssh-keys`                 | ✅          | ✅                  | ✅       |
+| `POST /api/instances`                       | ❌          | ✅                  | ✅       |
+| `GET /api/instances`                        | ✅          | ✅                  | ✅       |
+| `GET /api/instances/admin`                  | ❌          | ❌                  | ✅       |
+| `GET /api/instances/:id`                    | ✅          | ✅                  | ✅       |
+| `DELETE /api/instances/:id`                 | ✅          | ✅                  | ✅       |
+| `GET /api/instances/:id/audit-logs`         | ❌          | ✅                  | ✅       |
+| `PATCH /api/instances/:id/promote`          | ❌          | ❌                  | ✅       |
+| `GET /api/storage/files`                    | ✅          | ✅                  | ✅       |
+| `GET /api/storage/files/search`             | ✅          | ✅                  | ✅       |
+| `GET /api/storage/files/:id`                | ✅*         | ✅*                 | ✅*      |
+| `GET /api/storage/files/:id/versions`       | ✅*         | ✅*                 | ✅*      |
+| `POST /api/storage/files`                   | ❌          | ✅                  | ✅       |
+| `PATCH /api/storage/files/:id`              | ❌          | ✅                  | ✅       |
+| `DELETE /api/storage/files/:id`             | ❌          | ✅                  | ✅       |
+| `POST /api/storage/files/:id/move`          | ❌          | ✅                  | ✅       |
+| `POST /api/storage/files/:id/copy`          | ❌          | ✅                  | ✅       |
+| `POST /api/storage/files/:id/versions`      | ❌          | ✅**                | ✅**     |
+| `DELETE /api/storage/files/:id/versions`    | ❌          | ✅***               | ✅***    |
+| `GET /api/storage/files/:id/permissions`    | ✅***       | ✅***               | ✅***    |
+| `POST /api/storage/files/:id/permissions`   | ❌          | ✅***               | ✅***    |
+| `PATCH /api/storage/files/:id/permissions`  | ❌          | ✅***               | ✅***    |
+| `DELETE /api/storage/files/:id/permissions` | ❌          | ✅***               | ✅***    |
+| `POST /api/requests`                        | ✅          | ❌                  | ❌       |
+| `GET /api/requests`                         | ✅ (own)    | ✅ (course)         | ✅ (all) |
+| `PATCH /api/requests/:id/status`            | ✅ (cancel) | ✅ (approve/reject) | ✅ (all) |
+| `POST /api/extended-requests`               | ✅          | ❌                  | ❌       |
+| `GET /api/extended-requests`                | ✅ (own)    | ✅ (course)         | ✅ (all) |
+| `PATCH /api/extended-requests/:id/status`   | ✅ (cancel) | ✅ (approve/reject) | ✅ (all) |
+| `/api/academic/*`                           | ❌          | ❌                  | ✅       |
+
+\* Storage read access depends on file ACL (owner / explicit permission / public view).
+
+\** Creating versions requires at least `EDITOR` permission on the target file.
+
+\*** Owner-only.
 
 ---
 
-**Last Updated:** December 26, 2025  
+**Last Updated:** December 28, 2025

@@ -1,9 +1,8 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 
+import { createMockPlatformUser } from "@momoi/database/test";
+
 import { setupTestContext } from "./setup";
-import {
-  createMockPlatformUser,
-} from "@momoi/database/test";
 
 /**
  * E2E Tests for User Routes

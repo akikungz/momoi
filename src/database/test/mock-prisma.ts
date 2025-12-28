@@ -75,6 +75,11 @@ export function createMockPrisma() {
 
     // Platform SSH Key Models
     platformSSHKey: createModelMock(),
+
+    // Platform File Models
+    platformFile: createModelMock(),
+    platformFileVersion: createModelMock(),
+    platformFilePermission: createModelMock(),
   } as unknown as PrismaClient;
 
   return mockPrisma;

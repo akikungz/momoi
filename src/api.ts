@@ -14,6 +14,7 @@ import { env } from "./env";
 import { academicRoute } from "./routes/academic";
 import { instanceRoute } from "./routes/instance";
 import { requestRoute } from "./routes/request";
+import { storageRoute } from "./routes/storage";
 import { userRoute } from "./routes/user";
 import { ServiceError } from "./utils/error";
 
@@ -38,6 +39,9 @@ export const api = new Elysia({ name: "momoi.api", prefix: "/api" })
           { name: "Extended Requests", description: "Extended instance request management endpoints" },
           { name: "Reverse Proxy", description: "Endpoints for managing instance reverse proxies" },
           { name: "Audit Logs", description: "Endpoints for viewing audit history" },
+          { name: "Storage", description: "File and folder management endpoints" },
+          { name: "File Versions", description: "File versioning endpoints" },
+          { name: "File Permissions", description: "File sharing and permission endpoints" },
         ]
       },
     })
@@ -76,6 +80,7 @@ export const api = new Elysia({ name: "momoi.api", prefix: "/api" })
   .use(userRoute(prisma, cache, authMacro))
   .use(instanceRoute(prisma, cache, authMacro))
   .use(academicRoute(prisma, cache, authMacro))
-  .use(requestRoute(prisma, cache, authMacro));
+  .use(requestRoute(prisma, cache, authMacro))
+  .use(storageRoute(prisma, cache, authMacro));
 
 export type Api = typeof api;
