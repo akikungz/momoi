@@ -115,6 +115,8 @@ model PlatformUser {
   extendedRequestAuditLogs ExtendedRequestAuditLog[]
   instanceAuditLogs        InstanceAuditLog[]
   platformSSHKeys          PlatformSSHKey[]
+  platformFiles            PlatformFile[]
+  platformFilePermissions  PlatformFilePermission[]
 
   @@index([userId, role]) // For quick lookup by userId and role
   @@map("platform_user")
@@ -505,4 +507,65 @@ model PlatformSSHKey {
 // --- End Platform SSH Key Models ---
 
 // --- Object Storage Models ---
-// (To be implemented)
+
+enum PlatformFileType {
+  FILE
+  FOLDER
+}
+
+enum PlatformFileViewerRole {
+  VIEWER
+  EDITOR
+  OWNER
+}
+
+model PlatformFile {
+  id             String                 @id @default(cuid())
+  name           String
+  type           PlatformFileType
+  sizeBytes      Int                    @default(0)
+  visibility     PlatformFileViewerRole @default(OWNER)
+  parentId       String?
+  parent         PlatformFile?          @relation("ParentChild", fields: [parentId], references: [id], onDelete: Cascade)
+  platformUserId Int
+  platformUser   PlatformUser           @relation(fields: [platformUserId], references: [id], onDelete: Cascade)
+  isPublic       Boolean                @default(false)
+
+  children                PlatformFile[]           @relation("ParentChild")
+  platformFileVersions    PlatformFileVersion[]
+  platformFilePermissions PlatformFilePermission[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([platformUserId])
+  @@index([parentId])
+  @@map("platform_file")
+}
+
+model PlatformFileVersion {
+  id             Int          @id @default(autoincrement())
+  platformFileId String
+  platformFile   PlatformFile @relation(fields: [platformFileId], references: [id], onDelete: Cascade)
+  versionNumber  Int
+  sizeBytes      Int
+  storagePath    String // Path in the object storage
+  createdAt      DateTime     @default(now())
+
+  @@unique([platformFileId, versionNumber]) // Ensure unique version numbers per file
+  @@map("platform_file_version")
+}
+
+model PlatformFilePermission {
+  id             Int                    @id @default(autoincrement())
+  platformFileId String
+  platformFile   PlatformFile           @relation(fields: [platformFileId], references: [id], onDelete: Cascade)
+  platformUserId Int
+  platformUser   PlatformUser           @relation(fields: [platformUserId], references: [id], onDelete: Cascade)
+  permission     PlatformFileViewerRole @default(VIEWER)
+
+  @@unique([platformFileId, platformUserId]) // Ensure unique permissions per user per file
+  @@map("platform_file_permission")
+}
+
+// --- End Object Storage Models ---

@@ -1,12 +1,10 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 
-import { setupTestContext } from "./setup";
 import {
-  createMockCourse,
-  createMockSemester,
-  createMockCourseOffering,
-  createMockPlatformUser,
+  createMockCourse, createMockCourseOffering, createMockPlatformUser, createMockSemester
 } from "@momoi/database/test";
+
+import { setupTestContext } from "./setup";
 
 /**
  * E2E Tests for Academic Routes

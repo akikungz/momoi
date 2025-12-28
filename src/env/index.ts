@@ -20,6 +20,13 @@ export const DatabaseEnvSchema = z.object({
   REDIS_URL: z.url().optional(),
 });
 
+export const S3EnvSchema = z.object({
+  S3_ENDPOINT: z.url().optional(),
+  S3_ACCESS_KEY_ID: z.string().optional(),
+  S3_SECRET_ACCESS_KEY: z.string().optional(),
+  S3_BUCKET_NAME: z.string().optional(),
+});
+
 export const TelemetryEnvSchema = z.object({
   OTEL_SERVICE_NAME: z.string().default("momoi"),
   OTEL_EXPORTER_OTLP_ENDPOINT: z.url().optional(),
@@ -33,6 +40,7 @@ export const EnvSchema = z.object({
   ...GeneralEnvSchema.shape,
   ...SecretEnvSchema.shape,
   ...DatabaseEnvSchema.shape,
+  ...S3EnvSchema.shape,
   ...TelemetryEnvSchema.shape,
 });
 

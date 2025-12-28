@@ -1,20 +1,19 @@
 import { Elysia } from "elysia";
-import { treaty } from "@elysiajs/eden";
 
+import { treaty } from "@elysiajs/eden";
 import {
-  mockAdminAuth,
-  mockInstructorAuth,
-  mockStudentAuth,
-  mockOtherAuth,
+  mockAdminAuth, mockInstructorAuth, mockOtherAuth, mockStudentAuth
 } from "@momoi/auth/mock";
 import { MockCache } from "@momoi/cache/mock";
 import { createMockPrisma, resetMockFactoryCounters } from "@momoi/database/test";
-import { userRoute } from "@momoi/routes/user";
-import { instanceRoute } from "@momoi/routes/instance";
-import { academicRoute } from "@momoi/routes/academic";
-import { requestRoute } from "@momoi/routes/request";
 import { MockQueueModule } from "@momoi/queue/mock";
+import { academicRoute } from "@momoi/routes/academic";
+import { instanceRoute } from "@momoi/routes/instance";
+import { requestRoute } from "@momoi/routes/request";
+import { storageRoute } from "@momoi/routes/storage";
+import { userRoute } from "@momoi/routes/user";
 import { ServiceError } from "@momoi/utils/error";
+
 import type { MockAuth } from "@momoi/auth/mock";
 
 export type TestRole = "admin" | "instructor" | "student" | "unauthenticated";
@@ -61,7 +60,8 @@ export function createTestApp(role: TestRole = "admin") {
     .use(userRoute(mockPrisma, mockCache as any, mockAuth))
     .use(instanceRoute(mockPrisma, mockCache as any, mockAuth))
     .use(academicRoute(mockPrisma, mockCache as any, mockAuth))
-    .use(requestRoute(mockPrisma, mockCache as any, mockAuth));
+    .use(requestRoute(mockPrisma, mockCache as any, mockAuth))
+    .use(storageRoute(mockPrisma, mockCache as any, mockAuth));
 
   return {
     app,

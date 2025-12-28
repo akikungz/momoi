@@ -32,4 +32,8 @@ export {
   createMockInstance,
   createMockScenario,
   resetMockFactoryCounters,
+  createMockPlatformFile,
+  createMockPlatformFolder,
+  createMockPlatformFileVersion,
+  createMockPlatformFilePermission,
 } from "./mock-factory";
