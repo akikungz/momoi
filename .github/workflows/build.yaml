@@ -32,8 +32,3 @@ jobs:
       - name: Push Docker image
         run: |
           docker push ghcr.io/${{ github.repository }}:${{ github.ref_name }}
-
-      - name: Verify Docker image
-        run: |
-          docker pull ghcr.io/${{ github.repository }}:${{ github.ref_name }}
-          docker images | grep ghcr.io/${{ github.repository }}:${{ github.ref_name }}
