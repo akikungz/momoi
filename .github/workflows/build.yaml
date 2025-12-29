@@ -7,6 +7,38 @@ on:
       - project-2-2025
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: stable
+
+      # Bonus: Cache Bun dependencies
+      - name: Cache Bun dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.bun
+            ./node_modules
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Run tests
+        run: bun test --coverage
+
   build-and-push:
     runs-on: ubuntu-latest
 
