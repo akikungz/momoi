@@ -19,7 +19,7 @@ export class QueueModule {
   constructor() {
     // Initialize Redis connection
     if (!env.REDIS_URL) {
-      throw new Error('REDIS_URL is not defined in environment variables.');
+      throw new Error("REDIS_URL is not defined in environment variables");
     }
 
     const redisUrl = new URL(env.REDIS_URL);

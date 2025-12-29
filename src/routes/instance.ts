@@ -11,12 +11,13 @@ import { InstanceService } from "@momoi/service/instance";
 export const instanceRoute = (
   prisma: PrismaClient,
   cache: CacheModule,
-  auth: AuthMacro
+  auth: AuthMacro,
+  queue: QueueModule
 ) => new Elysia({ name: "instance.route", prefix: "/instances" })
   .use(auth)
   .use(instanceModel)
   .guard({ auth: true })
-  .decorate("instanceService", new InstanceService(prisma, cache, new QueueModule()))
+  .decorate("instanceService", new InstanceService(prisma, cache, queue))
   .post(
     "/",
     async ({ instanceService, user, body, status }) => {

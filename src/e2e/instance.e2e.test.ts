@@ -18,7 +18,8 @@ describe("E2E: Instance Routes", () => {
   describe("POST /api/instances", () => {
     describe("As Admin", () => {
       it("should create a new instance", async () => {
-        const { client, mockPrisma } = setupTestContext("admin");
+        const { client, mockPrisma, mockQueue } = setupTestContext("admin");
+        mockQueue.provisionInstanceQueue.add.mockResolvedValueOnce({ id: 'mock-job', name: 'provision', data: {} });
 
         const mockTemplate = createMockPVETemplate({ id: 1 });
         const mockCourse = createMockCourse({ id: 1, code: "CS101", title: "Intro to CS" });
@@ -33,8 +34,10 @@ describe("E2E: Instance Routes", () => {
         });
         mockPrisma.instance.create.mockResolvedValueOnce({
           id: 1,
-          ownerId: 1,
-          courseOfferingId: 1,
+          courseOffering: {
+            course: { code: "CS101", title: "Intro to CS" },
+            semester: { name: "Fall 2024" }
+          },
           status: "PENDING",
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -57,7 +60,8 @@ describe("E2E: Instance Routes", () => {
 
     describe("As Instructor", () => {
       it("should create a new instance", async () => {
-        const { client, mockPrisma } = setupTestContext("instructor");
+        const { client, mockPrisma, mockQueue } = setupTestContext("instructor");
+        mockQueue.provisionInstanceQueue.add.mockResolvedValueOnce({ id: 'mock-job', name: 'provision', data: {} });
 
         const mockTemplate = createMockPVETemplate({ id: 1 });
 
@@ -65,8 +69,10 @@ describe("E2E: Instance Routes", () => {
         mockPrisma.courseOffering.findUnique.mockResolvedValueOnce(null);
         mockPrisma.instance.create.mockResolvedValueOnce({
           id: 1,
-          ownerId: 2, // Instructor ID
-          courseOfferingId: null,
+          courseOffering: {
+            course: { code: "CS101", title: "Intro to CS" },
+            semester: { name: "Fall 2024" }
+          },
           status: "PENDING",
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -274,16 +280,21 @@ describe("E2E: Instance Routes", () => {
   describe("DELETE /api/instances/:instanceId", () => {
     describe("As Admin", () => {
       it("should delete an instance", async () => {
-        const { client, mockPrisma } = setupTestContext("admin");
+        const { client, mockPrisma, mockQueue } = setupTestContext("admin");
+        mockQueue.deprovisionInstanceQueue.add.mockResolvedValueOnce({ id: 'mock-job', name: 'deprovision', data: {} });
 
-        mockPrisma.instance.findUnique.mockResolvedValueOnce({
-          id: 1,
-          status: "ACTIVE",
-        });
-        mockPrisma.instance.update.mockResolvedValueOnce({
-          id: 1,
-          status: "DELETED",
-        });
+          mockPrisma.instance.findUnique.mockResolvedValueOnce({ id: 1, platformUserId: 1, status: "ACTIVE" });
+          mockPrisma.instance.delete.mockResolvedValueOnce({
+            id: 1,
+            platformUserId: 1,
+            status: "DELETED",
+            courseOffering: {
+              course: { code: "CS101", title: "Intro to CS" },
+              semester: { name: "Fall 2024" }
+            },
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          });
 
         const response = await client.api.instances({ instanceId: 1 }).delete();
 

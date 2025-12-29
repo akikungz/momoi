@@ -58,7 +58,7 @@ export function createTestApp(role: TestRole = "admin") {
       return status(500, { status: 500, message: "An unexpected error occurred." });
     })
     .use(userRoute(mockPrisma, mockCache as any, mockAuth))
-    .use(instanceRoute(mockPrisma, mockCache as any, mockAuth))
+    .use(instanceRoute(mockPrisma, mockCache as any, mockAuth, mockQueue as any))
     .use(academicRoute(mockPrisma, mockCache as any, mockAuth))
     .use(requestRoute(mockPrisma, mockCache as any, mockAuth))
     .use(storageRoute(mockPrisma, mockCache as any, mockAuth));

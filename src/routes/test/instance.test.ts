@@ -8,21 +8,28 @@ import {
   createMockCourse, createMockCourseOffering, createMockInstance, createMockPVETemplate,
   createMockPVEVM, createMockSemester, resetMockFactoryCounters
 } from "@momoi/database/test/mock-factory";
+import { MockQueueModule } from "@momoi/queue/mock";
 
 import { instanceRoute } from "../instance";
 
 describe("Instance Route - Admin", () => {
   let mockPrisma: any;
   let mockCache: MockCache;
+  let mockQueue: MockQueueModule;
 
   beforeEach(() => {
     resetMockFactoryCounters();
     mockPrisma = createMockPrisma() as any;
     mockCache = new MockCache();
+    mockQueue = new MockQueueModule();
+    if (mockQueue.provisionInstanceQueue.add.mockReset) mockQueue.provisionInstanceQueue.add.mockReset();
+    if (mockQueue.deprovisionInstanceQueue.add.mockReset) mockQueue.deprovisionInstanceQueue.add.mockReset();
   });
 
   it("should create a new instance as instructor", async () => {
-    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockInstructorAuth));
+    mockQueue.provisionInstanceQueue.add.mockResolvedValueOnce({ id: 'mock-job' });
+    mockQueue.deprovisionInstanceQueue.add.mockResolvedValueOnce({ id: 'mock-job' });
+    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockInstructorAuth, mockQueue as any));
 
     const mockInstanceData = createMockInstance({
       platformUserId: 1,
@@ -68,7 +75,7 @@ describe("Instance Route - Admin", () => {
   });
 
   it("should reject student from creating instance", async () => {
-    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockStudentAuth));
+    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockStudentAuth, mockQueue as any));
 
     const response = await client.instances.post({
       pveTemplateId: 1,
@@ -82,7 +89,9 @@ describe("Instance Route - Admin", () => {
   });
 
   it("should get instances for user", async () => {
-    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockAdminAuth));
+    mockQueue.provisionInstanceQueue.add.mockResolvedValueOnce({ id: 'mock-job' });
+    mockQueue.deprovisionInstanceQueue.add.mockResolvedValueOnce({ id: 'mock-job' });
+    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockAdminAuth, mockQueue as any));
 
     const mockCourse = createMockCourse({ id: 1 });
     const mockSemester = createMockSemester({ id: 1 });
@@ -140,7 +149,7 @@ describe("Instance Route - Admin", () => {
   });
 
   it("should get instances with pagination", async () => {
-    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockAdminAuth));
+    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockAdminAuth, mockQueue as any));
 
     mockPrisma.instance.count.mockResolvedValueOnce(25);
     mockPrisma.instance.findMany.mockResolvedValueOnce([]);
@@ -159,7 +168,7 @@ describe("Instance Route - Admin", () => {
   });
 
   it("should filter instances by courseId", async () => {
-    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockAdminAuth));
+    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockAdminAuth, mockQueue as any));
 
     mockPrisma.instance.count.mockResolvedValueOnce(1);
     mockPrisma.instance.findMany.mockResolvedValueOnce([]);
@@ -179,7 +188,7 @@ describe("Instance Route - Admin", () => {
   });
 
   it("should filter instances by semesterId", async () => {
-    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockAdminAuth));
+    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockAdminAuth, mockQueue as any));
 
     mockPrisma.instance.count.mockResolvedValueOnce(1);
     mockPrisma.instance.findMany.mockResolvedValueOnce([]);
@@ -199,7 +208,7 @@ describe("Instance Route - Admin", () => {
   });
 
   it("should get instances for specific instructor", async () => {
-    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockAdminAuth));
+    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockAdminAuth, mockQueue as any));
 
     const mockCourse = createMockCourse({ id: 1 });
     const mockSemester = createMockSemester({ id: 1 });
@@ -245,7 +254,7 @@ describe("Instance Route - Admin", () => {
   });
 
   it("should get instance by ID", async () => {
-    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockAdminAuth));
+    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockAdminAuth, mockQueue as any));
 
     const mockCourse = createMockCourse({ id: 1 });
     const mockSemester = createMockSemester({ id: 1 });
@@ -298,7 +307,7 @@ describe("Instance Route - Admin", () => {
   });
 
   it("should return error when instance not found", async () => {
-    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockAdminAuth));
+    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockAdminAuth, mockQueue as any));
 
     mockPrisma.instance.findUnique.mockResolvedValueOnce(null);
 
@@ -308,7 +317,9 @@ describe("Instance Route - Admin", () => {
   });
 
   it("should delete instance", async () => {
-    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockAdminAuth));
+    mockQueue.deprovisionInstanceQueue.add.mockResolvedValueOnce({ id: 'mock-job' });
+    mockQueue.provisionInstanceQueue.add.mockResolvedValueOnce({ id: 'mock-job' });
+    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockAdminAuth, mockQueue as any));
 
     mockPrisma.instance.findUnique.mockResolvedValueOnce({
       id: 1,
@@ -325,7 +336,7 @@ describe("Instance Route - Admin", () => {
   });
 
   it("should get admin instances", async () => {
-    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockAdminAuth));
+    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockAdminAuth, mockQueue as any));
 
     mockPrisma.instance.count.mockResolvedValueOnce(5);
     mockPrisma.instance.findMany.mockResolvedValueOnce([]);
@@ -342,7 +353,7 @@ describe("Instance Route - Admin", () => {
   });
 
   it("should handle cache for get instances", async () => {
-    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockAdminAuth));
+    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockAdminAuth, mockQueue as any));
 
     mockPrisma.instance.count.mockResolvedValueOnce(1);
     mockPrisma.instance.findMany.mockResolvedValueOnce([]);
@@ -373,15 +384,19 @@ describe("Instance Route - Admin", () => {
 describe("Instance Route - Instructor", () => {
   let mockPrisma: any;
   let mockCache: MockCache;
+  let mockQueue: MockQueueModule;
 
   beforeEach(() => {
     resetMockFactoryCounters();
     mockPrisma = createMockPrisma() as any;
     mockCache = new MockCache();
+    mockQueue = new MockQueueModule();
+    if (mockQueue.provisionInstanceQueue.add.mockReset) mockQueue.provisionInstanceQueue.add.mockReset();
+    if (mockQueue.deprovisionInstanceQueue.add.mockReset) mockQueue.deprovisionInstanceQueue.add.mockReset();
   });
 
   it("should get own instances", async () => {
-    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockInstructorAuth));
+    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockInstructorAuth, mockQueue as any));
 
     mockPrisma.instance.count.mockResolvedValueOnce(2);
     mockPrisma.instance.findMany.mockResolvedValueOnce([]);
@@ -398,7 +413,7 @@ describe("Instance Route - Instructor", () => {
   });
 
   it("should create instance as instructor", async () => {
-    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockInstructorAuth));
+    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockInstructorAuth, mockQueue as any));
 
     const mockCourse = createMockCourse({ id: 1 });
     const mockSemester = createMockSemester({ id: 1 });
@@ -436,15 +451,19 @@ describe("Instance Route - Instructor", () => {
 describe("Instance Route - Student", () => {
   let mockPrisma: any;
   let mockCache: MockCache;
+  let mockQueue: MockQueueModule;
 
   beforeEach(() => {
     resetMockFactoryCounters();
     mockPrisma = createMockPrisma() as any;
     mockCache = new MockCache();
+    mockQueue = new MockQueueModule();
+    if (mockQueue.provisionInstanceQueue.add.mockReset) mockQueue.provisionInstanceQueue.add.mockReset();
+    if (mockQueue.deprovisionInstanceQueue.add.mockReset) mockQueue.deprovisionInstanceQueue.add.mockReset();
   });
 
   it("should get own instances", async () => {
-    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockStudentAuth));
+    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockStudentAuth, mockQueue as any));
 
     mockPrisma.instance.count.mockResolvedValueOnce(1);
     mockPrisma.instance.findMany.mockResolvedValueOnce([]);
@@ -461,7 +480,7 @@ describe("Instance Route - Student", () => {
   });
 
   it("should not create instance as student", async () => {
-    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockStudentAuth));
+    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockStudentAuth, mockQueue as any));
 
     const response = await client.instances.post({
       pveTemplateId: 1,
@@ -475,7 +494,7 @@ describe("Instance Route - Student", () => {
   });
 
   it("should delete own instance", async () => {
-    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockStudentAuth));
+    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockStudentAuth, mockQueue as any));
 
     mockPrisma.instance.findUnique.mockResolvedValueOnce({
       id: 1,
