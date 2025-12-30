@@ -7,8 +7,7 @@ import { serverTiming } from "@elysiajs/server-timing";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-grpc";
 import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-base";
 
-import { authHandler, authMacro } from "./auth";
-import { OpenAPI } from "./auth/openapi";
+import { authHandler, authMacro, authOpenAPI } from "./auth";
 import { CacheModule } from "./cache";
 import { prisma } from "./database";
 import { env } from "./env";
@@ -25,7 +24,6 @@ const cache = new CacheModule();
 export const api = new Elysia({ name: "momoi.api", prefix: "/api" })
   .use(
     openapi({
-      path: "/docs",
       documentation: {
         info: {
           title: "Momoi API",
@@ -45,21 +43,8 @@ export const api = new Elysia({ name: "momoi.api", prefix: "/api" })
           { name: "Storage", description: "File and folder management endpoints" },
           { name: "File Versions", description: "File versioning endpoints" },
           { name: "File Permissions", description: "File sharing and permission endpoints" },
-        ]
-      },
-    })
-  )
-  .use(
-    openapi({
-      path: "/docs/auth",
-      documentation: {
-        info: {
-          title: "Better Auth API",
-          version: "1.0.0",
-          description: "API documentation for Better Auth.",
-        },
-        components: await OpenAPI.components,
-        paths: await OpenAPI.getPaths(),
+        ],
+        ...await authOpenAPI()
       },
     })
   )

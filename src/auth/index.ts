@@ -3,6 +3,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { customSession, openAPI } from "better-auth/plugins";
 import { Elysia } from "elysia";
 
+import { openapi } from "@elysiajs/openapi";
 import { CacheModule } from "@momoi/cache";
 import { prisma } from "@momoi/database";
 import { env } from "@momoi/env";
@@ -102,6 +103,37 @@ export const auth = betterAuth({
     }),
   ],
 });
+
+export const authOpenAPI = async (_auth: typeof auth = auth) => {
+  let _schema: ReturnType<typeof _auth.api.generateOpenAPISchema>;
+  const getSchema = async () => (_schema ??= _auth.api.generateOpenAPISchema());
+
+  const OpenAPI = {
+    getPaths: (prefix = '/auth/api') =>
+      getSchema().then(({ paths }) => {
+        const reference: typeof paths = Object.create(null)
+
+        for (const path of Object.keys(paths)) {
+          const key = prefix + path
+          reference[key] = paths[path]
+
+          for (const method of Object.keys(paths[path])) {
+            const operation = (reference[key] as any)[method]
+
+            operation.tags = ['Better Auth']
+          }
+        }
+
+        return reference
+      }) as Promise<any>,
+    components: getSchema().then(({ components }) => components) as Promise<any>
+  } as const;
+
+  return {
+    component: await OpenAPI.components,
+    paths: await OpenAPI.getPaths(),
+  }
+}
 
 export const authHandler = new Elysia({ name: "auth.handler", prefix: "/auth" })
   .mount(auth.handler);
