@@ -25,6 +25,7 @@ const cache = new CacheModule();
 export const api = new Elysia({ name: "momoi.api", prefix: "/api" })
   .use(
     openapi({
+      path: "/docs",
       documentation: {
         info: {
           title: "Momoi API",
@@ -50,6 +51,7 @@ export const api = new Elysia({ name: "momoi.api", prefix: "/api" })
   )
   .use(
     openapi({
+      path: "/docs/auth",
       documentation: {
         info: {
           title: "Better Auth API",
