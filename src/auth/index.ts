@@ -22,6 +22,7 @@ export const auth = betterAuth({
       strategy: "jwt",
     },
   },
+  trustedOrigins: env.ALLOW_CORS_ORIGINS,
   socialProviders: {
     ...(
       env.GOOGLE_OAUTH_CLIENT_ID && env.GOOGLE_OAUTH_CLIENT_SECRET
