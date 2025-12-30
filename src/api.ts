@@ -8,9 +8,11 @@ import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-grpc";
 import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-base";
 
 import { authHandler, authMacro } from "./auth";
+import { OpenAPI } from "./auth/openapi";
 import { CacheModule } from "./cache";
 import { prisma } from "./database";
 import { env } from "./env";
+import { QueueModule } from "./queue";
 import { academicRoute } from "./routes/academic";
 import { instanceRoute } from "./routes/instance";
 import { requestRoute } from "./routes/request";
@@ -47,6 +49,19 @@ export const api = new Elysia({ name: "momoi.api", prefix: "/api" })
     })
   )
   .use(
+    openapi({
+      documentation: {
+        info: {
+          title: "Better Auth API",
+          version: "1.0.0",
+          description: "API documentation for Better Auth.",
+        },
+        components: await OpenAPI.components,
+        paths: await OpenAPI.getPaths(),
+      },
+    })
+  )
+  .use(
     opentelemetry({
       serviceName: env.OTEL_SERVICE_NAME,
       spanProcessors: [
@@ -78,7 +93,7 @@ export const api = new Elysia({ name: "momoi.api", prefix: "/api" })
   })
   .use(authHandler)
   .use(userRoute(prisma, cache, authMacro))
-  .use(instanceRoute(prisma, cache, authMacro))
+  .use(instanceRoute(prisma, cache, authMacro, new QueueModule()))
   .use(academicRoute(prisma, cache, authMacro))
   .use(requestRoute(prisma, cache, authMacro))
   .use(storageRoute(prisma, cache, authMacro));

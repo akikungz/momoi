@@ -34,7 +34,6 @@ model User {
   platformUser PlatformUser?
 
   @@unique([email])
-  @@index([email])
   @@map("user")
 }
 
@@ -131,7 +130,6 @@ model InstructorSearch {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([email])
   @@map("instructor_search")
 }
 
@@ -170,6 +168,7 @@ model Semester {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([isCurrent])
   @@map("semester")
 }
 
@@ -187,6 +186,7 @@ model CourseOffering {
   updatedAt DateTime @updatedAt
 
   @@unique([courseId, semesterId])
+  @@index([courseId, semesterId])
   @@map("course_offering")
 }
 
@@ -235,7 +235,7 @@ model PVENetworkIP {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([ipAddress, isAllocated])
+  @@index([ipAddress, isAllocated, pveNetworkId])
   @@map("pve_network_ip")
 }
 
@@ -284,6 +284,7 @@ model PVEVM {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([pveNodeId, status])
   @@map("pve_vm")
 }
 
@@ -346,7 +347,7 @@ model Instance {
   semesterId Int?
 
   @@unique([platformUserId, courseOfferingId])
-  @@index([status, provisionStatus])
+  @@index([status, provisionStatus, platformUserId, pveTemplateId, semesterId])
   @@map("instance")
 }
 
@@ -381,6 +382,7 @@ model InstanceAuditLog {
   timestamp     DateTime     @default(now())
   notes         String?
 
+  @@index([instanceId, performedById])
   @@map("instance_audit_log")
 }
 
@@ -427,6 +429,7 @@ model Request {
   updatedAt DateTime @updatedAt
 
   @@unique([requesterId, courseOfferingId])
+  @@index([requesterId, status, courseOfferingId])
   @@map("request")
 }
 
@@ -456,6 +459,7 @@ model ExtendedRequest {
   updatedAt DateTime @updatedAt
 
   @@unique([requesterId, targetInstanceId, nextSemesterId])
+  @@index([requesterId, status, targetInstanceId])
   @@map("extended_request")
 }
 
@@ -469,6 +473,7 @@ model RequestAuditLog {
   timestamp     DateTime       @default(now())
   notes         String?
 
+  @@index([requestId])
   @@map("request_audit_log")
 }
 
@@ -482,6 +487,7 @@ model ExtendedRequestAuditLog {
   timestamp         DateTime        @default(now())
   notes             String?
 
+  @@index([extendedRequestId])
   @@map("extended_request_audit_log")
 }
 
@@ -565,6 +571,7 @@ model PlatformFilePermission {
   permission     PlatformFileViewerRole @default(VIEWER)
 
   @@unique([platformFileId, platformUserId]) // Ensure unique permissions per user per file
+  @@index([platformUserId])
   @@map("platform_file_permission")
 }
 
