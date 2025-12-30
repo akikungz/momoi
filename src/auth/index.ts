@@ -109,7 +109,7 @@ export const authOpenAPI = async (_auth: typeof auth = auth) => {
   const getSchema = async () => (_schema ??= _auth.api.generateOpenAPISchema());
 
   const OpenAPI = {
-    getPaths: (prefix = '/auth/api') =>
+    getPaths: (prefix = '/api/auth') =>
       getSchema().then(({ paths }) => {
         const reference: typeof paths = Object.create(null)
 
