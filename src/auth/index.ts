@@ -131,7 +131,7 @@ export const authOpenAPI = async (_auth: typeof auth = auth) => {
   } as const;
 
   return {
-    component: await OpenAPI.components,
+    components: await OpenAPI.components,
     paths: await OpenAPI.getPaths(),
   }
 }
