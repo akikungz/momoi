@@ -569,6 +569,62 @@ describe("Instance Route - Student", () => {
 
     expect(response.status).toBe(404);
   });
+
+  it("should get extended requests for own instance", async () => {
+    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockStudentAuth, mockQueue as any));
+
+    const mockExtendedRequests = [
+      {
+        id: 1,
+        title: "Extend Instance",
+        description: "Need more time",
+        status: "PENDING",
+        reason: null,
+        targetInstanceId: 50,
+        requesterId: 3,
+        reviewerId: null,
+        nextSemester: { id: 202, name: "Fall 2024", startDate: new Date(), endDate: new Date() },
+        targetInstance: {
+          id: 50,
+          courseOffering: {
+            course: { code: "CS301", title: "Net" },
+            semester: { name: "Fall" },
+          }
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+    ];
+
+    mockPrisma.extendedRequest.count.mockResolvedValueOnce(1);
+    mockPrisma.extendedRequest.findMany.mockResolvedValueOnce(mockExtendedRequests);
+
+    const response = await client.instances({ instanceId: 50 })['extended-request'].get({
+      query: { page: 1, pageSize: 10 }
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.data).toHaveProperty("values");
+    expect(response.data).toHaveProperty("totalItems");
+    expect(response.data!.values).toHaveLength(1);
+    expect(response.data!.values[0].targetInstanceId).toBe(50);
+  });
+
+  it("should get extended requests with pagination", async () => {
+    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockStudentAuth, mockQueue as any));
+
+    mockPrisma.extendedRequest.count.mockResolvedValueOnce(25);
+    mockPrisma.extendedRequest.findMany.mockResolvedValueOnce([]);
+
+    const response = await client.instances({ instanceId: 50 })['extended-request'].get({
+      query: { page: 2, pageSize: 10 }
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.data!.currentPage).toBe(2);
+    expect(response.data!.pageSize).toBe(10);
+    expect(response.data!.totalPages).toBe(3);
+  });
 });
 
 describe("Instance Route - Extended Request Authorization", () => {
@@ -603,5 +659,30 @@ describe("Instance Route - Extended Request Authorization", () => {
     });
 
     expect(response.status).toBe(403);
+  });
+
+  it("should allow instructor to get extended requests", async () => {
+    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockInstructorAuth, mockQueue as any));
+
+    mockPrisma.extendedRequest.count.mockResolvedValueOnce(2);
+    mockPrisma.extendedRequest.findMany.mockResolvedValueOnce([]);
+
+    const response = await client.instances({ instanceId: 1 })['extended-request'].get();
+
+    expect(response.status).toBe(200);
+    expect(response.data).toHaveProperty("values");
+    expect(response.data!.totalItems).toBe(2);
+  });
+
+  it("should allow admin to get extended requests", async () => {
+    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockAdminAuth, mockQueue as any));
+
+    mockPrisma.extendedRequest.count.mockResolvedValueOnce(5);
+    mockPrisma.extendedRequest.findMany.mockResolvedValueOnce([]);
+
+    const response = await client.instances({ instanceId: 1 })['extended-request'].get();
+
+    expect(response.status).toBe(200);
+    expect(response.data!.totalItems).toBe(5);
   });
 });

@@ -283,18 +283,18 @@ describe("E2E: Instance Routes", () => {
         const { client, mockPrisma, mockQueue } = setupTestContext("admin");
         mockQueue.deprovisionInstanceQueue.add.mockResolvedValueOnce({ id: 'mock-job', name: 'deprovision', data: {} });
 
-          mockPrisma.instance.findUnique.mockResolvedValueOnce({ id: 1, platformUserId: 1, status: "ACTIVE" });
-          mockPrisma.instance.delete.mockResolvedValueOnce({
-            id: 1,
-            platformUserId: 1,
-            status: "DELETED",
-            courseOffering: {
-              course: { code: "CS101", title: "Intro to CS" },
-              semester: { name: "Fall 2024" }
-            },
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          });
+        mockPrisma.instance.findUnique.mockResolvedValueOnce({ id: 1, platformUserId: 1, status: "ACTIVE" });
+        mockPrisma.instance.delete.mockResolvedValueOnce({
+          id: 1,
+          platformUserId: 1,
+          status: "DELETED",
+          courseOffering: {
+            course: { code: "CS101", title: "Intro to CS" },
+            semester: { name: "Fall 2024" }
+          },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
 
         const response = await client.api.instances({ instanceId: 1 }).delete();
 
@@ -494,6 +494,101 @@ describe("E2E: Instance Routes", () => {
         const response = await client.api.instances({ instanceId: 1 })["audit-logs"].get();
 
         expect(response.status).toBe(403);
+      });
+    });
+  });
+
+  describe("GET /api/instances/:instanceId/extended-request", () => {
+    describe("As Admin", () => {
+      it("should return extended requests for an instance", async () => {
+        const { client, mockPrisma } = setupTestContext("admin");
+
+        const mockExtendedRequests = [
+          {
+            id: 1,
+            title: "Extend Instance",
+            description: "Need more time",
+            status: "PENDING",
+            reason: null,
+            targetInstanceId: 1,
+            requesterId: 3,
+            reviewerId: null,
+            nextSemester: { id: 2, name: "Fall 2024", startDate: new Date(), endDate: new Date() },
+            targetInstance: {
+              id: 1,
+              courseOffering: {
+                course: { code: "CS101", title: "Intro to CS" },
+                semester: { name: "Spring 2024" },
+              }
+            },
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }
+        ];
+
+        mockPrisma.extendedRequest.count.mockResolvedValueOnce(1);
+        mockPrisma.extendedRequest.findMany.mockResolvedValueOnce(mockExtendedRequests);
+
+        const response = await client.api.instances({ instanceId: 1 })["extended-request"].get();
+
+        expect(response.status).toBe(200);
+        expect(response.data).toBeDefined();
+        expect(response.data!.values).toHaveLength(1);
+        expect(response.data!.totalItems).toBe(1);
+      });
+
+      it("should support pagination and filtering", async () => {
+        const { client, mockPrisma } = setupTestContext("admin");
+
+        mockPrisma.extendedRequest.count.mockResolvedValueOnce(15);
+        mockPrisma.extendedRequest.findMany.mockResolvedValueOnce([]);
+
+        const response = await client.api.instances({ instanceId: 1 })["extended-request"].get({
+          query: { page: 2, pageSize: 5, status: "PENDING" }
+        });
+
+        expect(response.status).toBe(200);
+        expect(response.data!.currentPage).toBe(2);
+        expect(response.data!.pageSize).toBe(5);
+        expect(response.data!.totalPages).toBe(3);
+      });
+    });
+
+    describe("As Instructor", () => {
+      it("should return extended requests for an instance", async () => {
+        const { client, mockPrisma } = setupTestContext("instructor");
+
+        mockPrisma.extendedRequest.count.mockResolvedValueOnce(2);
+        mockPrisma.extendedRequest.findMany.mockResolvedValueOnce([]);
+
+        const response = await client.api.instances({ instanceId: 1 })["extended-request"].get();
+
+        expect(response.status).toBe(200);
+        expect(response.data!.totalItems).toBe(2);
+      });
+    });
+
+    describe("As Student", () => {
+      it("should return extended requests filtered by student's own requests", async () => {
+        const { client, mockPrisma } = setupTestContext("student");
+
+        mockPrisma.extendedRequest.count.mockResolvedValueOnce(1);
+        mockPrisma.extendedRequest.findMany.mockResolvedValueOnce([]);
+
+        const response = await client.api.instances({ instanceId: 1 })["extended-request"].get();
+
+        expect(response.status).toBe(200);
+        expect(response.data!.totalItems).toBe(1);
+      });
+    });
+
+    describe("As Unauthenticated", () => {
+      it("should return 401 Unauthorized", async () => {
+        const { client } = setupTestContext("unauthenticated");
+
+        const response = await client.api.instances({ instanceId: 1 })["extended-request"].get();
+
+        expect(response.status).toBe(401);
       });
     });
   });

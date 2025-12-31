@@ -234,6 +234,27 @@ export const instanceRoute = (
     }
   )
   // Extended Request
+  .get(
+    "/:instanceId/extended-request",
+    async ({ requestService, user, params, query }) => {
+      return await requestService.getExtendedRequests(user, {
+        ...query,
+        instanceId: params.instanceId,
+      });
+    },
+    {
+      params: t.Object({
+        instanceId: t.Number({ description: "Instance ID to get extended requests for" }),
+      }),
+      query: "GetExtendedRequestsRequestQuery",
+      response: "GetExtendedRequestsResponse",
+      detail: {
+        summary: "Get extended requests for an instance",
+        description: "Retrieve all extended requests for a specific instance",
+        tags: ["Instances", "Extended Requests"],
+      },
+    }
+  )
   .post(
     "/:instanceId/extended-request",
     async ({ requestService, user, params, body, status }) => {
