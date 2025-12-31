@@ -12,6 +12,7 @@ import { instanceRoute } from "@momoi/routes/instance";
 import { requestRoute } from "@momoi/routes/request";
 import { storageRoute } from "@momoi/routes/storage";
 import { userRoute } from "@momoi/routes/user";
+import { autocompleteRoute } from "@momoi/routes/autocomplete";
 import { ServiceError } from "@momoi/utils/error";
 
 import type { MockAuth } from "@momoi/auth/mock";
@@ -61,7 +62,8 @@ export function createTestApp(role: TestRole = "admin") {
     .use(instanceRoute(mockPrisma, mockCache as any, mockAuth, mockQueue as any))
     .use(academicRoute(mockPrisma, mockCache as any, mockAuth))
     .use(requestRoute(mockPrisma, mockCache as any, mockAuth))
-    .use(storageRoute(mockPrisma, mockCache as any, mockAuth));
+    .use(storageRoute(mockPrisma, mockCache as any, mockAuth))
+    .use(autocompleteRoute(mockPrisma, mockAuth));
 
   return {
     app,

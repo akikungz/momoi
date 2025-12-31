@@ -13,6 +13,7 @@ import { prisma } from "./database";
 import { env } from "./env";
 import { QueueModule } from "./queue";
 import { academicRoute } from "./routes/academic";
+import { autocompleteRoute } from "./routes/autocomplete";
 import { instanceRoute } from "./routes/instance";
 import { requestRoute } from "./routes/request";
 import { storageRoute } from "./routes/storage";
@@ -43,6 +44,7 @@ export const api = new Elysia({ name: "momoi.api", prefix: "/api" })
           { name: "Storage", description: "File and folder management endpoints" },
           { name: "File Versions", description: "File versioning endpoints" },
           { name: "File Permissions", description: "File sharing and permission endpoints" },
+          { name: "Autocomplete", description: "Autocomplete options for dropdown selections" },
         ],
         ...await authOpenAPI()
       },
@@ -83,6 +85,7 @@ export const api = new Elysia({ name: "momoi.api", prefix: "/api" })
   .use(instanceRoute(prisma, cache, authMacro, new QueueModule()))
   .use(academicRoute(prisma, cache, authMacro))
   .use(requestRoute(prisma, cache, authMacro))
-  .use(storageRoute(prisma, cache, authMacro));
+  .use(storageRoute(prisma, cache, authMacro))
+  .use(autocompleteRoute(prisma, authMacro));
 
 export type Api = typeof api;
