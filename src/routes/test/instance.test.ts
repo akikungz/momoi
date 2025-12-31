@@ -27,8 +27,8 @@ describe("Instance Route - Admin", () => {
   });
 
   it("should create a new instance as instructor", async () => {
-    mockQueue.provisionInstanceQueue.add.mockResolvedValueOnce({ id: 'mock-job' });
-    mockQueue.deprovisionInstanceQueue.add.mockResolvedValueOnce({ id: 'mock-job' });
+    mockQueue.provisionInstanceQueue.add.mockResolvedValueOnce({ id: 'mock-job', name: 'provision', data: {} });
+    mockQueue.deprovisionInstanceQueue.add.mockResolvedValueOnce({ id: 'mock-job', name: 'deprovision', data: {} });
     const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockInstructorAuth, mockQueue as any));
 
     const mockInstanceData = createMockInstance({
@@ -89,8 +89,8 @@ describe("Instance Route - Admin", () => {
   });
 
   it("should get instances for user", async () => {
-    mockQueue.provisionInstanceQueue.add.mockResolvedValueOnce({ id: 'mock-job' });
-    mockQueue.deprovisionInstanceQueue.add.mockResolvedValueOnce({ id: 'mock-job' });
+    mockQueue.provisionInstanceQueue.add.mockResolvedValueOnce({ id: 'mock-job', name: 'provision', data: {} });
+    mockQueue.deprovisionInstanceQueue.add.mockResolvedValueOnce({ id: 'mock-job', name: 'deprovision', data: {} });
     const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockAdminAuth, mockQueue as any));
 
     const mockCourse = createMockCourse({ id: 1 });
@@ -317,8 +317,8 @@ describe("Instance Route - Admin", () => {
   });
 
   it("should delete instance", async () => {
-    mockQueue.deprovisionInstanceQueue.add.mockResolvedValueOnce({ id: 'mock-job' });
-    mockQueue.provisionInstanceQueue.add.mockResolvedValueOnce({ id: 'mock-job' });
+    mockQueue.deprovisionInstanceQueue.add.mockResolvedValueOnce({ id: 'mock-job', name: 'deprovision', data: {} });
+    mockQueue.provisionInstanceQueue.add.mockResolvedValueOnce({ id: 'mock-job', name: 'provision', data: {} });
     const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockAdminAuth, mockQueue as any));
 
     mockPrisma.instance.findUnique.mockResolvedValueOnce({
@@ -507,5 +507,101 @@ describe("Instance Route - Student", () => {
 
     expect(response.status).toBe(200);
     expect(response.data).toHaveProperty("success", true);
+  });
+
+  it("should create extended request for own instance", async () => {
+    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockStudentAuth, mockQueue as any));
+
+    const instance = createMockInstance({ id: 50, platformUserId: 3 });
+    const currentSemesterEnd = new Date('2024-05-30T00:00:00.000Z');
+
+    mockPrisma.instance.findUnique.mockResolvedValueOnce({
+      platformUserId: instance.platformUserId,
+      courseOffering: {
+        semester: { id: 201, endDate: currentSemesterEnd },
+      }
+    });
+
+    const nextSemester = { id: 202, name: "Fall 2024", startDate: new Date('2024-08-15T00:00:00.000Z'), endDate: new Date('2024-12-20T00:00:00.000Z') };
+    mockPrisma.semester.findFirst.mockResolvedValueOnce(nextSemester);
+
+    mockPrisma.extendedRequest.create.mockResolvedValueOnce({
+      id: 60,
+      title: "Extend Instance",
+      description: "Need more time",
+      status: "PENDING",
+      reason: null,
+      targetInstanceId: instance.id,
+      requesterId: 3,
+      reviewerId: null,
+      nextSemester,
+      targetInstance: {
+        id: instance.id,
+        courseOffering: {
+          course: { code: "CS301", title: "Net" },
+          semester: { name: "Fall" },
+        }
+      },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const response = await client.instances({ instanceId: instance.id })['extended-request'].post({
+      title: "Extend Instance",
+      description: "Need more time",
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.data).not.toBeNull();
+    expect(response.data!.targetInstanceId).toBe(instance.id);
+  });
+
+  it("should not create extended request for others instance", async () => {
+    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockStudentAuth, mockQueue as any));
+
+    // Instance is owned by someone else
+    mockPrisma.instance.findUnique.mockResolvedValueOnce({ platformUserId: 999 });
+
+    const response = await client.instances({ instanceId: 123 })['extended-request'].post({
+      title: "Extend",
+      description: "more time",
+    });
+
+    expect(response.status).toBe(404);
+  });
+});
+
+describe("Instance Route - Extended Request Authorization", () => {
+  let mockPrisma: any;
+  let mockCache: MockCache;
+  let mockQueue: MockQueueModule;
+
+  beforeEach(() => {
+    resetMockFactoryCounters();
+    mockPrisma = createMockPrisma() as any;
+    mockCache = new MockCache();
+    mockQueue = new MockQueueModule();
+  });
+
+  it("should not allow instructor to create extended request (403)", async () => {
+    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockInstructorAuth, mockQueue as any));
+
+    const response = await client.instances({ instanceId: 1 })['extended-request'].post({
+      title: "Extend",
+      description: "more time",
+    });
+
+    expect(response.status).toBe(403);
+  });
+
+  it("should not allow admin to create extended request (403)", async () => {
+    const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockAdminAuth, mockQueue as any));
+
+    const response = await client.instances({ instanceId: 1 })['extended-request'].post({
+      title: "Extend",
+      description: "more time",
+    });
+
+    expect(response.status).toBe(403);
   });
 });

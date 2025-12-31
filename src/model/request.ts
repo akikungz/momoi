@@ -112,6 +112,12 @@ export const CreateExtendedRequestRequestBody = t.Object({
   targetInstanceId: t.Number({ description: "Instance to be extended" }),
 });
 
+// Body for creating extended request via /instances/:instanceId/extended-request
+export const CreateInstanceExtendedRequestBody = t.Object({
+  title: t.String({ description: "Extended request title" }),
+  description: t.Optional(t.String({ description: "Extended request description" })),
+});
+
 export const CreateExtendedRequestResponse = ExtendedRequestItem;
 
 export const UpdateExtendedRequestStatusRequestBody = UpdateRequestStatusRequestBody;
@@ -162,6 +168,7 @@ export const requestModel = new Elysia({ name: "request.model" })
   .model("UpdateRequestStatusRequestBody", UpdateRequestStatusRequestBody)
   .model("UpdateRequestStatusResponse", UpdateRequestStatusResponse)
   .model("CreateExtendedRequestRequestBody", CreateExtendedRequestRequestBody)
+  .model("CreateInstanceExtendedRequestBody", CreateInstanceExtendedRequestBody)
   .model("CreateExtendedRequestResponse", CreateExtendedRequestResponse)
   .model("GetExtendedRequestsRequestQuery", GetExtendedRequestsRequestQuery)
   .model("GetExtendedRequestsResponse", GetExtendedRequestsResponse)

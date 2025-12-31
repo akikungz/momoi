@@ -4,9 +4,11 @@ import { AuthMacro } from "@momoi/auth";
 import { CacheModule } from "@momoi/cache";
 import { PrismaClient } from "@momoi/database";
 import { instanceModel } from "@momoi/model/instance";
+import { requestModel } from "@momoi/model/request";
 import { ErrorResponse } from "@momoi/model/shared/error";
 import { QueueModule } from "@momoi/queue";
 import { InstanceService } from "@momoi/service/instance";
+import { RequestService } from "@momoi/service/request";
 
 export const instanceRoute = (
   prisma: PrismaClient,
@@ -16,8 +18,10 @@ export const instanceRoute = (
 ) => new Elysia({ name: "instance.route", prefix: "/instances" })
   .use(auth)
   .use(instanceModel)
+  .use(requestModel)
   .guard({ auth: true })
   .decorate("instanceService", new InstanceService(prisma, cache, queue))
+  .decorate("requestService", new RequestService(prisma, cache, queue))
   .post(
     "/",
     async ({ instanceService, user, body, status }) => {
@@ -226,6 +230,35 @@ export const instanceRoute = (
         summary: "Get instance audit logs",
         description: "Retrieve audit log entries for the instance",
         tags: ["Instances", "Audit Logs"],
+      },
+    }
+  )
+  // Extended Request
+  .post(
+    "/:instanceId/extended-request",
+    async ({ requestService, user, params, body, status }) => {
+      if (user.role !== "STUDENT") {
+        return status(403, { status: 403, message: "Forbidden: Only students can create extended requests" });
+      }
+
+      return await requestService.createExtendedRequest(user.id, {
+        ...body,
+        targetInstanceId: params.instanceId,
+      });
+    },
+    {
+      params: t.Object({
+        instanceId: t.Number({ description: "Instance ID to extend" }),
+      }),
+      body: "CreateInstanceExtendedRequestBody",
+      response: {
+        200: "CreateExtendedRequestResponse",
+        403: ErrorResponse,
+      },
+      detail: {
+        summary: "Create an extended request for an instance",
+        description: "Students request to extend their instance to the next semester",
+        tags: ["Instances", "Extended Requests"],
       },
     }
   );
