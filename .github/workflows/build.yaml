@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - project-2-2025
+      - development
 
 jobs:
   test:
@@ -74,4 +74,4 @@ jobs:
     steps:
       - name: Trigger rollout on kubernetes
         run: |
-          kubectl rollout restart deployment/momoi:${{ github.ref_name }} -n fitm-cloud
+          kubectl rollout restart deployment/momoi-${{ github.ref_name }} -n fitm-cloud

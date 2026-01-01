@@ -55,3 +55,10 @@ package-lock.json
 **/docker-compose*.yml
 **/docker-compose*.yaml
 **/.dockerignore
+
+# Git
+.git
+.gitignore
+.github
+.github/**/*
+.gitattributess
