@@ -66,3 +66,12 @@ jobs:
       - name: Push Docker image
         run: |
           docker push ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+
+  deploy:
+    runs-on: self-hosted
+    needs: build-and-push
+
+    steps:
+      - name: Trigger rollout on kubernetes
+        run: |
+          kubectl rollout restart deployment/momoi:${{ github.ref_name }} -n fitm-cloud
