@@ -129,12 +129,19 @@ export class AcademicService {
     const cached = await this.cache.getCacheValue(cacheKey);
     if (cached) return JSON.parse(cached);
 
-    const where = {
-      user: {
-        name: query.name ? { contains: query.name, mode: 'insensitive' as const } : undefined,
-        email: query.email ? { contains: query.email, mode: 'insensitive' as const } : undefined,
-      },
+    const where: any = {
+      role: { not: 'STUDENT' },
     };
+
+    if (query.name || query.email) {
+      where.user = {};
+      if (query.name) {
+        where.user.name = { contains: query.name, mode: 'insensitive' as const };
+      }
+      if (query.email) {
+        where.user.email = { contains: query.email, mode: 'insensitive' as const };
+      }
+    }
 
     const [totalItems, instructors] = await Promise.all([
       this.prisma.platformUser.count({ where }),
