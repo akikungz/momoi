@@ -70,6 +70,7 @@ export const api = new Elysia({ name: "momoi.api", prefix: "/api" })
     })
   )
   .onError(({ error, status }) => {
+    console.error(error);
     if (error instanceof ServiceError) {
       return status(error.status, { status: error.status, message: error.message });
     }
@@ -79,6 +80,42 @@ export const api = new Elysia({ name: "momoi.api", prefix: "/api" })
     }
 
     return status(500, { status: 500, message: 'An unexpected error occurred.' });
+  })
+  .trace(({ context, onHandle }) => {
+    onHandle(async ({ error, total }) => {
+      console.info(
+        JSON.stringify({
+          timestamp: new Date().toISOString(),
+          level: "info",
+          message: "Request handled",
+          data: {
+            route: context.route,
+            method: context.request.method,
+            status: context.set.status,
+            totalTime: `${total} ms`,
+          },
+        })
+      );
+
+      if (error) {
+        const opt = await error;
+        if (opt) {
+          console.error(
+            JSON.stringify({
+              timestamp: new Date().toISOString(),
+              level: "error",
+              message: "Error occurred",
+              data: {
+                route: context.route,
+                method: context.request.method,
+                status: context.status,
+                error: opt.message,
+              },
+            })
+          );
+        }
+      }
+    });
   })
   .use(authHandler)
   .use(userRoute(prisma, cache, authMacro))
