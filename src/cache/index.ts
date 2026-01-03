@@ -63,4 +63,10 @@ export class CacheModule {
   public async getClient(): Promise<Redis | undefined> {
     return this.client;
   }
+
+  public closeClient(): void {
+    if (this.client) {
+      this.client.quit();
+    }
+  }
 }

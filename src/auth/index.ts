@@ -83,6 +83,11 @@ export const auth = betterAuth({
             where: { email: user.email },
             data: { havePlatformId: true },
           });
+
+          // Clear cache for mailing list
+          const cache = new CacheModule();
+          await cache.deleteCacheByPattern("academic:mailing:*");
+          cache.closeClient();
         } else {
           platfromUser = await prisma.platformUser.create({
             data: {
