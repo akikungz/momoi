@@ -77,25 +77,25 @@ describe("SecretEnvSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("should accept optional GOOGLE_OAUTH_CLIENT_ID", () => {
+  it("should accept optional GOOGLE_CLIENT_ID", () => {
     const result = SecretEnvSchema.safeParse({
       JWT_SECRET: "a".repeat(32),
-      GOOGLE_OAUTH_CLIENT_ID: "client-id-123",
+      GOOGLE_CLIENT_ID: "client-id-123",
     });
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.GOOGLE_OAUTH_CLIENT_ID).toBe("client-id-123");
+      expect(result.data.GOOGLE_CLIENT_ID).toBe("client-id-123");
     }
   });
 
-  it("should accept optional GOOGLE_OAUTH_CLIENT_SECRET", () => {
+  it("should accept optional GOOGLE_CLIENT_SECRET", () => {
     const result = SecretEnvSchema.safeParse({
       JWT_SECRET: "a".repeat(32),
-      GOOGLE_OAUTH_CLIENT_SECRET: "secret-123",
+      GOOGLE_CLIENT_SECRET: "secret-123",
     });
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.GOOGLE_OAUTH_CLIENT_SECRET).toBe("secret-123");
+      expect(result.data.GOOGLE_CLIENT_SECRET).toBe("secret-123");
     }
   });
 
@@ -105,8 +105,8 @@ describe("SecretEnvSchema", () => {
     });
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.GOOGLE_OAUTH_CLIENT_ID).toBeUndefined();
-      expect(result.data.GOOGLE_OAUTH_CLIENT_SECRET).toBeUndefined();
+      expect(result.data.GOOGLE_CLIENT_ID).toBeUndefined();
+      expect(result.data.GOOGLE_CLIENT_SECRET).toBeUndefined();
     }
   });
 });
@@ -302,8 +302,8 @@ describe("EnvSchema", () => {
       NODE_ENV: "production",
       PORT: 8080,
       JWT_SECRET: "a".repeat(32),
-      GOOGLE_OAUTH_CLIENT_ID: "client-id",
-      GOOGLE_OAUTH_CLIENT_SECRET: "secret",
+      GOOGLE_CLIENT_ID: "client-id",
+      GOOGLE_CLIENT_SECRET: "secret",
       DATABASE_URL: "postgres://localhost/db",
       REDIS_URL: "redis://localhost:6379",
       OTEL_SERVICE_NAME: "custom-service",
@@ -313,8 +313,8 @@ describe("EnvSchema", () => {
     });
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.GOOGLE_OAUTH_CLIENT_ID).toBe("client-id");
-      expect(result.data.GOOGLE_OAUTH_CLIENT_SECRET).toBe("secret");
+      expect(result.data.GOOGLE_CLIENT_ID).toBe("client-id");
+      expect(result.data.GOOGLE_CLIENT_SECRET).toBe("secret");
       expect(result.data.REDIS_URL).toBe("redis://localhost:6379");
       expect(result.data.OTEL_EXPORTER_OTLP_ENDPOINT).toBe("http://localhost:4317");
     }
