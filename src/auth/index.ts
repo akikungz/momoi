@@ -29,6 +29,7 @@ export const auth = betterAuth({
       clientSecret: env.GOOGLE_CLIENT_SECRET!,
       scope: ["email", "profile"],
       accessType: "offline",
+      prompt: "select_account",
     },
   },
   emailAndPassword: {
@@ -36,7 +37,22 @@ export const auth = betterAuth({
     requireEmailVerification: false,
   },
   advanced: {
-    useSecureCookies: env.NODE_ENV === "production",
+    ...(
+      env.NODE_ENV === "production"
+        ? {
+          defaultCookieAttributes: {
+            sameSite: "lax" as const,
+            secure: true,
+          },
+          useSecureCookies: true,
+        } : {
+          defaultCookieAttributes: {
+            sameSite: "none" as const,
+            secure: false,
+          },
+          useSecureCookies: false,
+        }
+    )
   },
   logger: {
     disabled: false,
