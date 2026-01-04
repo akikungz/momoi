@@ -23,6 +23,11 @@ WORKDIR /app
 
 RUN apk --no-cache add libgcc libstdc++ ca-certificates
 
+RUN update-ca-certificates
+
+ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+ENV SSL_CERT_DIR=/etc/ssl/certs
+
 COPY --from=build /app/server ./
 
 EXPOSE 3000
