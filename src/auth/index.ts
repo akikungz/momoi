@@ -34,9 +34,9 @@ export const auth = betterAuth({
       clientSecret: env.GOOGLE_CLIENT_SECRET!,
       scope: ["email", "profile"],
       accessType: "offline",
-      redirectURI: env.BETTER_AUTH_URL
-        ? `${env.BETTER_AUTH_URL}/api/auth/callback/google`
-        : undefined,
+      // redirectURI: env.BETTER_AUTH_URL
+      //   ? `${env.BETTER_AUTH_URL}/api/auth/callback/google`
+      //   : undefined,
     },
   },
   emailAndPassword: {
@@ -147,8 +147,8 @@ export const authOpenAPI = async (_auth: typeof auth = auth) => {
   }
 }
 
-export const authHandler = new Elysia({ name: "auth.handler" })
-  .mount(auth.handler);
+export const authHandler = new Elysia({ name: "auth.handler", prefix: "/auth" })
+  .mount("/*", auth.handler);
 
 export const authMacro = new Elysia({ name: "auth.macro" })
   .decorate("cache", new CacheModule())
