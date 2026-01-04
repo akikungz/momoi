@@ -41,16 +41,16 @@ export const auth = betterAuth({
       env.NODE_ENV === "production"
         ? {
           defaultCookieAttributes: {
-            sameSite: "lax" as const,
+            sameSite: "lax",
             secure: true,
           },
           useSecureCookies: true,
         } : {
           defaultCookieAttributes: {
-            sameSite: "none" as const,
-            secure: false,
+            sameSite: "lax",
+            secure: env.BETTER_AUTH_URL?.startsWith("https://") || false,
           },
-          useSecureCookies: false,
+          useSecureCookies: env.BETTER_AUTH_URL?.startsWith("https://") || false,
         }
     )
   },
