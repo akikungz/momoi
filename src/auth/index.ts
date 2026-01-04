@@ -35,6 +35,9 @@ export const auth = betterAuth({
       scope: ["email", "profile"],
       accessType: "offline",
       prompt: "select_account consent",
+      redirectURI: env.BETTER_AUTH_URL
+        ? `${env.BETTER_AUTH_URL}/api/auth/callback/google`
+        : undefined,
     },
   },
   emailAndPassword: {
