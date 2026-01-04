@@ -11,7 +11,8 @@ import { isInstructorEmail, isItDepartmentEmail } from "@momoi/utils/user";
 import { MockAuth } from "./mock";
 
 export const auth = betterAuth({
-  // basePath: "/api/auth",
+  baseURL: env.BETTER_AUTH_URL,
+  basePath: "/api/auth",
   database: env.NODE_ENV === "test" ? undefined : prismaAdapter(prisma, { provider: "postgresql" }),
   secret: env.JWT_SECRET,
   session: {
@@ -23,6 +24,8 @@ export const auth = betterAuth({
   },
   cookie: {
     path: "/",
+    sameSite: "lax",
+    secure: env.NODE_ENV === "production",
   },
   trustedOrigins: env.ALLOW_CORS_ORIGINS,
   socialProviders: {

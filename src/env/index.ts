@@ -7,6 +7,7 @@ export const GeneralEnvSchema = z.object({
 
 export const SecretEnvSchema = z.object({
   JWT_SECRET: z.string().min(32),
+  BETTER_AUTH_URL: z.url({ pattern: /^http(?:s)?:\/\// }).optional(),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   // Allow origins for CORS can be added here in the future
@@ -56,6 +57,7 @@ function getEnv(): z.infer<typeof EnvSchema> {
       LOG_LEVEL: "info",
       LOG_FORMAT: "plain",
       JWT_SECRET: process.env.JWT_SECRET || "test-secret-key-minimum-32-characters-long",
+      BETTER_AUTH_URL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
       DATABASE_URL: process.env.DATABASE_URL || "postgresql://test:test@localhost:5432/momoi_test",
       GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
       GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
