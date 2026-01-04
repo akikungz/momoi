@@ -7,7 +7,7 @@ import { serverTiming } from "@elysiajs/server-timing";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-grpc";
 import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-base";
 
-import { authHandler, authMacro, authOpenAPI } from "./auth";
+import { authMacro, authOpenAPI } from "./auth";
 import { CacheModule } from "./cache";
 import { prisma } from "./database";
 import { env } from "./env";
@@ -118,7 +118,6 @@ export const api = new Elysia({ name: "momoi.api", prefix: "/api" })
       }
     });
   })
-  .use(authHandler)
   .use(userRoute(prisma, cache, authMacro))
   .use(instanceRoute(prisma, cache, authMacro, new QueueModule()))
   .use(academicRoute(prisma, cache, authMacro))

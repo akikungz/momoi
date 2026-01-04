@@ -147,9 +147,6 @@ export const authOpenAPI = async (_auth: typeof auth = auth) => {
   }
 }
 
-export const authHandler = new Elysia({ name: "auth.handler" })
-  .mount("/auth", auth.handler);
-
 export const authMacro = new Elysia({ name: "auth.macro" })
   .decorate("cache", new CacheModule())
   .macro({
