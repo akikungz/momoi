@@ -22,7 +22,11 @@ import { ServiceError } from "./utils/error";
 
 const cache = new CacheModule();
 
-export const api = new Elysia({ name: "momoi.api", prefix: "/api" })
+export const api = new Elysia({
+  name: "momoi.api", prefix: "/api", cookie: {
+    secure: env.BETTER_AUTH_URL?.startsWith("https://") ?? false,
+  }
+})
   .use(
     openapi({
       documentation: {
