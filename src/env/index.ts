@@ -7,8 +7,8 @@ export const GeneralEnvSchema = z.object({
 
 export const SecretEnvSchema = z.object({
   JWT_SECRET: z.string().min(32),
-  GOOGLE_OAUTH_CLIENT_ID: z.string().optional(),
-  GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
   // Allow origins for CORS can be added here in the future
   ALLOW_CORS_ORIGINS: z.string()
     .transform((val) => val.split(",").map((origin) => origin.trim()))
@@ -17,11 +17,11 @@ export const SecretEnvSchema = z.object({
 
 export const DatabaseEnvSchema = z.object({
   DATABASE_URL: z.url({ pattern: /^postgres(?:ql)?:\/\// }),
-  REDIS_URL: z.url().optional(),
+  REDIS_URL: z.url({ pattern: /^redis:\/\// }).optional(),
 });
 
 export const S3EnvSchema = z.object({
-  S3_ENDPOINT: z.url().optional(),
+  S3_ENDPOINT: z.url({ pattern: /^http(?:s)?:\/\// }).optional(),
   S3_ACCESS_KEY_ID: z.string().optional(),
   S3_SECRET_ACCESS_KEY: z.string().optional(),
   S3_BUCKET_NAME: z.string().optional(),
@@ -57,8 +57,8 @@ function getEnv(): z.infer<typeof EnvSchema> {
       LOG_FORMAT: "plain",
       JWT_SECRET: process.env.JWT_SECRET || "test-secret-key-minimum-32-characters-long",
       DATABASE_URL: process.env.DATABASE_URL || "postgresql://test:test@localhost:5432/momoi_test",
-      GOOGLE_OAUTH_CLIENT_ID: process.env.GOOGLE_OAUTH_CLIENT_ID,
-      GOOGLE_OAUTH_CLIENT_SECRET: process.env.GOOGLE_OAUTH_CLIENT_SECRET,
+      GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+      GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
       REDIS_URL: process.env.REDIS_URL,
       OTEL_EXPORTER_OTLP_ENDPOINT: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
     } as z.infer<typeof EnvSchema>;

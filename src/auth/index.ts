@@ -25,11 +25,11 @@ export const auth = betterAuth({
   trustedOrigins: env.ALLOW_CORS_ORIGINS,
   socialProviders: {
     ...(
-      env.GOOGLE_OAUTH_CLIENT_ID && env.GOOGLE_OAUTH_CLIENT_SECRET
+      env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
         ? {
           google: {
-            clientId: env.GOOGLE_OAUTH_CLIENT_ID,
-            clientSecret: env.GOOGLE_OAUTH_CLIENT_SECRET,
+            clientId: env.GOOGLE_CLIENT_ID,
+            clientSecret: env.GOOGLE_CLIENT_SECRET,
             scope: ["email", "profile"],
             accessType: "offline"
           },
