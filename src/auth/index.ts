@@ -34,7 +34,6 @@ export const auth = betterAuth({
       clientSecret: env.GOOGLE_CLIENT_SECRET!,
       scope: ["email", "profile"],
       accessType: "offline",
-      prompt: "select_account consent",
       redirectURI: env.BETTER_AUTH_URL
         ? `${env.BETTER_AUTH_URL}/api/auth/callback/google`
         : undefined,
@@ -51,7 +50,7 @@ export const auth = betterAuth({
     disabled: false,
     level: env.LOG_LEVEL,
     log: (level, message) => {
-      console[level](message);
+      console.log(`[better-auth][${level.toUpperCase()}]: ${message}`);
     },
   },
   plugins: [
