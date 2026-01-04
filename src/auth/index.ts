@@ -194,7 +194,7 @@ export const authMacro = new Elysia({ name: "auth.macro" })
     auth: {
       resolve: async ({ status, request: { headers }, cache, cookie }) => {
         // Try to get session from cache first
-        const cookie_token = env.BETTER_AUTH_URL?.startsWith("https://") ? cookie["_Secure-better-auth.session_token"] : cookie["better-auth.session_token"];
+        const cookie_token = env.BETTER_AUTH_URL?.startsWith("https://") ? cookie["__Secure-better-auth.session_token"] : cookie["better-auth.session_token"];
         const cacheKey = `session:${cookie_token}`;
         const cachedSession = await cache.getCacheValue(cacheKey);
 
