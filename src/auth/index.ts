@@ -11,8 +11,8 @@ import { isInstructorEmail, isItDepartmentEmail } from "@momoi/utils/user";
 import { MockAuth } from "./mock";
 
 export const auth = betterAuth({
-  baseURL: (env.BETTER_AUTH_URL || "http://localhost:3000").replace(/\/+$/, "") + "/api/auth",
-  basePath: "/",
+  baseURL: env.BETTER_AUTH_URL || "http://localhost:3000",
+  basePath: "/api/auth",
   database: env.NODE_ENV === "test" ? undefined : prismaAdapter(prisma, { provider: "postgresql" }),
   secret: env.JWT_SECRET,
   session: {
@@ -30,6 +30,7 @@ export const auth = betterAuth({
       scope: ["email", "profile"],
       accessType: "offline",
       prompt: "select_account",
+      pkce: true,
     },
   },
   emailAndPassword: {
@@ -37,6 +38,7 @@ export const auth = betterAuth({
     requireEmailVerification: false,
   },
   advanced: {
+    disableCSRFCheck: true,
     ...(
       env.NODE_ENV === "production"
         ? {
