@@ -313,7 +313,8 @@ describe("Instance Route - Admin", () => {
 
     const response = await client.instances({ instanceId: 999 }).get();
 
-    expect(response.status).toBe(500);
+    // ServiceError with 404 status is now properly preserved
+    expect(response.status).toBe(404);
   });
 
   it("should delete instance", async () => {

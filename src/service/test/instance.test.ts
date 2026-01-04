@@ -105,9 +105,10 @@ describe("InstanceService", () => {
         diskGB: 100,
       };
 
+      // Use P2003 (foreign key constraint) for generic database error testing
       const error = new PrismaClientKnownRequestError(
         "Database connection failed",
-        { code: "P2002", clientVersion: "0.0.1" }
+        { code: "P2003", clientVersion: "0.0.1" }
       );
       mockPrisma.instance.create.mockRejectedValueOnce(error);
 
@@ -237,7 +238,7 @@ describe("InstanceService", () => {
       const query = { page: 1, pageSize: 10 };
 
       mockPrisma.instance.count.mockRejectedValueOnce(
-        new PrismaClientKnownRequestError("DB error", { code: "P2002", clientVersion: "0.0.1" })
+        new PrismaClientKnownRequestError("DB error", { code: "P2003", clientVersion: "0.0.1" })
       );
 
       try {
@@ -476,9 +477,8 @@ describe("InstanceService", () => {
         await instanceService.getInstanceById(instanceId);
         expect.unreachable();
       } catch (err: unknown) {
-        // The error "Instance not found." is thrown and caught by the catch block
-        // Since it's not a PrismaClientKnownRequestError, it becomes "An unexpected error occurred..."
-        expect((err as Error).message).toBe("An unexpected error occurred while retrieving the instance.");
+        // ServiceError is now properly re-thrown with its original message
+        expect((err as Error).message).toBe("Instance not found.");
       }
     });
 
@@ -604,7 +604,7 @@ describe("InstanceService", () => {
       });
       const error = new PrismaClientKnownRequestError(
         "Database error",
-        { code: "P2002", clientVersion: "0.0.1" }
+        { code: "P2003", clientVersion: "0.0.1" }
       );
       mockPrisma.instance.delete.mockRejectedValueOnce(error);
 

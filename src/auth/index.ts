@@ -3,7 +3,6 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { customSession, openAPI } from "better-auth/plugins";
 import { Elysia } from "elysia";
 
-import { openapi } from "@elysiajs/openapi";
 import { CacheModule } from "@momoi/cache";
 import { prisma } from "@momoi/database";
 import { env } from "@momoi/env";
