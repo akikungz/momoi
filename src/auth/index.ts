@@ -11,8 +11,8 @@ import { isInstructorEmail, isItDepartmentEmail } from "@momoi/utils/user";
 import { MockAuth } from "./mock";
 
 export const auth = betterAuth({
-  baseURL: env.BETTER_AUTH_URL ? `${env.BETTER_AUTH_URL}/api/auth` : undefined,
-  basePath: "/",
+  baseURL: env.BETTER_AUTH_URL,
+  basePath: "/api/auth",
   database: env.NODE_ENV === "test" ? undefined : prismaAdapter(prisma, { provider: "postgresql" }),
   secret: env.JWT_SECRET,
   session: {
@@ -22,11 +22,6 @@ export const auth = betterAuth({
       strategy: "jwt",
     },
   },
-  cookie: {
-    path: "/",
-    sameSite: "lax",
-    secure: env.NODE_ENV === "production",
-  },
   trustedOrigins: env.ALLOW_CORS_ORIGINS,
   socialProviders: {
     google: {
@@ -34,9 +29,6 @@ export const auth = betterAuth({
       clientSecret: env.GOOGLE_CLIENT_SECRET!,
       scope: ["email", "profile"],
       accessType: "offline",
-      // redirectURI: env.BETTER_AUTH_URL
-      //   ? `${env.BETTER_AUTH_URL}/api/auth/callback/google`
-      //   : undefined,
     },
   },
   emailAndPassword: {
@@ -115,6 +107,9 @@ export const auth = betterAuth({
     }),
   ],
 });
+
+export const authHandler = new Elysia({ name: "auth.handler", prefix: "/auth" })
+  .mount(auth.handler);
 
 export const authOpenAPI = async (_auth: typeof auth = auth) => {
   let _schema: ReturnType<typeof _auth.api.generateOpenAPISchema>;
