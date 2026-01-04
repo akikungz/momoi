@@ -33,7 +33,8 @@ export const auth = betterAuth({
       clientId: env.GOOGLE_CLIENT_ID!,
       clientSecret: env.GOOGLE_CLIENT_SECRET!,
       scope: ["email", "profile"],
-      accessType: "offline"
+      accessType: "offline",
+      prompt: "select_account consent",
     },
   },
   emailAndPassword: {
