@@ -46,6 +46,12 @@ export const auth = betterAuth({
       enabled: false,
     },
   },
+  logger: {
+    level: env.LOG_LEVEL,
+    log: (level, message) => {
+      console[level](message);
+    },
+  },
   plugins: [
     openAPI(),
     customSession(async ({ user, session }) => {
