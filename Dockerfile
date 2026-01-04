@@ -1,15 +1,17 @@
-FROM oven/bun:1.3-alpine AS build
+FROM oven/bun:1.3-debian AS build
 WORKDIR /app
 COPY package.json bun.lock ./
 RUN bun install
 COPY . .
 RUN bun db:gen
 
-FROM oven/bun:1.3-alpine AS runtime
+FROM oven/bun:1.3-debian AS runtime
 WORKDIR /app
 
-# Install CA certificates
-RUN apk --no-cache add ca-certificates && update-ca-certificates
+# Ensure CA certificates are up to date
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && \
+  update-ca-certificates && \
+  rm -rf /var/lib/apt/lists/*
 
 # Copy node_modules and built application
 COPY --from=build /app/node_modules ./node_modules
