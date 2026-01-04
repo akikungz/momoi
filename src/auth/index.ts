@@ -26,18 +26,12 @@ export const auth = betterAuth({
   },
   trustedOrigins: env.ALLOW_CORS_ORIGINS,
   socialProviders: {
-    ...(
-      env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
-        ? {
-          google: {
-            clientId: env.GOOGLE_CLIENT_ID,
-            clientSecret: env.GOOGLE_CLIENT_SECRET,
-            scope: ["email", "profile"],
-            accessType: "offline"
-          },
-        }
-        : {}
-    ),
+    google: {
+      clientId: env.GOOGLE_CLIENT_ID!,
+      clientSecret: env.GOOGLE_CLIENT_SECRET!,
+      scope: ["email", "profile"],
+      accessType: "offline"
+    },
   },
   emailAndPassword: {
     enabled: env.NODE_ENV !== "production",
