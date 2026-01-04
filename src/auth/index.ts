@@ -66,6 +66,32 @@ export const auth = betterAuth({
   plugins: [
     openAPI(),
     customSession(async ({ user, session }) => {
+      // In development, allow any email and create admin user
+      if (env.NODE_ENV !== "production") {
+        let platformUser = await prisma.platformUser.findUnique({
+          where: { userId: user.id },
+        });
+
+        if (!platformUser) {
+          platformUser = await prisma.platformUser.create({
+            data: {
+              userId: user.id,
+              role: "STUDENT",
+            },
+          });
+        }
+
+        return {
+          user: {
+            ...user,
+            id: platformUser.id,
+            role: platformUser.role,
+          },
+          session
+        };
+      }
+
+      // Production: require IT department email
       if (!isItDepartmentEmail(user.email)) {
         throw new Error("Unauthorized: Email is not from IT Department");
       }
