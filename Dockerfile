@@ -21,7 +21,7 @@ FROM alpine:latest AS runtime
 
 WORKDIR /app
 
-RUN apk --no-cache add libgcc libstdc++
+RUN apk --no-cache add libgcc libstdc++ ca-certificates
 
 COPY --from=build /app/server ./
 
