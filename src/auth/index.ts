@@ -11,7 +11,7 @@ import { isInstructorEmail, isItDepartmentEmail } from "@momoi/utils/user";
 import { MockAuth } from "./mock";
 
 export const auth = betterAuth({
-  basePath: "/api/auth",
+  // basePath: "/api/auth",
   database: env.NODE_ENV === "test" ? undefined : prismaAdapter(prisma, { provider: "postgresql" }),
   secret: env.JWT_SECRET,
   session: {
@@ -20,6 +20,9 @@ export const auth = betterAuth({
       maxAge: 60 * 60 * 3, // 3 hours
       strategy: "jwt",
     },
+  },
+  cookie: {
+    path: "/",
   },
   trustedOrigins: env.ALLOW_CORS_ORIGINS,
   socialProviders: {
@@ -42,10 +45,6 @@ export const auth = betterAuth({
   },
   advanced: {
     useSecureCookies: env.NODE_ENV === "production",
-    crossSubDomainCookies: {
-      enabled: true,
-      domain: ".fitm.cloud",
-    },
   },
   logger: {
     disabled: false,
@@ -148,7 +147,7 @@ export const authOpenAPI = async (_auth: typeof auth = auth) => {
   }
 }
 
-export const authHandler = new Elysia({ name: "auth.handler", prefix: "/auth" })
+export const authHandler = new Elysia({ name: "auth.handler" })
   .mount(auth.handler);
 
 export const authMacro = new Elysia({ name: "auth.macro" })
