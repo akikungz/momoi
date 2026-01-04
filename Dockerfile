@@ -31,4 +31,6 @@ RUN update-ca-certificates
 
 EXPOSE 3000
 
+COPY --from=build /app/server /app/server
+
 CMD ["./server"]
