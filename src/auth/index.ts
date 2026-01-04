@@ -12,7 +12,7 @@ import { MockAuth } from "./mock";
 
 export const auth = betterAuth({
   baseURL: env.BETTER_AUTH_URL,
-  basePath: "/auth",
+  basePath: "/api/auth",
   database: env.NODE_ENV === "test" ? undefined : prismaAdapter(prisma, { provider: "postgresql" }),
   secret: env.JWT_SECRET,
   session: {
