@@ -47,6 +47,7 @@ export const auth = betterAuth({
     },
   },
   logger: {
+    disabled: false,
     level: env.LOG_LEVEL,
     log: (level, message) => {
       console[level](message);
