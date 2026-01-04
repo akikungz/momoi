@@ -75,3 +75,7 @@ jobs:
       - name: Trigger rollout on kubernetes
         run: |
           kubectl rollout restart deployment/momoi-${{ github.ref_name }} -n fitm-cloud
+
+      - name: Verify deployment status
+        run: |
+          kubectl rollout status deployment/momoi-${{ github.ref_name }} -n fitm-cloud --timeout=300s
