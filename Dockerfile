@@ -17,13 +17,15 @@ RUN bun build \
   --outfile server \
   src/index.ts
 
-FROM alpine:latest AS runtime
+FROM alpine:3.23 AS runtime
 
 WORKDIR /app
 
-RUN apk --no-cache add libgcc libstdc++ ca-certificates
+RUN apk --no-cache add libgcc libstdc++ ca-certificates openssl
 
 RUN update-ca-certificates
+
+ENV BUN_TLS_CA_FILE=/etc/ssl/certs/ca-certificates.crt
 
 ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 ENV SSL_CERT_DIR=/etc/ssl/certs
