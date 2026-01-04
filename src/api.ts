@@ -25,6 +25,8 @@ const cache = new CacheModule();
 export const api = new Elysia({
   name: "momoi.api", prefix: "/api", cookie: {
     secure: env.BETTER_AUTH_URL?.startsWith("https://") ?? false,
+    sameSite: "lax",
+    path: "/",
   }
 })
   .use(
