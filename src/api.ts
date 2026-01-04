@@ -91,6 +91,7 @@ export const api = new Elysia({ name: "momoi.api", prefix: "/api" })
           message: "Request handled",
           data: {
             route: context.route,
+            path: context.path,
             method: context.request.method,
             status: context.set.status,
             totalTime: `${total} ms`,
