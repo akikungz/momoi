@@ -11,8 +11,8 @@ import { isInstructorEmail, isItDepartmentEmail } from "@momoi/utils/user";
 import { MockAuth } from "./mock";
 
 export const auth = betterAuth({
-  baseURL: env.BETTER_AUTH_URL,
-  basePath: "/api/auth",
+  baseURL: env.BETTER_AUTH_URL ? `${env.BETTER_AUTH_URL}/api/auth` : undefined,
+  basePath: "/",
   database: env.NODE_ENV === "test" ? undefined : prismaAdapter(prisma, { provider: "postgresql" }),
   secret: env.JWT_SECRET,
   session: {
