@@ -40,9 +40,9 @@ export const auth = betterAuth({
   },
   logger: {
     disabled: false,
-    level: env.LOG_LEVEL,
+    level: "debug",
     log: (level, message, ...args) => {
-      console.log(`[better-auth][${level.toUpperCase()}]: ${message}`, ...args);
+      console.log(`[better-auth][${level.toUpperCase()}]:`, message, ...args);
     },
   },
   plugins: [
