@@ -67,6 +67,7 @@ export const api = new Elysia({ name: "momoi.api", prefix: "/api" })
     cors({
       methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
       origin: env.ALLOW_CORS_ORIGINS,
+      credentials: true,
     })
   )
   .onError(({ error, status }) => {
