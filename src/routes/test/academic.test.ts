@@ -297,6 +297,66 @@ describe("Academic Route", () => {
     expect(getRes.data?.courses[0].id).toBe(5);
   });
 
+  it("should get current semester", async () => {
+    const client = treaty(academicRoute(mockPrisma, mockCache as any, mockAdminAuth));
+
+    const currentSem = createMockSemester({ id: 11, isCurrent: true });
+    mockCache.getCacheValue.mockResolvedValueOnce(null);
+    mockPrisma.semester.findFirst.mockResolvedValueOnce(currentSem);
+
+    const response = await client.academic.semesters.current.get();
+    expect(response.status).toBe(200);
+    expect(response.data?.isCurrent).toBe(true);
+    expect(response.data?.name).toBeDefined();
+  });
+
+  it("should get current semester as instructor", async () => {
+    const client = treaty(academicRoute(mockPrisma, mockCache as any, mockInstructorAuth));
+
+    const currentSem = createMockSemester({ id: 11, isCurrent: true });
+    mockCache.getCacheValue.mockResolvedValueOnce(null);
+    mockPrisma.semester.findFirst.mockResolvedValueOnce(currentSem);
+
+    const response = await client.academic.semesters.current.get();
+    expect(response.status).toBe(200);
+    expect(response.data?.isCurrent).toBe(true);
+  });
+
+  it("should return cached current semester", async () => {
+    const client = treaty(academicRoute(mockPrisma, mockCache as any, mockAdminAuth));
+
+    const cached = {
+      id: 12,
+      name: "Fall 2025",
+      startDate: new Date(),
+      endDate: new Date(),
+      isCurrent: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    mockCache.getCacheValue.mockResolvedValueOnce(JSON.stringify(cached));
+
+    const response = await client.academic.semesters.current.get();
+
+    expect(response.status).toBe(200);
+    expect(response.data?.name).toBe("Fall 2025");
+    expect(response.data?.isCurrent).toBe(true);
+    expect(mockPrisma.semester.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("should return null when no current semester exists", async () => {
+    const client = treaty(academicRoute(mockPrisma, mockCache as any, mockAdminAuth));
+
+    mockCache.getCacheValue.mockResolvedValueOnce(null);
+    mockPrisma.semester.findFirst.mockResolvedValueOnce(null);
+
+    const response = await client.academic.semesters.current.get();
+
+    expect(response.status).toBe(200);
+    expect(response.data).toBeFalsy();
+  });
+
   it("should add semester", async () => {
     const client = treaty(academicRoute(mockPrisma, mockCache as any, mockAdminAuth));
 

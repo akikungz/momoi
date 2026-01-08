@@ -11,11 +11,11 @@ import {
   EditCourseSemesterResponse, EditInstructorByIdRequestBody, EditInstructorByIdResponse,
   EditSemesterByIdRequestBody, EditSemesterByIdResponse, EditSemesterCourseRequestBody,
   EditSemesterCourseResponse, GetCourseByIdResponse, GetCoursesRequestQuery, GetCoursesResponse,
-  GetInstructorByIdResponse, GetInstructorMailingListQuery, GetInstructorMailingListResponse,
-  GetInstructorsRequestQuery, GetInstructorsResponse, GetSemesterByIdResponse,
-  GetSemestersRequestQuery, GetSemestersResponse, InstructorByIdRequestParams,
-  InstructorMailingListValue, InstructorValue, RemoveInstructorMailingListResponse,
-  SemesterByIdRequestParams, SemesterValue
+  GetCurrentSemesterResponse, GetInstructorByIdResponse, GetInstructorMailingListQuery,
+  GetInstructorMailingListResponse, GetInstructorsRequestQuery, GetInstructorsResponse,
+  GetSemesterByIdResponse, GetSemestersRequestQuery, GetSemestersResponse,
+  InstructorByIdRequestParams, InstructorMailingListValue, InstructorValue,
+  RemoveInstructorMailingListResponse, SemesterByIdRequestParams, SemesterValue
 } from "@momoi/model/academic";
 import { ServiceError } from "@momoi/utils/error";
 
@@ -634,6 +634,37 @@ export class AcademicService {
     return response;
   }
 
+  public async getCurrentSemester(): Promise<Static<typeof GetCurrentSemesterResponse>> {
+    const cacheKey = 'academic:semester:current';
+    const cached = await this.cache.getCacheValue(cacheKey);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      return parsed === "null" ? null : parsed;
+    }
+
+    const semester = await this.prisma.semester.findFirst({
+      where: { isCurrent: true },
+    });
+
+    if (!semester) {
+      await this.cache.createCacheKey(cacheKey, JSON.stringify(null));
+      return null;
+    }
+
+    const response: Static<typeof GetCurrentSemesterResponse> = {
+      id: semester.id,
+      name: semester.name,
+      startDate: semester.startDate,
+      endDate: semester.endDate,
+      isCurrent: semester.isCurrent,
+      createdAt: semester.createdAt,
+      updatedAt: semester.updatedAt,
+    };
+
+    await this.cache.createCacheKey(cacheKey, JSON.stringify(response));
+    return response;
+  }
+
   public async addSemester(body: Static<typeof AddSemesterRequestBody>): Promise<Static<typeof AddSemesterResponse>> {
     const created = await this.prisma.semester.create({
       data: {
@@ -658,6 +689,13 @@ export class AcademicService {
           isCurrent: body.isCurrent ?? undefined,
         },
       });
+
+      if (updated.isCurrent) {
+        await this.prisma.semester.updateMany({
+          where: { id: { not: semesterId }, isCurrent: true },
+          data: { isCurrent: false },
+        });
+      }
 
       await this.cache.deleteCacheByPattern('academic:semesters:*');
       await this.cache.deleteCacheByPattern(`academic:semester:${semesterId}`);

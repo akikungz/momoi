@@ -48,26 +48,8 @@ export const EnvSchema = z.object({
 const parsedEnv = EnvSchema.safeParse(process.env);
 
 function getEnv(): z.infer<typeof EnvSchema> {
-  // In test mode, provide safe defaults for missing variables
-  if (process.env.NODE_ENV === "test" && !parsedEnv.success) {
-    return {
-      NODE_ENV: "test",
-      PORT: 3000,
-      OTEL_SERVICE_NAME: "momoi-test",
-      LOG_LEVEL: "info",
-      LOG_FORMAT: "plain",
-      JWT_SECRET: process.env.JWT_SECRET || "test-secret-key-minimum-32-characters-long",
-      BETTER_AUTH_URL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
-      DATABASE_URL: process.env.DATABASE_URL || "postgresql://test:test@localhost:5432/momoi_test",
-      GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
-      GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
-      REDIS_URL: process.env.REDIS_URL,
-      OTEL_EXPORTER_OTLP_ENDPOINT: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
-    } as z.infer<typeof EnvSchema>;
-  }
-
   if (!parsedEnv.success) {
-    console.error("❌ Invalid environment variables:", parsedEnv.error.format());
+    console.error("❌ Invalid environment variables:", z.formatError(parsedEnv.error));
     process.exit(1);
   }
 

@@ -13,6 +13,10 @@ export const getMeResponse = t.Object({
   id: t.Number({ description: "Unique identifier for the user" }),
   name: t.String({ description: "Full name of the user" }),
   email: t.String({ description: "Email address of the user" }),
+  image: t.Union([
+    t.String({ description: "URL of the user's profile image" }),
+    t.Null({ description: "No profile image set" })
+  ]),
   role: UserRole,
 });
 

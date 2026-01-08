@@ -534,6 +534,77 @@ describe("E2E: Academic Routes", () => {
       });
     });
 
+    describe("GET /api/academic/semesters/current", () => {
+      describe("As Admin", () => {
+        it("should return current semester", async () => {
+          const { client, mockPrisma } = setupTestContext("admin");
+
+          const mockSemester = createMockSemester({ id: 1, name: "Fall 2024", isCurrent: true });
+          mockPrisma.semester.findFirst.mockResolvedValueOnce(mockSemester);
+
+          const response = await client.api.academic.semesters.current.get();
+
+          expect(response.status).toBe(200);
+          expect(response.data).toBeDefined();
+          expect(response.data!.name).toBe("Fall 2024");
+          expect(response.data!.isCurrent).toBe(true);
+        });
+
+        it("should return null when no current semester exists", async () => {
+          const { client, mockPrisma } = setupTestContext("admin");
+
+          mockPrisma.semester.findFirst.mockResolvedValueOnce(null);
+
+          const response = await client.api.academic.semesters.current.get();
+
+          expect(response.status).toBe(200);
+          expect(response.data).toBeFalsy();
+        });
+      });
+
+      describe("As Instructor", () => {
+        it("should return current semester", async () => {
+          const { client, mockPrisma } = setupTestContext("instructor");
+
+          const mockSemester = createMockSemester({ id: 1, name: "Fall 2024", isCurrent: true });
+          mockPrisma.semester.findFirst.mockResolvedValueOnce(mockSemester);
+
+          const response = await client.api.academic.semesters.current.get();
+
+          expect(response.status).toBe(200);
+          expect(response.data!.name).toBe("Fall 2024");
+        });
+      });
+
+      describe("As Student", () => {
+        it("should return current semester", async () => {
+          const { client, mockPrisma } = setupTestContext("student");
+
+          const mockSemester = createMockSemester({ id: 1, name: "Fall 2024", isCurrent: true });
+          mockPrisma.semester.findFirst.mockResolvedValueOnce(mockSemester);
+
+          const response = await client.api.academic.semesters.current.get();
+
+          expect(response.status).toBe(200);
+          expect(response.data!.name).toBe("Fall 2024");
+        });
+      });
+
+      describe("As Unauthenticated", () => {
+        it("should return current semester", async () => {
+          const { client, mockPrisma } = setupTestContext("unauthenticated");
+
+          const mockSemester = createMockSemester({ id: 1, name: "Fall 2024", isCurrent: true });
+          mockPrisma.semester.findFirst.mockResolvedValueOnce(mockSemester);
+
+          const response = await client.api.academic.semesters.current.get();
+
+          expect(response.status).toBe(200);
+          expect(response.data!.name).toBe("Fall 2024");
+        });
+      });
+    });
+
     describe("GET /api/academic/semesters/:semesterId", () => {
       describe("As Admin", () => {
         it("should return semester details", async () => {

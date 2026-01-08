@@ -126,10 +126,6 @@ export const api = new Elysia({
       }
     });
   })
-  .onBeforeHandle(async ({ headers, request }) => {
-    headers["x-forwarded-proto"] = env.BETTER_AUTH_URL?.startsWith("https://") ? "https" : "http";
-    console.log(`[api] Incoming request: ${request.method} ${request.url}`);
-  })
   .use(authHandler)
   .use(userRoute(prisma, cache, authMacro))
   .use(instanceRoute(prisma, cache, authMacro, new QueueModule()))

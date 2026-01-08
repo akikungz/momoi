@@ -17,7 +17,7 @@ export const userRoute = (
   .guard({ auth: true })
   .decorate("userService", new UserService(prisma, cache))
   .get("/me", async ({ user }) => {
-    return pick(user, ["id", "email", "name", "role"]);
+    return pick(user, ["id", "email", "name", "role", "image"]);
   }, {
     response: {
       200: "GetMeResponse",

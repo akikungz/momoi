@@ -13,13 +13,27 @@ export const academicRoute = (
 ) => new Elysia({ name: "academic.route", prefix: "/academic" })
   .use(auth)
   .use(academicModel)
+  .decorate("academicService", new AcademicService(prisma, cache))
+
+  // Public routes
+  .get("/semesters/current", async ({ academicService }) => {
+    return academicService.getCurrentSemester();
+  }, {
+    response: "GetCurrentSemesterResponse",
+    detail: {
+      summary: "Get current semester",
+      description: "Retrieve the current active semester",
+      tags: ["Academic", "Semesters"],
+    },
+  })
+
+  // Admin-only routes
   .guard({ auth: true })
   .onBeforeHandle(({ user, status }) => {
     if (user.role !== "ADMIN") {
       return status(403, { status: 403, message: "Forbidden: Admins only" });
     }
   })
-  .decorate("academicService", new AcademicService(prisma, cache))
 
   // Instructor mailing list
   .get("/mailing-list", async ({ academicService, query }) => {
