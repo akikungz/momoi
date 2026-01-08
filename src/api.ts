@@ -80,11 +80,11 @@ export const api = new Elysia({
   .onError(({ error, status }) => {
     console.error(error);
     if (error instanceof ServiceError) {
-      return status(error.status, { status: error.status, message: error.message });
+      return status(error.status, { status: error.status, message: error.message, data: error.message.startsWith("{") ? JSON.parse(error.message) : undefined });
     }
 
     if (error instanceof Error) {
-      return status(500, { status: 500, message: error.message });
+      return status(500, { status: 500, message: error.message, data: error.message.startsWith("{") ? JSON.parse(error.message) : undefined });
     }
 
     return status(500, { status: 500, message: 'An unexpected error occurred.' });

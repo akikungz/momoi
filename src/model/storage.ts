@@ -83,8 +83,9 @@ export const GetFileResponse = t.Object({
 export const CreateFileRequestBody = t.Object({
   name: t.String({ description: "Name of the file/folder" }),
   type: PlatformFileType,
+  file: t.Optional(t.File({ description: "File to upload (required if type is FILE)" })),
   parentId: t.Optional(t.Nullable(t.String({ description: "Parent folder ID (null for root)" }))),
-  isPublic: t.Optional(t.Boolean({ description: "Whether the file is publicly accessible", default: false })),
+  isPublic: t.Optional(t.Union([t.Boolean(), t.String()], { description: "Whether the file is publicly accessible", default: false })),
 });
 
 export const CreateFileResponse = FileData;
@@ -97,7 +98,7 @@ export const UpdateFileRequestParams = t.Object({
 export const UpdateFileRequestBody = t.Object({
   name: t.Optional(t.String({ description: "New name for the file/folder" })),
   parentId: t.Optional(t.Nullable(t.String({ description: "New parent folder ID" }))),
-  isPublic: t.Optional(t.Boolean({ description: "Whether the file is publicly accessible" })),
+  isPublic: t.Optional(t.Union([t.Boolean(), t.String()], { description: "Whether the file is publicly accessible" })),
   visibility: t.Optional(PlatformFileViewerRole),
 });
 
@@ -221,6 +222,69 @@ export const SearchFilesResponse = t.Object({
   ...PaginationResponse.properties
 });
 
+// --- Share (Public or Specific Users) ---
+
+export const ShareFileRequestParams = t.Object({
+  fileId: t.String({ description: "Unique identifier for the file/folder" }),
+});
+
+export const ShareTargetUser = t.Object({
+  platformUserId: t.Number({ description: "User ID to share with" }),
+  permission: PlatformFileViewerRole,
+});
+
+export const ShareFileRequestBody = t.Object({
+  isPublic: t.Optional(t.Boolean({ description: "Whether the file should be publicly viewable" })),
+  users: t.Optional(t.Array(ShareTargetUser, { description: "Specific users to share with and their permission levels" })),
+}, { description: "Share a file publicly and/or with specific users" });
+
+export const ShareFileResponse = GetFileResponse;
+
+// --- S3 Presign (Upload/Download) ---
+
+export const PresignUploadRequestParams = t.Object({
+  fileId: t.String({ description: "Unique identifier for the file" }),
+});
+
+export const PresignUploadRequestBody = t.Object({
+  contentType: t.Optional(t.String({ description: "Content-Type of the upload" })),
+  expiresIn: t.Optional(t.Number({ description: "Expiry in seconds", default: 86400 })),
+});
+
+export const PresignUploadResponse = t.Object({
+  url: t.String({ description: "Presigned URL for uploading" }),
+  storagePath: t.String({ description: "Storage key/path for uploaded version" }),
+  method: t.Literal("PUT"),
+  expiresIn: t.Number(),
+  contentType: t.Optional(t.String()),
+});
+
+export const PresignDownloadRequestParams = t.Object({
+  fileId: t.String({ description: "Unique identifier for the file" }),
+  versionId: t.Number({ description: "Version id to download" }),
+});
+
+export const PresignDownloadRequestQuery = t.Object({
+  expiresIn: t.Optional(t.Number({ description: "Expiry in seconds", default: 86400 })),
+});
+
+export const PresignDownloadResponse = t.Object({
+  url: t.String({ description: "Presigned URL for downloading" }),
+  method: t.Literal("GET"),
+  expiresIn: t.Number(),
+});
+
+// --- Direct Upload (alternative to presign flow) ---
+
+export const UploadFileVersionRequestParams = t.Object({
+  fileId: t.String({ description: "Unique identifier for the file" }),
+});
+
+export const UploadFileVersionResponse = t.Object({
+  ...FileVersionData.properties,
+  storagePath: t.String({ description: "Storage path where the file was uploaded" }),
+});
+
 // --- Elysia Model Export ---
 
 export const storageModel = new Elysia({ name: "storage.model" })
@@ -277,4 +341,18 @@ export const storageModel = new Elysia({ name: "storage.model" })
   .model("RemoveFilePermissionResponse", RemoveFilePermissionResponse)
   // Search
   .model("SearchFilesRequestQuery", SearchFilesRequestQuery)
-  .model("SearchFilesResponse", SearchFilesResponse);
+  .model("SearchFilesResponse", SearchFilesResponse)
+  // Share
+  .model("ShareFileRequestParams", ShareFileRequestParams)
+  .model("ShareFileRequestBody", ShareFileRequestBody)
+  .model("ShareFileResponse", ShareFileResponse)
+  // Presign
+  .model("PresignUploadRequestParams", PresignUploadRequestParams)
+  .model("PresignUploadRequestBody", PresignUploadRequestBody)
+  .model("PresignUploadResponse", PresignUploadResponse)
+  .model("PresignDownloadRequestParams", PresignDownloadRequestParams)
+  .model("PresignDownloadRequestQuery", PresignDownloadRequestQuery)
+  .model("PresignDownloadResponse", PresignDownloadResponse)
+  // Upload
+  .model("UploadFileVersionRequestParams", UploadFileVersionRequestParams)
+  .model("UploadFileVersionResponse", UploadFileVersionResponse);

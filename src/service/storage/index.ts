@@ -7,7 +7,11 @@ import {
     GetFilePermissionsResponse, GetFileResponse, GetFileVersionsResponse, ListFilesRequestQuery,
     ListFilesResponse, MoveFileRequestBody, MoveFileResponse, RemoveFilePermissionResponse,
     SearchFilesRequestQuery, SearchFilesResponse, UpdateFilePermissionRequestBody,
-    UpdateFilePermissionResponse, UpdateFileRequestBody, UpdateFileResponse
+    UpdateFilePermissionResponse, UpdateFileRequestBody, UpdateFileResponse,
+    ShareFileRequestBody, ShareFileResponse,
+    PresignUploadRequestBody, PresignUploadResponse,
+    PresignDownloadResponse,
+    UploadFileVersionResponse
 } from "@momoi/model/storage";
 import { handlePrismaError, ServiceError } from "@momoi/utils/error";
 
@@ -16,6 +20,7 @@ import type { PrismaClient } from '@momoi/database/prisma/generated/client';
 import type { PlatformFileType } from "@momoi/database/prisma/generated/enums";
 
 import { FILE_BASE_SELECT, mapToFileData, PERMISSION_LEVELS, PermissionLevel } from "./types";
+import { presignUpload, presignDownload, deleteObject, upload } from "@momoi/storage/s3";
 
 export class StorageService {
     constructor(
@@ -208,11 +213,36 @@ export class StorageService {
                     parentId: body.parentId ?? null,
                     platformUserId: userId,
                     isPublic: body.isPublic ?? false,
-                    sizeBytes: 0,
+                    sizeBytes: 0, // Will be updated after file upload
                     visibility: 'OWNER',
                 },
                 select: FILE_BASE_SELECT,
             });
+
+            // If file is provided, upload to S3
+            if (body.file) {
+                const fileBlob = new Blob([await body.file.arrayBuffer()], { type: body.file.type });
+                const storagePath = `storage/${file.id}/v1`;
+                await upload(storagePath, fileBlob, body.file.type);
+
+                // Create initial version
+                await this.prisma.platformFileVersion.create({
+                    data: {
+                        platformFileId: file.id,
+                        versionNumber: 1,
+                        sizeBytes: fileBlob.size,
+                        storagePath,
+                    },
+                });
+
+                // Update file size after upload
+                await this.prisma.platformFile.update({
+                    where: { id: file.id },
+                    data: { sizeBytes: fileBlob.size },
+                });
+
+                file.sizeBytes = fileBlob.size;
+            }
 
             await this.clearUserFileCache(userId);
             return mapToFileData(file);
@@ -281,6 +311,37 @@ export class StorageService {
             };
 
             const deletedCount = await countDescendants(fileId);
+
+            // Collect all file IDs to delete (including descendants)
+            const collectFileIds = async (id: string): Promise<string[]> => {
+                const children = await this.prisma.platformFile.findMany({
+                    where: { parentId: id },
+                    select: { id: true },
+                });
+                let ids = [id];
+                for (const child of children) {
+                    ids = ids.concat(await collectFileIds(child.id));
+                }
+                return ids;
+            };
+
+            const fileIds = await collectFileIds(fileId);
+
+            // Delete all S3 objects for versions of these files
+            for (const id of fileIds) {
+                const versions = await this.prisma.platformFileVersion.findMany({
+                    where: { platformFileId: id },
+                    select: { storagePath: true },
+                });
+                for (const version of versions) {
+                    try {
+                        await deleteObject(version.storagePath);
+                    } catch (error) {
+                        // Log but don't fail if S3 deletion fails
+                        console.error(`Failed to delete S3 object: ${version.storagePath}`, error);
+                    }
+                }
+            }
 
             await this.prisma.platformFile.delete({ where: { id: fileId } });
             await this.clearUserFileCache(userId);
@@ -419,11 +480,19 @@ export class StorageService {
 
             const version = await this.prisma.platformFileVersion.findUnique({
                 where: { id: versionId },
-                select: { platformFileId: true },
+                select: { platformFileId: true, storagePath: true },
             });
 
             if (!version || version.platformFileId !== fileId) {
                 throw new ServiceError('Version not found.', 404);
+            }
+
+            // Delete S3 object before deleting database record
+            try {
+                await deleteObject(version.storagePath);
+            } catch (error) {
+                // Log but don't fail if S3 deletion fails
+                console.error(`Failed to delete S3 object: ${version.storagePath}`, error);
             }
 
             await this.prisma.platformFileVersion.delete({ where: { id: versionId } });
@@ -584,6 +653,181 @@ export class StorageService {
         );
 
         return { values: filesWithPaths, totalItems, totalPages: Math.ceil(totalItems / pageSize), currentPage: page, pageSize };
+    }
+
+    // ==================== Share (Public or Specific Users) ====================
+
+    async shareFile(userId: number, fileId: string, body: Static<typeof ShareFileRequestBody>): Promise<Static<typeof ShareFileResponse>> {
+        try {
+            // Owner only
+            await this.verifyOwnership(fileId, userId);
+
+            // Toggle public visibility if requested
+            if (body.isPublic !== undefined) {
+                await this.prisma.platformFile.update({
+                    where: { id: fileId },
+                    data: { isPublic: body.isPublic },
+                });
+            }
+
+            // Share with specific users
+            if (body.users && body.users.length > 0) {
+                for (const target of body.users) {
+                    if (target.platformUserId === userId) {
+                        throw new ServiceError('Cannot add permission to yourself.', 400);
+                    }
+
+                    const targetUser = await this.prisma.platformUser.findUnique({
+                        where: { id: target.platformUserId },
+                        select: { id: true },
+                    });
+                    if (!targetUser) throw new ServiceError('User not found.', 404);
+
+                    // Check existing permission
+                    const existing = await this.prisma.platformFilePermission.findFirst({
+                        where: { platformFileId: fileId, platformUserId: target.platformUserId },
+                        select: { id: true },
+                    });
+
+                    if (existing) {
+                        await this.prisma.platformFilePermission.update({
+                            where: { id: existing.id },
+                            data: { permission: target.permission },
+                        });
+                    } else {
+                        await this.prisma.platformFilePermission.create({
+                            data: {
+                                platformFileId: fileId,
+                                platformUserId: target.platformUserId,
+                                permission: target.permission,
+                            },
+                        });
+                    }
+                }
+            }
+
+            // Clear caches and return updated file details
+            await this.clearUserFileCache(userId);
+            return await this.getFile(userId, fileId);
+        } catch (error: unknown) {
+            handlePrismaError(error, 'while sharing the file', {
+                duplicateMessage: 'This user already has permission for this file.'
+            });
+        }
+    }
+
+    // ==================== S3 Presign ====================
+
+    async presignFileVersionUpload(
+        userId: number,
+        fileId: string,
+        body: Static<typeof PresignUploadRequestBody>
+    ): Promise<Static<typeof PresignUploadResponse>> {
+        // Requires EDITOR access to create versions
+        const hasAccess = await this.checkFileAccess(fileId, userId, 'EDITOR');
+        if (!hasAccess) throw new ServiceError('You do not have permission to modify this file.', 403);
+
+        const file = await this.prisma.platformFile.findUnique({
+            where: { id: fileId },
+            select: { type: true },
+        });
+        if (!file) throw new ServiceError('File not found.', 404);
+        if (file.type !== 'FILE') throw new ServiceError('Versions can only be created for files.', 400);
+
+        const latestVersion = await this.prisma.platformFileVersion.findFirst({
+            where: { platformFileId: fileId },
+            orderBy: { versionNumber: 'desc' },
+            select: { versionNumber: true },
+        });
+        const nextVersionNumber = (latestVersion?.versionNumber ?? 0) + 1;
+        const storagePath = `storage/${fileId}/v${nextVersionNumber}`;
+
+        const url = presignUpload(storagePath, {
+            expiresIn: body.expiresIn ?? 60 * 60 * 24,
+            method: 'PUT',
+            type: body.contentType,
+        });
+
+        return {
+            url,
+            storagePath,
+            method: 'PUT',
+            expiresIn: body.expiresIn ?? 60 * 60 * 24,
+            contentType: body.contentType,
+        };
+    }
+
+    async presignFileVersionDownload(
+        userId: number,
+        fileId: string,
+        versionId: number,
+        expiresIn: number = 60 * 60 * 24
+    ): Promise<Static<typeof PresignDownloadResponse>> {
+        const hasAccess = await this.checkFileAccess(fileId, userId, 'VIEWER');
+        if (!hasAccess) throw new ServiceError('You do not have permission to access this file.', 403);
+
+        const version = await this.prisma.platformFileVersion.findUnique({
+            where: { id: versionId },
+            select: { platformFileId: true, storagePath: true },
+        });
+        if (!version || version.platformFileId !== fileId) {
+            throw new ServiceError('Version not found.', 404);
+        }
+
+        const url = presignDownload(version.storagePath, { expiresIn, method: 'GET' });
+        return { url, method: 'GET', expiresIn };
+    }
+
+    async uploadFileVersion(
+        userId: number,
+        fileId: string,
+        file: Blob,
+        contentType?: string
+    ): Promise<Static<typeof UploadFileVersionResponse>> {
+        try {
+            // Requires EDITOR access to create versions
+            const hasAccess = await this.checkFileAccess(fileId, userId, 'EDITOR');
+            if (!hasAccess) throw new ServiceError('You do not have permission to modify this file.', 403);
+
+            const fileRecord = await this.prisma.platformFile.findUnique({
+                where: { id: fileId },
+                select: { type: true },
+            });
+            if (!fileRecord) throw new ServiceError('File not found.', 404);
+            if (fileRecord.type !== 'FILE') throw new ServiceError('Versions can only be created for files.', 400);
+
+            const latestVersion = await this.prisma.platformFileVersion.findFirst({
+                where: { platformFileId: fileId },
+                orderBy: { versionNumber: 'desc' },
+                select: { versionNumber: true },
+            });
+            const nextVersionNumber = (latestVersion?.versionNumber ?? 0) + 1;
+            const storagePath = `storage/${fileId}/v${nextVersionNumber}`;
+
+            // Upload to S3
+            await upload(storagePath, file, contentType);
+
+            // Create version record
+            const version = await this.prisma.platformFileVersion.create({
+                data: {
+                    platformFileId: fileId,
+                    versionNumber: nextVersionNumber,
+                    sizeBytes: file.size,
+                    storagePath,
+                },
+                select: { id: true, versionNumber: true, sizeBytes: true, createdAt: true },
+            });
+
+            // Update file size
+            await this.prisma.platformFile.update({
+                where: { id: fileId },
+                data: { sizeBytes: file.size },
+            });
+
+            return { ...version, storagePath };
+        } catch (error: unknown) {
+            handlePrismaError(error, 'while uploading the file version', { notFoundMessage: 'File not found.' });
+        }
     }
 }
 

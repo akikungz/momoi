@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "bun:test";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 
 import { treaty } from "@elysiajs/eden";
 import {
@@ -11,6 +11,17 @@ import {
 } from "@momoi/database/test";
 
 import { storageRoute } from "../storage";
+import * as S3 from "@momoi/storage/s3";
+
+// Mock S3 operations
+mock.module("@momoi/storage/s3", () => ({
+  upload: mock(async () => { }),
+  deleteObject: mock(async () => { }),
+  presignUpload: mock((key: string) => `https://s3.mock/presign-upload/${key}`),
+  presignDownload: mock((key: string) => `https://s3.mock/presign-download/${key}`),
+  exists: mock(async () => true),
+  stat: mock(async () => ({ size: 1024, etag: "mock-etag" })),
+}));
 
 describe("Storage Route - Admin", () => {
   let mockPrisma: any;
@@ -126,6 +137,34 @@ describe("Storage Route - Admin", () => {
       expect(response.status).toBe(200);
       expect(response.data).toHaveProperty("name", "new.txt");
       expect(response.data).toHaveProperty("type", "FILE");
+    });
+
+    it("should create a file with upload", async () => {
+      const client = treaty(storageRoute(mockPrisma, mockCache as any, mockAdminAuth));
+
+      const mockFile = createMockPlatformFile({
+        id: "file-1",
+        name: "upload.txt",
+        platformUserId: 1,
+        sizeBytes: 100,
+      });
+
+      mockPrisma.platformFile.create.mockResolvedValueOnce(mockFile);
+      mockPrisma.platformFileVersion.create.mockResolvedValueOnce({
+        id: 1,
+        versionNumber: 1,
+        sizeBytes: 100,
+        storagePath: `storage/${mockFile.id}/v1`,
+      });
+
+      const formData = new FormData();
+      const fileBlob = new Blob(["test content"], { type: "text/plain" });
+      formData.append("file", fileBlob, "upload.txt");
+
+      const response = await client.storage.files.post({ file: fileBlob, name: "upload.txt", type: "FILE" } as any);
+
+      expect(response.status).toBe(200);
+      expect(response.data).toHaveProperty("name", "upload.txt");
     });
 
     it("should create a folder", async () => {
@@ -437,6 +476,143 @@ describe("Storage Route - Admin", () => {
       expect(response.data).toHaveProperty("values");
       expect(response.data!.values).toHaveLength(1);
       expect(response.data!.values[0]).toHaveProperty("path");
+    });
+  });
+
+  describe("POST /storage/files/:fileId/share", () => {
+    it("should share a file publicly", async () => {
+      const client = treaty(storageRoute(mockPrisma, mockCache as any, mockAdminAuth));
+
+      const file = createMockPlatformFile({ id: "file-1", name: "doc.txt", platformUserId: 1, isPublic: true });
+
+      // Ownership check
+      mockPrisma.platformFile.findUnique
+        .mockResolvedValueOnce({ platformUserId: 1 })
+        // getFile access
+        .mockResolvedValueOnce({ platformUserId: 1, isPublic: true, platformFilePermissions: [] })
+        // getFile main
+        .mockResolvedValueOnce({
+          ...file,
+          children: [],
+          platformFileVersions: [],
+          platformFilePermissions: [],
+        })
+        // path
+        .mockResolvedValueOnce({ name: "doc.txt", parentId: null });
+
+      mockPrisma.platformFile.update.mockResolvedValueOnce({});
+
+      const response = await client.storage.files({ fileId: "file-1" }).share.post({ isPublic: true });
+
+      expect(response.status).toBe(200);
+      expect(response.data).toHaveProperty("isPublic", true);
+    });
+
+    it("should share with specific users", async () => {
+      const client = treaty(storageRoute(mockPrisma, mockCache as any, mockAdminAuth));
+
+      const file = createMockPlatformFile({ id: "file-1", name: "doc.txt", platformUserId: 1 });
+
+      mockPrisma.platformFile.findUnique
+        .mockResolvedValueOnce({ platformUserId: 1 })
+        // getFile access
+        .mockResolvedValueOnce({ platformUserId: 1, isPublic: false, platformFilePermissions: [] })
+        // getFile main
+        .mockResolvedValueOnce({
+          ...file,
+          children: [],
+          platformFileVersions: [],
+          platformFilePermissions: [
+            { id: 1, platformUserId: 2, permission: "VIEWER", platformUser: { id: 2, user: { name: "U", email: "u@test.com" } } }
+          ],
+        })
+        // path
+        .mockResolvedValueOnce({ name: "doc.txt", parentId: null });
+
+      mockPrisma.platformUser.findUnique.mockResolvedValueOnce({ id: 2 });
+      mockPrisma.platformFilePermission.findFirst.mockResolvedValueOnce(null);
+      mockPrisma.platformFilePermission.create.mockResolvedValueOnce({ id: 1 });
+
+      const response = await client.storage.files({ fileId: "file-1" }).share.post({
+        users: [{ platformUserId: 2, permission: "VIEWER" }],
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.data!.permissions![0]).toHaveProperty("platformUserId", 2);
+    });
+
+    it("should forbid students", async () => {
+      const client = treaty(storageRoute(mockPrisma, mockCache as any, mockStudentAuth));
+
+      const response = await client.storage.files({ fileId: "file-1" }).share.post({ isPublic: true });
+      expect(response.status).toBe(403);
+      expect(response.error?.value).toHaveProperty("message", "Forbidden: Students cannot share files");
+    });
+  });
+
+  describe("S3 Presign routes", () => {
+    it("should presign upload URL", async () => {
+      const client = treaty(storageRoute(mockPrisma, mockCache as any, mockAdminAuth));
+
+      mockPrisma.platformFile.findUnique
+        .mockResolvedValueOnce({ platformUserId: 1, isPublic: false, platformFilePermissions: [{ permission: "EDITOR" }] })
+        .mockResolvedValueOnce({ type: "FILE" });
+      mockPrisma.platformFileVersion.findFirst.mockResolvedValueOnce({ versionNumber: 2 });
+
+      const response = await client.storage.files({ fileId: "file-1" }).versions.presign_upload.post({
+        contentType: "application/octet-stream",
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.data).toHaveProperty("method", "PUT");
+      expect(response.data).toHaveProperty("url");
+      expect(response.data).toHaveProperty("storagePath");
+    });
+
+    it("should presign download URL", async () => {
+      const client = treaty(storageRoute(mockPrisma, mockCache as any, mockAdminAuth));
+
+      mockPrisma.platformFile.findUnique.mockResolvedValueOnce({ platformUserId: 1, isPublic: false, platformFilePermissions: [] });
+      mockPrisma.platformFileVersion.findUnique.mockResolvedValueOnce({ platformFileId: "file-1", storagePath: "storage/file-1/v1" });
+
+      const response = await client.storage.files({ fileId: "file-1" }).versions({ versionId: 1 }).presign_download.get({
+        query: { expiresIn: 3600 },
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.data).toHaveProperty("method", "GET");
+      expect(response.data).toHaveProperty("url");
+      expect(response.data).toHaveProperty("expiresIn", 3600);
+    });
+
+    it("should upload file directly", async () => {
+      const client = treaty(storageRoute(mockPrisma, mockCache as any, mockAdminAuth));
+
+      mockPrisma.platformFile.findUnique
+        .mockResolvedValueOnce({ platformUserId: 1, isPublic: false, platformFilePermissions: [{ permission: "EDITOR" }] })
+        .mockResolvedValueOnce({ type: "FILE" })
+        .mockResolvedValueOnce({});
+      mockPrisma.platformFileVersion.findFirst.mockResolvedValueOnce({ versionNumber: 1 });
+      mockPrisma.platformFileVersion.create.mockResolvedValueOnce({
+        id: 2,
+        versionNumber: 2,
+        sizeBytes: 100,
+        createdAt: new Date(),
+        storagePath: "storage/file-1/v2",
+      });
+      mockPrisma.platformFile.update.mockResolvedValueOnce({});
+
+      const formData = new FormData();
+      const fileBlob = new Blob(["test content"], { type: "text/plain" });
+      formData.append("file", fileBlob, "test.txt");
+
+      const response = await client.storage.files({ fileId: "file-1" }).versions.upload.post({ file: fileBlob } as any);
+
+      expect(response.status).toBe(200);
+      if (response.status === 200) {
+        expect(response.data).toHaveProperty("versionNumber", 2);
+        expect(response.data).toHaveProperty("storagePath");
+      }
     });
   });
 });

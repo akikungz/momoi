@@ -25,6 +25,7 @@ export const S3EnvSchema = z.object({
   S3_ENDPOINT: z.url({ pattern: /^http(?:s)?:\/\// }).optional(),
   S3_ACCESS_KEY_ID: z.string().optional(),
   S3_SECRET_ACCESS_KEY: z.string().optional(),
+  S3_REGION: z.string().optional(),
   S3_BUCKET_NAME: z.string().optional(),
 });
 

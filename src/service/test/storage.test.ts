@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "bun:test";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 
 import { MockCache } from "@momoi/cache/mock";
 import {
@@ -10,6 +10,17 @@ import {
 } from "@momoi/database/test";
 
 import { StorageService } from "../storage";
+import * as S3 from "@momoi/storage/s3";
+
+// Mock S3 operations
+mock.module("@momoi/storage/s3", () => ({
+  upload: mock(async () => { }),
+  deleteObject: mock(async () => { }),
+  presignUpload: mock((key: string) => `https://s3.mock/presign-upload/${key}`),
+  presignDownload: mock((key: string) => `https://s3.mock/presign-download/${key}`),
+  exists: mock(async () => true),
+  stat: mock(async () => ({ size: 1024, etag: "mock-etag" })),
+}));
 
 describe("StorageService", () => {
   let mockPrisma: any;
@@ -288,6 +299,29 @@ describe("StorageService", () => {
       } catch (err: unknown) {
         expect((err as Error).message).toBe("A file with this name already exists in the folder.");
       }
+    });
+
+    it("should create a file with upload", async () => {
+      const userId = 1;
+      const fileContent = new Blob(["test content"], { type: "text/plain" });
+      const mockFile = createMockPlatformFile({ platformUserId: userId });
+
+      mockPrisma.platformFile.create.mockResolvedValueOnce(mockFile);
+      mockPrisma.platformFileVersion.create.mockResolvedValueOnce({
+        id: 1,
+        versionNumber: 1,
+        sizeBytes: fileContent.size,
+        storagePath: `storage/${mockFile.id}/v1`,
+      });
+
+      const result = await storageService.createFile(userId, {
+        name: "test.txt",
+        type: "FILE",
+        file: fileContent as any,
+      });
+
+      expect(result.id).toBe(mockFile.id);
+      expect(mockPrisma.platformFileVersion.create).toHaveBeenCalled();
     });
   });
 
@@ -753,6 +787,183 @@ describe("StorageService", () => {
           }),
         })
       );
+    });
+  });
+
+  describe("shareFile", () => {
+    it("should set file to public and return updated details", async () => {
+      const userId = 1;
+      const fileId = "file-1";
+      const file = createMockPlatformFile({ id: fileId, platformUserId: userId, isPublic: true });
+
+      // Owner check
+      mockPrisma.platformFile.findUnique
+        .mockResolvedValueOnce({ platformUserId: userId })
+        // getFile access check
+        .mockResolvedValueOnce({ platformUserId: userId, isPublic: true, platformFilePermissions: [] })
+        // getFile main query
+        .mockResolvedValueOnce({
+          ...file,
+          children: [],
+          platformFileVersions: [],
+          platformFilePermissions: [],
+        })
+        // path build
+        .mockResolvedValueOnce({ name: file.name, parentId: null });
+
+      mockPrisma.platformFile.update.mockResolvedValueOnce({});
+
+      const result = await storageService.shareFile(userId, fileId, { isPublic: true });
+
+      expect(mockPrisma.platformFile.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ isPublic: true }) })
+      );
+      expect(result.isPublic).toBe(true);
+    });
+
+    it("should add permission for a target user", async () => {
+      const userId = 1;
+      const fileId = "file-1";
+      const targetUserId = 2;
+      const file = createMockPlatformFile({ id: fileId, platformUserId: userId });
+
+      // Owner check
+      mockPrisma.platformFile.findUnique
+        .mockResolvedValueOnce({ platformUserId: userId })
+        // getFile access check
+        .mockResolvedValueOnce({ platformUserId: userId, isPublic: false, platformFilePermissions: [] })
+        // getFile main query
+        .mockResolvedValueOnce({
+          ...file,
+          children: [],
+          platformFileVersions: [],
+          platformFilePermissions: [
+            { id: 1, platformUserId: targetUserId, permission: "EDITOR", platformUser: { id: targetUserId, user: { name: "U", email: "u@test.com" } } }
+          ],
+        })
+        // path build
+        .mockResolvedValueOnce({ name: file.name, parentId: null });
+
+      mockPrisma.platformUser.findUnique.mockResolvedValueOnce({ id: targetUserId });
+      mockPrisma.platformFilePermission.findFirst.mockResolvedValueOnce(null);
+      mockPrisma.platformFilePermission.create.mockResolvedValueOnce({ id: 1 });
+
+      const result = await storageService.shareFile(userId, fileId, {
+        users: [{ platformUserId: targetUserId, permission: "EDITOR" }],
+      });
+
+      expect(mockPrisma.platformFilePermission.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ platformUserId: targetUserId, permission: "EDITOR" }) })
+      );
+      expect(result.permissions![0].platformUserId).toBe(targetUserId);
+      expect(result.permissions![0].permission).toBe("EDITOR");
+    });
+
+    it("should update existing permission for a target user", async () => {
+      const userId = 1;
+      const fileId = "file-1";
+      const targetUserId = 2;
+
+      mockPrisma.platformFile.findUnique.mockResolvedValueOnce({ platformUserId: userId });
+      mockPrisma.platformUser.findUnique.mockResolvedValueOnce({ id: targetUserId });
+      mockPrisma.platformFilePermission.findFirst.mockResolvedValueOnce({ id: 10 });
+      mockPrisma.platformFilePermission.update.mockResolvedValueOnce({});
+
+      // For getFile
+      const file = createMockPlatformFile({ id: fileId, platformUserId: userId });
+      mockPrisma.platformFile.findUnique
+        .mockResolvedValueOnce({ platformUserId: userId, isPublic: false, platformFilePermissions: [] })
+        .mockResolvedValueOnce({
+          ...file,
+          children: [],
+          platformFileVersions: [],
+          platformFilePermissions: [
+            { id: 10, platformUserId: targetUserId, permission: "VIEWER", platformUser: { id: targetUserId, user: { name: "U", email: "u@test.com" } } }
+          ],
+        })
+        .mockResolvedValueOnce({ name: file.name, parentId: null });
+
+      const result = await storageService.shareFile(userId, fileId, {
+        users: [{ platformUserId: targetUserId, permission: "VIEWER" }],
+      });
+
+      expect(mockPrisma.platformFilePermission.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ id: 10 }), data: expect.objectContaining({ permission: "VIEWER" }) })
+      );
+      expect(result.permissions![0].permission).toBe("VIEWER");
+    });
+
+    it("should prevent sharing to self", async () => {
+      const userId = 1;
+      const fileId = "file-1";
+
+      mockPrisma.platformFile.findUnique.mockResolvedValueOnce({ platformUserId: userId });
+
+      try {
+        await storageService.shareFile(userId, fileId, { users: [{ platformUserId: userId, permission: "VIEWER" }] });
+        expect.unreachable();
+      } catch (err: unknown) {
+        expect((err as Error).message).toBe("Cannot add permission to yourself.");
+      }
+    });
+  });
+
+  describe("S3 Presign", () => {
+    it("should presign upload for next version", async () => {
+      const userId = 1;
+      const fileId = "file-1";
+
+      mockPrisma.platformFile.findUnique
+        .mockResolvedValueOnce({ platformUserId: userId, isPublic: false, platformFilePermissions: [{ permission: "EDITOR" }] })
+        .mockResolvedValueOnce({ type: "FILE" });
+      mockPrisma.platformFileVersion.findFirst.mockResolvedValueOnce({ versionNumber: 1 });
+
+      const result = await storageService.presignFileVersionUpload(userId, fileId, { contentType: "application/octet-stream" });
+
+      expect(result.method).toBe("PUT");
+      expect(result.storagePath).toBe(`storage/${fileId}/v2`);
+      expect(result.url).toBeDefined();
+    });
+
+    it("should presign download for existing version", async () => {
+      const userId = 1;
+      const fileId = "file-1";
+
+      mockPrisma.platformFile.findUnique.mockResolvedValueOnce({ platformUserId: userId, isPublic: false, platformFilePermissions: [] });
+      mockPrisma.platformFileVersion.findUnique.mockResolvedValueOnce({ platformFileId: fileId, storagePath: `storage/${fileId}/v1` });
+
+      const result = await storageService.presignFileVersionDownload(userId, fileId, 1, 3600);
+
+      expect(result.method).toBe("GET");
+      expect(result.url).toBeDefined();
+      expect(result.expiresIn).toBe(3600);
+    });
+  });
+
+  describe("uploadFileVersion", () => {
+    it("should upload file and create version", async () => {
+      const userId = 1;
+      const fileId = "file-1";
+      const file = new Blob(["test content"], { type: "text/plain" });
+
+      mockPrisma.platformFile.findUnique
+        .mockResolvedValueOnce({ platformUserId: userId, isPublic: false, platformFilePermissions: [{ permission: "EDITOR" }] })
+        .mockResolvedValueOnce({ type: "FILE" })
+        .mockResolvedValueOnce({});
+      mockPrisma.platformFileVersion.findFirst.mockResolvedValueOnce({ versionNumber: 1 });
+      mockPrisma.platformFileVersion.create.mockResolvedValueOnce({
+        id: 2,
+        versionNumber: 2,
+        sizeBytes: file.size,
+        createdAt: new Date(),
+      });
+      mockPrisma.platformFile.update.mockResolvedValueOnce({});
+
+      const result = await storageService.uploadFileVersion(userId, fileId, file, "text/plain");
+
+      expect(result.versionNumber).toBe(2);
+      expect(result.sizeBytes).toBe(file.size);
+      expect(result.storagePath).toBe(`storage/${fileId}/v2`);
     });
   });
 });
