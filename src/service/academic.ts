@@ -695,6 +695,8 @@ export class AcademicService {
           where: { id: { not: semesterId }, isCurrent: true },
           data: { isCurrent: false },
         });
+
+        await this.cache.deleteCacheByPattern('academic:semester:current');
       }
 
       await this.cache.deleteCacheByPattern('academic:semesters:*');
