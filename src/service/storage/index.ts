@@ -212,7 +212,7 @@ export class StorageService {
                     type: body.type as PlatformFileType,
                     parentId: body.parentId ?? null,
                     platformUserId: userId,
-                    isPublic: body.isPublic ?? false,
+                    isPublic: body.isPublic === "true" || body.isPublic === true ? true : false,
                     sizeBytes: 0, // Will be updated after file upload
                     visibility: 'OWNER',
                 },
@@ -273,14 +273,15 @@ export class StorageService {
                 }
             }
 
+            const updateData: Record<string, any> = {};
+            if (body.name !== undefined) updateData.name = body.name;
+            if (body.parentId !== undefined) updateData.parentId = body.parentId === null ? null : body.parentId;
+            if (body.isPublic !== undefined) updateData.isPublic = body.isPublic;
+            if (body.visibility !== undefined) updateData.visibility = body.visibility;
+
             const file = await this.prisma.platformFile.update({
                 where: { id: fileId },
-                data: {
-                    ...(body.name !== undefined && { name: body.name }),
-                    ...(body.parentId !== undefined && { parentId: body.parentId }),
-                    ...(body.isPublic !== undefined && { isPublic: body.isPublic }),
-                    ...(body.visibility !== undefined && { visibility: body.visibility }),
-                },
+                data: updateData,
                 select: FILE_BASE_SELECT,
             });
 

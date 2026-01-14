@@ -8,6 +8,8 @@ import type {
   DeprovisionInstanceJobData,
   ProvisionInstanceJobResult,
   DeprovisionInstanceJobResult,
+  ToggleInstanceStatusJobData,
+  ToggleInstanceStatusJobResult
 } from './types';
 
 export class QueueModule {
@@ -15,6 +17,7 @@ export class QueueModule {
 
   public provisionInstanceQueue: Queue<ProvisionInstanceJobData, ProvisionInstanceJobResult>;
   public deprovisionInstanceQueue: Queue<DeprovisionInstanceJobData, DeprovisionInstanceJobResult>;
+  public toggleInstanceStatusQueue: Queue<ToggleInstanceStatusJobData, ToggleInstanceStatusJobResult>;
 
   constructor() {
     // Initialize Redis connection
@@ -42,11 +45,17 @@ export class QueueModule {
       'deprovision-instance',
       { connection: this.redis, defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 2000 } } }
     );
+
+    this.toggleInstanceStatusQueue = new Queue<ToggleInstanceStatusJobData, ToggleInstanceStatusJobResult>(
+      'toggle-instance-status',
+      { connection: this.redis, defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 2000 } } }
+    );
   }
 
   public async closeConnections() {
     await this.provisionInstanceQueue.close();
     await this.deprovisionInstanceQueue.close();
+    await this.toggleInstanceStatusQueue.close();
     await this.redis.quit();
   }
 }

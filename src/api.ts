@@ -78,7 +78,6 @@ export const api = new Elysia({
     })
   )
   .onError(({ error, status }) => {
-    console.error(error);
     if (error instanceof ServiceError) {
       return status(error.status, { status: error.status, message: error.message, data: error.message.startsWith("{") ? JSON.parse(error.message) : undefined });
     }
@@ -96,33 +95,49 @@ export const api = new Elysia({
           timestamp: new Date().toISOString(),
           level: "info",
           message: "Request handled",
-          data: {
-            route: context.route,
-            path: context.path,
-            method: context.request.method,
-            status: context.set.status,
-            totalTime: `${total} ms`,
-          },
+          method: context.request.method,
+          route: context.route,
+          url: context.request.url,
+          status: context.set.status,
+          totalTime: `${total} ms`,
+          userAgent: context.request.headers.get("user-agent") || "",
         })
       );
 
-      if (error) {
-        const opt = await error;
-        if (opt) {
+      const err = await error;
+      if (err) {
+        if (err instanceof Error) {
           console.error(
             JSON.stringify({
               timestamp: new Date().toISOString(),
               level: "error",
               message: "Error occurred",
-              data: {
-                route: context.route,
-                method: context.request.method,
-                status: context.status,
-                error: opt.message,
-              },
+              method: context.request.method,
+              route: context.route,
+              url: context.request.url,
+              status: context.set.status,
+              errorMessage: err.message,
+              stack: err.stack,
+              userAgent: context.request.headers.get("user-agent") || "",
             })
           );
+
+          return;
         }
+
+        console.error(
+          JSON.stringify({
+            timestamp: new Date().toISOString(),
+            level: "error",
+            message: "Unknown error occurred",
+            method: context.request.method,
+            route: context.route,
+            url: context.request.url,
+            status: context.set.status,
+            error: err,
+            userAgent: context.request.headers.get("user-agent") || "",
+          })
+        );
       }
     });
   })

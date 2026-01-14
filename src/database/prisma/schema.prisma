@@ -201,8 +201,9 @@ model PVENode {
 
   pveVMs PVEVM[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  pvetemplates PVETemplate[]
 
   @@index([name])
   @@map("pve_node")
@@ -256,6 +257,8 @@ model PVETemplate {
   description String?
   vmId        Int       @unique
   type        PVEVMType
+  pveNodeId   Int
+  pveNode     PVENode   @relation(fields: [pveNodeId], references: [id], onDelete: Restrict)
 
   instances Instance[]
   requests  Request[]
