@@ -262,6 +262,7 @@ describe("E2E: Instance Routes", () => {
           },
           pveVM: {
             hostname: "vm-001",
+            status: "RUNNING",
             pveNetworkIP: { ipAddress: "192.168.1.100" },
           },
           pveTemplate: { name: "Ubuntu 22.04" },

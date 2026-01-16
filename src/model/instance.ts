@@ -25,6 +25,12 @@ export const courseOfferingDetails = t.Object({
   semester: t.String({ description: "Semester in which the course is offered" }),
 }, { description: "Details of the course offering associated with the instance" });
 
+export const VMStatus = t.Union([
+  t.Literal("RUNNING", { description: "VM is running" }),
+  t.Literal("STOPPED", { description: "VM is stopped" }),
+  t.Literal("SUSPENDED", { description: "VM is suspended" })
+], { description: "Status of the virtual machine" });
+
 export const VMDetails = t.Object({
   hostname: t.String({ description: "Hostname of the virtual machine" }),
   os: t.String({ description: "Operating system installed on the virtual machine" }),
@@ -32,6 +38,7 @@ export const VMDetails = t.Object({
   cpus: t.Number({ description: "Number of CPUs allocated to the virtual machine" }),
   memoryMB: t.Number({ description: "Amount of memory (in MB) allocated to the virtual machine" }),
   diskGB: t.Number({ description: "Disk size (in GB) of the virtual machine" }),
+  vmStatus: VMStatus,
 }, { description: "Details about the virtual machine hosting the instance if available" });
 
 export const InstancesData = t.Object({

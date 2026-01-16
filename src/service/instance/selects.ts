@@ -25,6 +25,7 @@ export const COURSE_OFFERING_SELECT = {
 export const PVE_VM_SELECT = {
     select: {
         hostname: true,
+        status: true,
         pveNetworkIP: {
             select: {
                 ipAddress: true,

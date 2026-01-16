@@ -163,8 +163,7 @@ describe("InstanceService", () => {
           },
           status: "ACTIVE",
           pveVM: {
-            hostname: "vm-1",
-            pveNetworkIP: {
+            hostname: "vm-1", status: "RUNNING", pveNetworkIP: {
               ipAddress: "192.168.1.100",
             },
           },
@@ -270,6 +269,7 @@ describe("InstanceService", () => {
           status: "ACTIVE",
           pveVM: {
             hostname: "vm-1",
+            status: "RUNNING",
             pveNetworkIP: {
               ipAddress: "192.168.1.100",
             },
@@ -352,6 +352,7 @@ describe("InstanceService", () => {
           status: "ACTIVE",
           pveVM: {
             hostname: "vm-1",
+            status: "RUNNING",
             pveNetworkIP: {
               ipAddress: "192.168.1.100",
             },
@@ -441,6 +442,7 @@ describe("InstanceService", () => {
         status: "ACTIVE",
         pveVM: {
           hostname: "vm-1",
+          status: "RUNNING",
           pveNetworkIP: {
             ipAddress: "192.168.1.100",
           },

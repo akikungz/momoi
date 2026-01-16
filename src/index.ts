@@ -5,6 +5,16 @@ import { logger } from "./logger";
 
 // Create root app that mounts both auth and api
 const app = new Elysia()
+  .derive(({ request, set }) => {
+    // Manually extract the forwarded proto if you need to 
+    // use it for logic outside of Better-Auth
+    const protocol = request.headers.get('x-forwarded-proto') || 'http';
+    const host = request.headers.get('x-forwarded-host') || request.headers.get('host');
+
+    return {
+      realUrl: `${protocol}://${host}`
+    };
+  })
   .use(api);
 
 app.listen(env.PORT, ({ port }) => {

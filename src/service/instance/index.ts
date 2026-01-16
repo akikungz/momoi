@@ -109,14 +109,21 @@ export class InstanceService {
             semesterId: query.semesterId ?? undefined,
         };
 
+        // Base filter to exclude deleted instances
+        const baseFilter = {
+            status: { not: 'DELETED' as const },
+        };
+
         switch (filter.type) {
             case 'user':
                 return {
+                    ...baseFilter,
                     platformUserId: filter.userId,
                     courseOffering: courseFilter,
                 };
             case 'instructor':
                 return {
+                    ...baseFilter,
                     courseOffering: {
                         course: {
                             instructors: {
@@ -128,6 +135,7 @@ export class InstanceService {
                 };
             case 'admin':
                 return {
+                    ...baseFilter,
                     courseOffering: courseFilter,
                 };
         }

@@ -25,12 +25,12 @@ function mapCourseOffering(courseOffering: {
  * Maps VM details to API response format
  */
 function mapVmDetails(
-    pveVM: { hostname: string; pveNetworkIP: { ipAddress: string } | null } | null,
+    pveVM: { hostname: string; status: string; pveNetworkIP: { ipAddress: string } | null } | null,
     pveTemplate: { name: string } | null,
     cpus: number,
     memoryMB: number,
     diskGB: number
-): { hostname: string; os: string; ip: string; cpus: number; memoryMB: number; diskGB: number } | undefined {
+): { hostname: string; os: string; ip: string; cpus: number; memoryMB: number; diskGB: number; vmStatus: "RUNNING" | "STOPPED" | "SUSPENDED" } | undefined {
     if (!pveVM) return undefined;
     return {
         hostname: pveVM.hostname,
@@ -39,6 +39,7 @@ function mapVmDetails(
         cpus,
         memoryMB,
         diskGB,
+        vmStatus: pveVM.status as "RUNNING" | "STOPPED" | "SUSPENDED",
     };
 }
 
@@ -55,7 +56,7 @@ export function mapInstanceToListItem(instance: InstanceListResult): Static<type
             instance.pveTemplate,
             instance.cpus,
             instance.memoryMB,
-            instance.diskGB
+            instance.diskGB,
         ),
         provisionStatus: instance.provisionStatus,
         createdAt: instance.createdAt,

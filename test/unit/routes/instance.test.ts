@@ -114,6 +114,7 @@ describe("Instance Route - Admin", () => {
         provisionStatus: "COMPLETED",
         pveVM: {
           hostname: mockVM.hostname,
+          status: "RUNNING",
           pveNetworkIP: {
             ipAddress: "192.168.1.100",
           },
@@ -277,6 +278,7 @@ describe("Instance Route - Admin", () => {
       provisionStatus: "COMPLETED",
       pveVM: {
         hostname: "vm-100.local",
+        status: "RUNNING",
         pveNetworkIP: {
           ipAddress: "192.168.1.100",
         },
