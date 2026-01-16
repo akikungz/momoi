@@ -2,13 +2,17 @@ import { Static } from "elysia";
 
 import { AutocompleteOption, AutocompleteQuery } from "@momoi/model/autocomplete";
 
+import type { CacheModule } from '@momoi/cache';
 import type { PrismaClient } from '@momoi/database/prisma/generated/client';
 
 type AutocompleteQueryType = Static<typeof AutocompleteQuery>;
 type AutocompleteOptionType = Static<typeof AutocompleteOption>;
 
 export class AutocompleteService {
-  constructor(private prisma: PrismaClient) { }
+  constructor(
+    private prisma: PrismaClient,
+    private cache: CacheModule,
+  ) { }
 
   /**
    * Get course options for autocomplete
@@ -17,6 +21,10 @@ export class AutocompleteService {
   public async getCoursesOptions(query: AutocompleteQueryType): Promise<AutocompleteOptionType[]> {
     const limit = query.limit ?? 10;
     const search = query.search;
+    const cacheKey = `autocomplete:courses:search:${search ?? 'all'}:limit:${limit}`;
+
+    const cached = await this.cache.getCacheValue(cacheKey);
+    if (cached) return JSON.parse(cached);
 
     const courses = await this.prisma.course.findMany({
       where: search
@@ -32,10 +40,13 @@ export class AutocompleteService {
       select: { id: true, code: true, title: true },
     });
 
-    return courses.map((course) => ({
+    const response = courses.map((course) => ({
       id: course.id,
       label: `[${course.code}] ${course.title}`,
     }));
+
+    await this.cache.createCacheKey(cacheKey, JSON.stringify(response), 600);
+    return response;
   }
 
   /**
@@ -45,6 +56,10 @@ export class AutocompleteService {
   public async getSemestersOptions(query: AutocompleteQueryType): Promise<AutocompleteOptionType[]> {
     const limit = query.limit ?? 10;
     const search = query.search;
+    const cacheKey = `autocomplete:semesters:search:${search ?? 'all'}:limit:${limit}`;
+
+    const cached = await this.cache.getCacheValue(cacheKey);
+    if (cached) return JSON.parse(cached);
 
     const semesters = await this.prisma.semester.findMany({
       where: search
@@ -55,10 +70,13 @@ export class AutocompleteService {
       select: { id: true, name: true },
     });
 
-    return semesters.map((semester) => ({
+    const response = semesters.map((semester) => ({
       id: semester.id,
       label: semester.name,
     }));
+
+    await this.cache.createCacheKey(cacheKey, JSON.stringify(response), 600);
+    return response;
   }
 
   /**
@@ -68,6 +86,10 @@ export class AutocompleteService {
   public async getInstructorsOptions(query: AutocompleteQueryType): Promise<AutocompleteOptionType[]> {
     const limit = query.limit ?? 10;
     const search = query.search;
+    const cacheKey = `autocomplete:instructors:search:${search ?? 'all'}:limit:${limit}`;
+
+    const cached = await this.cache.getCacheValue(cacheKey);
+    if (cached) return JSON.parse(cached);
 
     const instructors = await this.prisma.platformUser.findMany({
       where: {
@@ -91,10 +113,13 @@ export class AutocompleteService {
       },
     });
 
-    return instructors.map((instructor) => ({
+    const response = instructors.map((instructor) => ({
       id: instructor.id,
       label: `${instructor.user?.name ?? "Unknown"} (${instructor.user?.email ?? "no email"})`,
     }));
+
+    await this.cache.createCacheKey(cacheKey, JSON.stringify(response), 600);
+    return response;
   }
 
   /**
@@ -104,6 +129,10 @@ export class AutocompleteService {
   public async getTemplatesOptions(query: AutocompleteQueryType): Promise<AutocompleteOptionType[]> {
     const limit = query.limit ?? 10;
     const search = query.search;
+    const cacheKey = `autocomplete:templates:search:${search ?? 'all'}:limit:${limit}`;
+
+    const cached = await this.cache.getCacheValue(cacheKey);
+    if (cached) return JSON.parse(cached);
 
     const templates = await this.prisma.pVETemplate.findMany({
       where: search
@@ -114,10 +143,13 @@ export class AutocompleteService {
       select: { id: true, name: true },
     });
 
-    return templates.map((template) => ({
+    const response = templates.map((template) => ({
       id: template.id,
       label: template.name,
     }));
+
+    await this.cache.createCacheKey(cacheKey, JSON.stringify(response), 600);
+    return response;
   }
 
   /**
@@ -127,6 +159,10 @@ export class AutocompleteService {
   public async getCourseOfferingsOptions(query: AutocompleteQueryType): Promise<AutocompleteOptionType[]> {
     const limit = query.limit ?? 10;
     const search = query.search;
+    const cacheKey = `autocomplete:offerings:search:${search ?? 'all'}:limit:${limit}`;
+
+    const cached = await this.cache.getCacheValue(cacheKey);
+    if (cached) return JSON.parse(cached);
 
     const offerings = await this.prisma.courseOffering.findMany({
       where: search
@@ -147,9 +183,12 @@ export class AutocompleteService {
       },
     });
 
-    return offerings.map((offering) => ({
+    const response = offerings.map((offering) => ({
       id: offering.id,
       label: `[${offering.course.code}] ${offering.course.title} - ${offering.semester.name}`,
     }));
+
+    await this.cache.createCacheKey(cacheKey, JSON.stringify(response), 600);
+    return response;
   }
 }

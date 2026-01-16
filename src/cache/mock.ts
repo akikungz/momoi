@@ -7,3 +7,10 @@ export class MockCache {
   deleteCacheKey = mock(async (key: string) => { });
   disconnect = mock(async () => { });
 }
+
+/**
+ * Factory function to create a new MockCache instance
+ */
+export function createMockCache(): MockCache {
+  return new MockCache();
+}

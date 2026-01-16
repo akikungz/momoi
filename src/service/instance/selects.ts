@@ -56,6 +56,7 @@ export const INSTANCE_LIST_SELECT = {
     pveTemplate: PVE_TEMPLATE_SELECT,
     createdAt: true,
     updatedAt: true,
+    provisionStatus: true,
 } satisfies Prisma.InstanceSelect;
 
 /**
@@ -78,6 +79,7 @@ export const INSTANCE_CREATE_SELECT = {
     id: true,
     courseOffering: COURSE_OFFERING_SELECT,
     status: true,
+    provisionStatus: true,
     createdAt: true,
     updatedAt: true,
 } satisfies Prisma.InstanceSelect;

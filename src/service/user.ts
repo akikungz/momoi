@@ -1,10 +1,7 @@
 import { Static } from "elysia";
 
-import {
-  PrismaClientKnownRequestError
-} from "@momoi/database/prisma/generated/internal/prismaNamespace";
 import { addSSHKeyResponse, getSSHKeyResponse } from "@momoi/model/user";
-import { ServiceError } from "@momoi/utils/error";
+import { handlePrismaError, ServiceError } from "@momoi/utils/error";
 
 import type { CacheModule } from '@momoi/cache';
 import type { PrismaClient } from '@momoi/database/prisma/generated/client';
@@ -26,24 +23,14 @@ export class UserService {
       });
 
       // Clear relevant cache entries
-      const cacheKeyPattern = `user:${userId}:sshkeys:*`;
-      await this.cache.deleteCacheByPattern(cacheKeyPattern);
+      await this.cache.deleteCacheByPattern(`user:${userId}:sshkeys:*`);
 
       return sshKey;
     } catch (error: unknown) {
-      if (error instanceof PrismaClientKnownRequestError) {
-        if (error.code === 'P2002') {
-          throw new ServiceError('An SSH key with the same name or public key already exists for this user.', 409);
-        }
-
-        if (error.code === 'P2025') {
-          throw new ServiceError('User not found.', 404);
-        }
-
-        throw new ServiceError(`Database error: ${error.message}`, 500);
-      }
-
-      throw new ServiceError('An unexpected error occurred while adding the SSH key.', 500);
+      handlePrismaError(error, 'while adding the SSH key', {
+        notFoundMessage: 'User not found.',
+        duplicateMessage: 'An SSH key with the same name or public key already exists for this user.',
+      });
     }
   }
 
@@ -96,20 +83,13 @@ export class UserService {
       });
 
       // Clear relevant cache entries
-      const cacheKeyPattern = `user:${userId}:sshkeys:*`;
-      await this.cache.deleteCacheByPattern(cacheKeyPattern);
+      await this.cache.deleteCacheByPattern(`user:${userId}:sshkeys:*`);
 
       return deleteResult.count;
     } catch (error: unknown) {
-      if (error instanceof PrismaClientKnownRequestError) {
-        if (error.code === 'P2025') {
-          throw new ServiceError('One or more SSH keys not found for the user.', 404);
-        }
-
-        throw new ServiceError(`Database error: ${error.message}`, 500);
-      }
-
-      throw new ServiceError('An unexpected error occurred while removing the SSH keys.', 500);
+      handlePrismaError(error, 'while removing the SSH keys', {
+        notFoundMessage: 'One or more SSH keys not found for the user.',
+      });
     }
   }
 }

@@ -5,17 +5,19 @@ import { CacheModule } from "@momoi/cache";
 import { PrismaClient } from "@momoi/database";
 import { requestModel } from "@momoi/model/request";
 import { ErrorResponse } from "@momoi/model/shared/error";
+import { QueueModule } from "@momoi/queue";
 import { RequestService } from "@momoi/service/request";
 
 export const requestRoute = (
   prisma: PrismaClient,
   cache: CacheModule,
   auth: AuthMacro,
+  queue: QueueModule
 ) => new Elysia({ name: "request.route" })
   .use(auth)
   .use(requestModel)
   .guard({ auth: true })
-  .decorate("requestService", new RequestService(prisma, cache))
+  .decorate("requestService", new RequestService(prisma, cache, queue))
 
   // Standard requests
   .group("/requests", app => app

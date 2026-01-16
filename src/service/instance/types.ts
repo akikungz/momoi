@@ -1,6 +1,11 @@
 import { Static } from "elysia";
 
 import { GetInstancesRequestQuery } from "@momoi/model/instance";
+import { parsePagination } from "@momoi/utils/pagination";
+import type { PaginationParams } from "@momoi/utils/pagination";
+
+export { parsePagination };
+export type { PaginationParams };
 
 /**
  * Filter types for getInstance queries
@@ -34,30 +39,6 @@ export interface AdminInstanceFilter {
  * Union type for all instance filter types
  */
 export type InstanceFilter = UserInstanceFilter | InstructorInstanceFilter | AdminInstanceFilter;
-
-/**
- * Standard pagination parameters
- */
-export interface PaginationParams {
-    page: number;
-    pageSize: number;
-    skip: number;
-    take: number;
-}
-
-/**
- * Parses pagination from query parameters with defaults
- */
-export function parsePagination(query: Static<typeof GetInstancesRequestQuery>): PaginationParams {
-    const page = query.page ?? 1;
-    const pageSize = query.pageSize ?? 10;
-    return {
-        page,
-        pageSize,
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-    };
-}
 
 /**
  * Generates cache key for instance list queries

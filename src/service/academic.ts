@@ -1,9 +1,6 @@
 import { Static } from "elysia";
 
 import {
-  PrismaClientKnownRequestError
-} from "@momoi/database/prisma/generated/internal/prismaNamespace";
-import {
   AddCourseRequestBody, AddCourseResponse, AddInstructorMailingListRequestBody,
   AddInstructorMailingListResponse, AddSemesterRequestBody, AddSemesterResponse,
   CourseByIdRequestParams, DeleteSemesterByIdResponse, EditCourseByIdRequestBody,
@@ -17,18 +14,11 @@ import {
   InstructorByIdRequestParams, InstructorMailingListValue, InstructorValue,
   RemoveInstructorMailingListResponse, SemesterByIdRequestParams, SemesterValue
 } from "@momoi/model/academic";
-import { ServiceError } from "@momoi/utils/error";
+import { handlePrismaError, ServiceError } from "@momoi/utils/error";
+import { parsePagination } from "@momoi/utils/pagination";
 
 import type { CacheModule } from '@momoi/cache';
 import type { PrismaClient } from '@momoi/database/prisma/generated/client';
-
-function buildPagination(query: { page?: number; pageSize?: number }) {
-  const page = query.page ?? 1;
-  const pageSize = query.pageSize ?? 10;
-  const skip = (page - 1) * pageSize;
-  const take = pageSize;
-  return { page, pageSize, skip, take };
-}
 
 export class AcademicService {
   constructor(
@@ -38,7 +28,7 @@ export class AcademicService {
 
   // -------------------- Instructor Mailing List --------------------
   public async getInstructorMailingList(query: Static<typeof GetInstructorMailingListQuery>): Promise<Static<typeof GetInstructorMailingListResponse>> {
-    const { page, pageSize, skip, take } = buildPagination(query);
+    const { page, pageSize, skip, take } = parsePagination(query);
     const cacheKey = `academic:mailing:page:${page}:size:${pageSize}:email:${query.email ?? 'all'}`;
 
     const cached = await this.cache.getCacheValue(cacheKey);
@@ -93,14 +83,9 @@ export class AcademicService {
       await this.cache.deleteCacheByPattern('academic:mailing:*');
       return created;
     } catch (error: unknown) {
-      if (error instanceof PrismaClientKnownRequestError) {
-        if (error.code === 'P2002') {
-          throw new ServiceError('This email is already in the mailing list.', 409);
-        }
-
-        throw new ServiceError(`Database error: ${error.message}`, 500);
-      }
-      throw new ServiceError('Failed to add instructor mailing list entry.', 500);
+      handlePrismaError(error, 'while adding instructor mailing list entry', {
+        duplicateMessage: 'This email is already in the mailing list.',
+      });
     }
   }
 
@@ -110,20 +95,15 @@ export class AcademicService {
       await this.cache.deleteCacheByPattern('academic:mailing:*');
       return { success: true };
     } catch (error: unknown) {
-      if (error instanceof PrismaClientKnownRequestError) {
-        if (error.code === 'P2025') {
-          throw new ServiceError('Mailing list entry not found.', 404);
-        }
-
-        throw new ServiceError(`Database error: ${error.message}`, 500);
-      }
-      throw new ServiceError('Failed to remove instructor mailing list entry.', 500);
+      handlePrismaError(error, 'while removing instructor mailing list entry', {
+        notFoundMessage: 'Mailing list entry not found.',
+      });
     }
   }
 
   // -------------------- Instructors --------------------
   public async getInstructors(query: Static<typeof GetInstructorsRequestQuery>): Promise<Static<typeof GetInstructorsResponse>> {
-    const { page, pageSize, skip, take } = buildPagination(query);
+    const { page, pageSize, skip, take } = parsePagination(query);
     const cacheKey = `academic:instructors:page:${page}:size:${pageSize}:name:${query.name ?? 'all'}:email:${query.email ?? 'all'}`;
 
     const cached = await this.cache.getCacheValue(cacheKey);
@@ -177,7 +157,7 @@ export class AcademicService {
       pageSize,
     };
 
-    await this.cache.createCacheKey(cacheKey, JSON.stringify(response));
+    await this.cache.createCacheKey(cacheKey, JSON.stringify(response), 600);
     return response;
   }
 
@@ -254,6 +234,7 @@ export class AcademicService {
       await Promise.all([
         this.cache.deleteCacheByPattern('academic:instructors:*'),
         this.cache.deleteCacheByPattern(`academic:instructor:${instructorId}`),
+        this.cache.deleteCacheByPattern('autocomplete:instructors:*'),
         ...Array.from(affectedCourseIds).map((courseId) => this.cache.deleteCacheByPattern(`academic:course:${courseId}`)),
       ]);
 
@@ -275,21 +256,15 @@ export class AcademicService {
         updatedAt: updated.updatedAt,
       };
     } catch (error: unknown) {
-      if (error instanceof PrismaClientKnownRequestError) {
-        if (error.code === 'P2025') {
-          throw new ServiceError('Instructor not found.', 404);
-        }
-
-        throw new ServiceError(`Database error: ${error.message}`, 500);
-      }
-
-      throw new ServiceError('Failed to edit instructor.', 500);
+      handlePrismaError(error, 'while editing instructor', {
+        notFoundMessage: 'Instructor not found.',
+      });
     }
   }
 
   // -------------------- Courses --------------------
   public async getCourses(query: Static<typeof GetCoursesRequestQuery>): Promise<Static<typeof GetCoursesResponse>> {
-    const { page, pageSize, skip, take } = buildPagination(query);
+    const { page, pageSize, skip, take } = parsePagination(query);
     const cacheKey = `academic:courses:page:${page}:size:${pageSize}:code:${query.code ?? 'all'}:title:${query.title ?? 'all'}`;
 
     const cached = await this.cache.getCacheValue(cacheKey);
@@ -326,7 +301,7 @@ export class AcademicService {
       pageSize,
     };
 
-    await this.cache.createCacheKey(cacheKey, JSON.stringify(response));
+    await this.cache.createCacheKey(cacheKey, JSON.stringify(response), 600);
     return response;
   }
 
@@ -378,7 +353,7 @@ export class AcademicService {
       updatedAt: course.updatedAt,
     };
 
-    await this.cache.createCacheKey(cacheKey, JSON.stringify(response));
+    await this.cache.createCacheKey(cacheKey, JSON.stringify(response), 600);
     return response;
   }
 
@@ -391,7 +366,11 @@ export class AcademicService {
       },
     });
 
-    await this.cache.deleteCacheByPattern('academic:courses:*');
+    await Promise.all([
+      this.cache.deleteCacheByPattern('academic:courses:*'),
+      this.cache.deleteCacheByPattern('autocomplete:courses:*'),
+      this.cache.deleteCacheByPattern('autocomplete:offerings:*'),
+    ]);
     return {
       ...created,
       description: created.description ?? undefined,
@@ -410,22 +389,20 @@ export class AcademicService {
         },
       });
 
-      await this.cache.deleteCacheByPattern('academic:courses:*');
-      await this.cache.deleteCacheByPattern(`academic:course:${courseId}`);
+      await Promise.all([
+        this.cache.deleteCacheByPattern('academic:courses:*'),
+        this.cache.deleteCacheByPattern(`academic:course:${courseId}`),
+        this.cache.deleteCacheByPattern('autocomplete:courses:*'),
+        this.cache.deleteCacheByPattern('autocomplete:offerings:*'),
+      ]);
       return {
         ...updated,
         description: updated.description ?? undefined,
       };
     } catch (error: unknown) {
-      if (error instanceof PrismaClientKnownRequestError) {
-        if (error.code === 'P2025') {
-          throw new ServiceError('Course not found.', 404);
-        }
-
-        throw new ServiceError(`Database error: ${error.message}`, 500);
-      }
-
-      throw new ServiceError('Failed to edit course.', 500);
+      handlePrismaError(error, 'while editing course', {
+        notFoundMessage: 'Course not found.',
+      });
     }
   }
 
@@ -463,6 +440,7 @@ export class AcademicService {
         this.cache.deleteCacheByPattern('academic:instructors:*'),
         this.cache.deleteCacheByPattern('academic:courses:*'),
         this.cache.deleteCacheByPattern(`academic:course:${courseId}`),
+        this.cache.deleteCacheByPattern('autocomplete:instructors:*'),
         ...Array.from(affectedInstructorIds).map((id) => this.cache.deleteCacheByPattern(`academic:instructor:${id}`)),
       ]);
 
@@ -477,15 +455,9 @@ export class AcademicService {
         }))
       };
     } catch (error: unknown) {
-      if (error instanceof PrismaClientKnownRequestError) {
-        if (error.code === 'P2025') {
-          throw new ServiceError('Course not found.', 404);
-        }
-
-        throw new ServiceError(`Database error: ${error.message}`, 500);
-      }
-
-      throw new ServiceError('Failed to update course instructors.', 500);
+      handlePrismaError(error, 'while updating course instructors', {
+        notFoundMessage: 'Course not found.',
+      });
     }
   }
 
@@ -522,6 +494,7 @@ export class AcademicService {
         this.cache.deleteCacheByPattern('academic:courses:*'),
         this.cache.deleteCacheByPattern('academic:semesters:*'),
         this.cache.deleteCacheByPattern(`academic:course:${courseId}`),
+        this.cache.deleteCacheByPattern('autocomplete:offerings:*'),
         ...Array.from(affectedSemesterIds).map((id) => this.cache.deleteCacheByPattern(`academic:semester:${id}`)),
       ]);
 
@@ -537,21 +510,15 @@ export class AcademicService {
         }))
       };
     } catch (error: unknown) {
-      if (error instanceof PrismaClientKnownRequestError) {
-        if (error.code === 'P2025') {
-          throw new ServiceError('Course not found.', 404);
-        }
-
-        throw new ServiceError(`Database error: ${error.message}`, 500);
-      }
-
-      throw new ServiceError('Failed to update course semesters.', 500);
+      handlePrismaError(error, 'while updating course semesters', {
+        notFoundMessage: 'Course not found.',
+      });
     }
   }
 
   // -------------------- Semesters --------------------
   public async getSemesters(query: Static<typeof GetSemestersRequestQuery>): Promise<Static<typeof GetSemestersResponse>> {
-    const { page, pageSize, skip, take } = buildPagination(query);
+    const { page, pageSize, skip, take } = parsePagination(query);
     const cacheKey = `academic:semesters:page:${page}:size:${pageSize}:name:${query.name ?? 'all'}:from:${query.dateFrom ?? 'none'}:to:${query.dateTo ?? 'none'}`;
 
     const cached = await this.cache.getCacheValue(cacheKey);
@@ -589,7 +556,7 @@ export class AcademicService {
       pageSize,
     };
 
-    await this.cache.createCacheKey(cacheKey, JSON.stringify(response));
+    await this.cache.createCacheKey(cacheKey, JSON.stringify(response), 600);
     return response;
   }
 
@@ -630,7 +597,7 @@ export class AcademicService {
       updatedAt: semester.updatedAt,
     };
 
-    await this.cache.createCacheKey(cacheKey, JSON.stringify(response));
+    await this.cache.createCacheKey(cacheKey, JSON.stringify(response), 600);
     return response;
   }
 
@@ -647,7 +614,7 @@ export class AcademicService {
     });
 
     if (!semester) {
-      await this.cache.createCacheKey(cacheKey, JSON.stringify(null));
+      await this.cache.createCacheKey(cacheKey, JSON.stringify(null), 600);
       return null;
     }
 
@@ -661,7 +628,7 @@ export class AcademicService {
       updatedAt: semester.updatedAt,
     };
 
-    await this.cache.createCacheKey(cacheKey, JSON.stringify(response));
+    await this.cache.createCacheKey(cacheKey, JSON.stringify(response), 600);
     return response;
   }
 
@@ -674,7 +641,10 @@ export class AcademicService {
       }
     });
 
-    await this.cache.deleteCacheByPattern('academic:semesters:*');
+    await Promise.all([
+      this.cache.deleteCacheByPattern('academic:semesters:*'),
+      this.cache.deleteCacheByPattern('autocomplete:semesters:*'),
+    ]);
     return created;
   }
 
@@ -699,19 +669,17 @@ export class AcademicService {
         await this.cache.deleteCacheByPattern('academic:semester:current');
       }
 
-      await this.cache.deleteCacheByPattern('academic:semesters:*');
-      await this.cache.deleteCacheByPattern(`academic:semester:${semesterId}`);
+      await Promise.all([
+        this.cache.deleteCacheByPattern('academic:semesters:*'),
+        this.cache.deleteCacheByPattern(`academic:semester:${semesterId}`),
+        this.cache.deleteCacheByPattern('autocomplete:semesters:*'),
+        this.cache.deleteCacheByPattern('autocomplete:offerings:*'),
+      ]);
       return updated;
     } catch (error: unknown) {
-      if (error instanceof PrismaClientKnownRequestError) {
-        if (error.code === 'P2025') {
-          throw new ServiceError('Semester not found.', 404);
-        }
-
-        throw new ServiceError(`Database error: ${error.message}`, 500);
-      }
-
-      throw new ServiceError('Failed to edit semester.', 500);
+      handlePrismaError(error, 'while editing semester', {
+        notFoundMessage: 'Semester not found.',
+      });
     }
   }
 
@@ -748,6 +716,7 @@ export class AcademicService {
         this.cache.deleteCacheByPattern('academic:courses:*'),
         this.cache.deleteCacheByPattern('academic:semesters:*'),
         this.cache.deleteCacheByPattern(`academic:semester:${semesterId}`),
+        this.cache.deleteCacheByPattern('autocomplete:offerings:*'),
         ...Array.from(affectedCourseIds).map((id) => this.cache.deleteCacheByPattern(`academic:course:${id}`)),
       ]);
 
@@ -763,15 +732,9 @@ export class AcademicService {
         }))
       };
     } catch (error: unknown) {
-      if (error instanceof PrismaClientKnownRequestError) {
-        if (error.code === 'P2025') {
-          throw new ServiceError('Semester not found.', 404);
-        }
-
-        throw new ServiceError(`Database error: ${error.message}`, 500);
-      }
-
-      throw new ServiceError('Failed to update semester courses.', 500);
+      handlePrismaError(error, 'while updating semester courses', {
+        notFoundMessage: 'Semester not found.',
+      });
     }
   }
 
@@ -792,20 +755,16 @@ export class AcademicService {
         this.cache.deleteCacheByPattern('academic:semesters:*'),
         this.cache.deleteCacheByPattern('academic:courses:*'),
         this.cache.deleteCacheByPattern(`academic:semester:${semesterId}`),
+        this.cache.deleteCacheByPattern('autocomplete:semesters:*'),
+        this.cache.deleteCacheByPattern('autocomplete:offerings:*'),
         ...Array.from(affectedCourseIds).map((id) => this.cache.deleteCacheByPattern(`academic:course:${id}`)),
       ]);
 
       return { success: true };
     } catch (error: unknown) {
-      if (error instanceof PrismaClientKnownRequestError) {
-        if (error.code === 'P2025') {
-          throw new ServiceError('Semester not found.', 404);
-        }
-
-        throw new ServiceError(`Database error: ${error.message}`, 500);
-      }
-
-      throw new ServiceError('Failed to delete semester.', 500);
+      handlePrismaError(error, 'while deleting semester', {
+        notFoundMessage: 'Semester not found.',
+      });
     }
   }
 }

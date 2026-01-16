@@ -200,6 +200,25 @@ export const instanceRoute = (
       },
     }
   )
+  // Instance Re-provisioning
+  .post(
+    "/:instanceId/reprovision",
+    async ({ instanceService, user, params }) => {
+      return await instanceService.reprovisionInstance(params.instanceId, user.id, user.role);
+    },
+    {
+      params: "ReprovisionInstanceRequestParams",
+      response: {
+        200: "ReprovisionInstanceResponse",
+        403: ErrorResponse,
+      },
+      detail: {
+        summary: "Re-provision instance",
+        description: "Re-provision a failed instance by resetting its provision status and queuing it for provisioning again. Students can only re-provision their own instances.",
+        tags: ["Instances"],
+      },
+    }
+  )
   // Audit Logs
   .get(
     "/:instanceId/audit-logs",

@@ -16,6 +16,7 @@ import type { PrismaClient } from '@momoi/database/prisma/generated/client';
 import { mapExtendedRequest, mapRequest } from "./mappers";
 import { EXTENDED_REQUEST_SELECT, REQUEST_SELECT } from "./selects";
 import { buildExtendedRequestFilter, buildRequestFilter, CurrentUser } from "./types";
+import { logger } from "@momoi/logger";
 
 export class RequestService {
     constructor(
@@ -136,7 +137,7 @@ export class RequestService {
             })
         ]);
 
-        if (updated.status === ApprovalActionStatus.APPROVED) {
+        if (updated.status === "APPROVED") {
             const instance = await this.prisma.instance.create({
                 data: {
                     courseOfferingId: request.courseOfferingId,
@@ -148,8 +149,7 @@ export class RequestService {
                 },
             });
 
-            const cacheKeyPattern = `user:${request.requesterId}:instances:*`;
-            await this.cache.deleteCacheByPattern(cacheKeyPattern);
+            logger.info(`Request ${request.id} approved, created instance ${instance.id}, enqueueing provisioning job.`);
 
             await this.queue.provisionInstanceQueue.add(
                 'provision',
@@ -157,7 +157,10 @@ export class RequestService {
             );
         }
 
-        await this.invalidateRequestCaches(request.requesterId);
+        await Promise.all([
+            this.invalidateRequestCaches(request.requesterId),
+            this.cache.deleteCacheByPattern(`request:${requestId}:audit-logs:*`),
+        ]);
 
         return mapRequest(updated);
     }
@@ -209,7 +212,7 @@ export class RequestService {
                 select: EXTENDED_REQUEST_SELECT,
             });
 
-            await this.invalidateRequestCaches(userId);
+            await this.invalidateExtendedRequestCaches(userId);
 
             return mapExtendedRequest(extendedRequest);
         } catch (error: unknown) {
@@ -311,7 +314,10 @@ export class RequestService {
             // TODO: Apply semester into the target instance
         }
 
-        await this.invalidateRequestCaches(extendedRequest.requesterId);
+        await Promise.all([
+            this.invalidateExtendedRequestCaches(extendedRequest.requesterId),
+            this.cache.deleteCacheByPattern(`extended-request:${extendedRequestId}:audit-logs:*`),
+        ]);
 
         return mapExtendedRequest(updated);
     }
@@ -319,8 +325,15 @@ export class RequestService {
     // ==================== Cache Management ====================
 
     private async invalidateRequestCaches(userId: number) {
-        const pattern = `user:${userId}:requests:*`;
-        await this.cache.deleteCacheByPattern(pattern);
+        // No longer cache request lists due to frequent queue updates
+        // Only invalidate audit log cache
+        await this.cache.deleteCacheByPattern(`request:*:audit-logs:*`);
+    }
+
+    private async invalidateExtendedRequestCaches(userId: number) {
+        // No longer cache extended request lists due to frequent queue updates
+        // Only invalidate audit log cache
+        await this.cache.deleteCacheByPattern(`extended-request:*:audit-logs:*`);
     }
 
     // ==================== Audit Logs ====================
@@ -332,6 +345,10 @@ export class RequestService {
     ): Promise<Static<typeof GetRequestAuditLogsResponse>> {
         try {
             const skip = (page - 1) * pageSize;
+            const cacheKey = `request:${requestId}:audit-logs:page:${page}:size:${pageSize}`;
+
+            const cached = await this.cache.getCacheValue(cacheKey);
+            if (cached) return JSON.parse(cached);
 
             const request = await this.prisma.request.findUnique({
                 where: { id: requestId },
@@ -364,7 +381,7 @@ export class RequestService {
                 }),
             ]);
 
-            return {
+            const response = {
                 values: logs.map(log => ({
                     id: log.id,
                     action: log.action,
@@ -381,6 +398,9 @@ export class RequestService {
                 totalItems,
                 totalPages: Math.ceil(totalItems / pageSize),
             };
+
+            await this.cache.createCacheKey(cacheKey, JSON.stringify(response), 600);
+            return response;
         } catch (error: unknown) {
             handlePrismaError(error, 'while retrieving request audit logs', { notFoundMessage: 'Request not found.' });
         }
@@ -393,6 +413,10 @@ export class RequestService {
     ): Promise<Static<typeof GetExtendedRequestAuditLogsResponse>> {
         try {
             const skip = (page - 1) * pageSize;
+            const cacheKey = `extended-request:${extendedRequestId}:audit-logs:page:${page}:size:${pageSize}`;
+
+            const cached = await this.cache.getCacheValue(cacheKey);
+            if (cached) return JSON.parse(cached);
 
             const extendedRequest = await this.prisma.extendedRequest.findUnique({
                 where: { id: extendedRequestId },
@@ -425,7 +449,7 @@ export class RequestService {
                 }),
             ]);
 
-            return {
+            const response = {
                 values: logs.map(log => ({
                     id: log.id,
                     action: log.action,
@@ -442,6 +466,9 @@ export class RequestService {
                 totalItems,
                 totalPages: Math.ceil(totalItems / pageSize),
             };
+
+            await this.cache.createCacheKey(cacheKey, JSON.stringify(response), 600);
+            return response;
         } catch (error: unknown) {
             handlePrismaError(error, 'while retrieving extended request audit logs', { notFoundMessage: 'Extended request not found.' });
         }

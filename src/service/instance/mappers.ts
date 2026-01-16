@@ -57,6 +57,7 @@ export function mapInstanceToListItem(instance: InstanceListResult): Static<type
             instance.memoryMB,
             instance.diskGB
         ),
+        provisionStatus: instance.provisionStatus,
         createdAt: instance.createdAt,
         updatedAt: instance.updatedAt,
     };
@@ -95,6 +96,7 @@ export function mapInstanceToDetail(instance: InstanceDetailResult): Static<type
             instance.memoryMB,
             instance.diskGB
         ),
+        provisionStatus: instance.provisionStatus,
         reverseProxy: instance.instanceReverseProxies.map(proxy => ({
             id: proxy.id,
             targetPort: proxy.targetPort,
@@ -112,6 +114,7 @@ export function mapInstanceCreateToResponse(instance: InstanceCreateResult): Sta
         id: instance.id,
         courseOffering: mapCourseOffering(instance.courseOffering),
         status: instance.status,
+        provisionStatus: instance.provisionStatus,
         createdAt: instance.createdAt,
         updatedAt: instance.updatedAt,
     };

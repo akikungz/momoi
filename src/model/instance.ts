@@ -11,6 +11,14 @@ export const InstanceStatus = t.Union([
   t.Literal("DELETED", { description: "Instance has been deleted" })
 ], { description: "Status of the instance" });
 
+export const InstanceProvisionStatus = t.Union([
+  t.Literal("NOT_STARTED", { description: "Provisioning has not started yet" }),
+  t.Literal("QUEUED", { description: "Provisioning is queued" }),
+  t.Literal("PROVISIONING", { description: "Provisioning is in progress" }),
+  t.Literal("COMPLETED", { description: "Provisioning is completed" }),
+  t.Literal("FAILED", { description: "Provisioning has failed" })
+], { description: "Provisioning status of the instance" });
+
 export const courseOfferingDetails = t.Object({
   courseCode: t.String({ description: "Course code associated with the offering" }),
   courseTitle: t.String({ description: "Title of the course" }),
@@ -31,6 +39,7 @@ export const InstancesData = t.Object({
   courseOffering: t.Optional(courseOfferingDetails),
   status: InstanceStatus,
   vmDetails: t.Optional(VMDetails),
+  provisionStatus: InstanceProvisionStatus,
   ...TimestampResponse.properties
 }, { description: "Data structure representing an instance" });
 
@@ -78,6 +87,7 @@ export const CreateInstanceResponse = t.Object({
   id: t.Number({ description: "Unique identifier for the newly created instance" }),
   courseOffering: t.Optional(courseOfferingDetails),
   status: InstanceStatus,
+  provisionStatus: InstanceProvisionStatus,
   vmDetails: t.Optional(VMDetails),
   ...TimestampResponse.properties
 });
@@ -151,6 +161,16 @@ export const GetInstanceAuditLogsResponse = t.Object({
   ...PaginationResponse.properties
 });
 
+export const ReprovisionInstanceRequestParams = t.Object({
+  instanceId: t.Number({ description: "Unique identifier for the instance to re-provision" }),
+});
+
+export const ReprovisionInstanceResponse = t.Object({
+  id: t.Number({ description: "Unique identifier for the instance" }),
+  provisionStatus: t.String({ description: "New provisioning status" }),
+  message: t.String({ description: "Success message" }),
+});
+
 export const instanceModel = new Elysia({ name: "instance.model" })
   .model("GetInstancesRequestQuery", GetInstancesRequestQuery)
   .model("GetInstancesResponse", GetInstancesResponse)
@@ -167,4 +187,6 @@ export const instanceModel = new Elysia({ name: "instance.model" })
   .model("DeleteReverseProxyResponse", DeleteReverseProxyResponse)
   .model("PromoteInstanceRequestParams", PromoteInstanceRequestParams)
   .model("PromoteInstanceResponse", PromoteInstanceResponse)
-  .model("GetInstanceAuditLogsResponse", GetInstanceAuditLogsResponse);
+  .model("GetInstanceAuditLogsResponse", GetInstanceAuditLogsResponse)
+  .model("ReprovisionInstanceRequestParams", ReprovisionInstanceRequestParams)
+  .model("ReprovisionInstanceResponse", ReprovisionInstanceResponse);

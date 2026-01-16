@@ -1,18 +1,20 @@
 import { Elysia } from "elysia";
 
 import { AuthMacro } from "@momoi/auth";
+import { CacheModule } from "@momoi/cache";
 import { PrismaClient } from "@momoi/database";
 import { autocompleteModel } from "@momoi/model/autocomplete";
 import { AutocompleteService } from "@momoi/service/autocomplete";
 
 export const autocompleteRoute = (
   prisma: PrismaClient,
+  cache: CacheModule,
   auth: AuthMacro,
 ) => new Elysia({ name: "autocomplete.route", prefix: "/autocomplete" })
   .use(auth)
   .use(autocompleteModel)
   .guard({ auth: true })
-  .decorate("autocompleteService", new AutocompleteService(prisma))
+  .decorate("autocompleteService", new AutocompleteService(prisma, cache))
   .get(
     "/courses",
     async ({ autocompleteService, query }) => {

@@ -6,6 +6,7 @@ import { Elysia } from "elysia";
 import { CacheModule } from "@momoi/cache";
 import { prisma } from "@momoi/database";
 import { env } from "@momoi/env";
+import { logger } from "@momoi/logger";
 import { isInstructorEmail, isItDepartmentEmail } from "@momoi/utils/user";
 
 import { MockAuth } from "./mock";
@@ -31,6 +32,7 @@ export const auth = betterAuth({
       accessType: "offline",
       prompt: "select_account",
       pkce: true,
+      redirectURI: `${env.BETTER_AUTH_URL || "http://localhost:3000"}/api/auth/callback/google`,
     },
   },
   emailAndPassword: {
@@ -62,7 +64,22 @@ export const auth = betterAuth({
     disabled: false,
     level: "debug",
     log: (level, message, ...args) => {
-      console.log(`[better-auth][${level.toUpperCase()}]:`, message, ...args);
+      switch (level) {
+        case "debug":
+          logger.debug(message, ...args);
+          break;
+        case "info":
+          logger.info(message, ...args);
+          break;
+        case "warn":
+          logger.warn(message, ...args);
+          break;
+        case "error":
+          logger.error(message, ...args);
+          break;
+        default:
+          logger.info(message, ...args);
+      }
     },
   },
   plugins: [

@@ -5,7 +5,8 @@
     "moduleResolution": "bundler",
     "baseUrl": "./",
     "paths": {
-      "@momoi/*": ["./src/*"]
+      "@momoi/*": ["./src/*"],
+      "@test/*": ["./test/*"]
     },
     "esModuleInterop": true,
     "allowImportingTsExtensions": true,

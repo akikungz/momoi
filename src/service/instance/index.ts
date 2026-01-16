@@ -3,11 +3,13 @@ import { Static } from "elysia";
 import {
     CreateInstanceRequestBody, CreateInstanceResponse, CreateReverseProxyRequestBody,
     CreateReverseProxyResponse, DeleteInstanceResponse, DeleteReverseProxyResponse,
-    GetInstanceAuditLogsResponse, GetInstanceResponse, GetInstancesRequestQuery, GetInstancesResponse,
-    GetReverseProxiesResponse, PromoteInstanceResponse
+    GetInstanceAuditLogsResponse, GetInstanceResponse, GetInstancesRequestQuery,
+    GetInstancesResponse, GetReverseProxiesResponse, PromoteInstanceResponse,
+    ReprovisionInstanceResponse
 } from "@momoi/model/instance";
 import { QueueModule } from "@momoi/queue";
 import { handlePrismaError, ServiceError } from "@momoi/utils/error";
+import { logger } from "@momoi/logger";
 
 import type { CacheModule } from '@momoi/cache';
 import type { PrismaClient } from '@momoi/database/prisma/generated/client';
@@ -39,9 +41,6 @@ export class InstanceService {
                 select: INSTANCE_CREATE_SELECT,
             });
 
-            // Clear relevant cache entries
-            await this.cache.deleteCacheByPattern(`user:${userId}:instances:*`);
-
             // Queue the VM provisioning job
             await this.queue.provisionInstanceQueue.add(
                 'provision',
@@ -49,7 +48,7 @@ export class InstanceService {
                 { jobId: `provision-${instance.id}`, removeOnComplete: true, removeOnFail: false }
             );
 
-            console.log(`📋 VM provisioning queued for instance ID: ${instance.id}`);
+            logger.info({ instanceId: instance.id }, '📋 VM provisioning queued');
 
             return mapInstanceCreateToResponse(instance);
         } catch (error: unknown) {
@@ -69,13 +68,6 @@ export class InstanceService {
     ): Promise<Static<typeof GetInstancesResponse>> {
         try {
             const { page, pageSize, skip, take } = parsePagination(query);
-            const cacheKey = buildInstanceListCacheKey(filter, query);
-
-            // Check cache
-            const cachedData = await this.cache.getCacheValue(cacheKey);
-            if (cachedData) {
-                return JSON.parse(cachedData);
-            }
 
             // Build where clause based on filter type
             const whereClause = this.buildInstanceWhereClause(filter, query);
@@ -93,9 +85,6 @@ export class InstanceService {
             ]);
 
             const response = mapInstancesToResponse(data, totalItems, page, pageSize);
-
-            // Cache result
-            await this.cache.createCacheKey(cacheKey, JSON.stringify(response));
 
             return response;
         } catch (error: unknown) {
@@ -191,27 +180,37 @@ export class InstanceService {
             // Get the instance details before deleting
             const instance = await this.prisma.instance.findUnique({
                 where: { id: instanceId },
-                select: { id: true, platformUserId: true, status: true },
+                select: { id: true, platformUserId: true, status: true, pveVMId: true },
             });
 
             if (!instance) {
                 throw new ServiceError('Instance not found.', 404);
             }
 
-            // Delete the instance from database
-            await this.prisma.instance.delete({ where: { id: instanceId } });
+            // If instance has a VM assigned, queue deprovisioning (don't delete yet)
+            if (instance.pveVMId) {
+                // Mark instance as pending deletion
+                await this.prisma.instance.update({
+                    where: { id: instanceId },
+                    data: { status: 'DELETED', provisionStatus: 'QUEUED' },
+                });
+
+                // Queue the VM deprovisioning job (worker will handle final cleanup)
+                await this.queue.deprovisionInstanceQueue.add(
+                    'deprovision',
+                    { instanceId, userId: instance.platformUserId },
+                    { jobId: `deprovision-${instanceId}`, removeOnComplete: true, removeOnFail: false }
+                );
+
+                logger.info({ instanceId }, '📋 VM deprovisioning queued');
+            } else {
+                // No VM assigned, safe to delete immediately
+                await this.prisma.instance.delete({ where: { id: instanceId } });
+                logger.info({ instanceId }, '🗑️ Instance deleted (no VM)');
+            }
 
             // Clear relevant cache entries
             await this.cache.deleteCacheByPattern(`instance:${instanceId}`);
-
-            // Queue the VM deprovisioning job
-            await this.queue.deprovisionInstanceQueue.add(
-                'deprovision',
-                { instanceId, userId: instance.platformUserId },
-                { jobId: `deprovision-${instanceId}`, removeOnComplete: true, removeOnFail: false }
-            );
-
-            console.log(`📋 VM deprovisioning queued for instance ID: ${instanceId}`);
 
             return { success: true };
         } catch (error: unknown) {
@@ -358,7 +357,10 @@ export class InstanceService {
             });
 
             // Clear cache for this instance
-            await this.cache.deleteCacheByPattern(`instance:${instanceId}`);
+            await Promise.all([
+                this.cache.deleteCacheByPattern(`instance:${instanceId}`),
+                this.cache.deleteCacheByPattern(`instance:${instanceId}:audit-logs:*`),
+            ]);
 
             return {
                 id: updatedInstance.id,
@@ -367,6 +369,87 @@ export class InstanceService {
             };
         } catch (error: unknown) {
             handlePrismaError(error, 'while promoting the instance', { notFoundMessage: 'Instance not found.' });
+        }
+    }
+
+    // ==================== Re-provision ====================
+
+    public async reprovisionInstance(
+        instanceId: number,
+        performedById: number,
+        userRole: 'ADMIN' | 'INSTRUCTOR' | 'STUDENT'
+    ): Promise<Static<typeof ReprovisionInstanceResponse>> {
+        try {
+            // Get the instance
+            const instance = await this.prisma.instance.findUnique({
+                where: { id: instanceId },
+                select: {
+                    id: true,
+                    provisionStatus: true,
+                    platformUserId: true,
+                    status: true,
+                },
+            });
+
+            if (!instance) {
+                throw new ServiceError('Instance not found.', 404);
+            }
+
+            // Check ownership: students can only re-provision their own instances
+            if (userRole === 'STUDENT' && instance.platformUserId !== performedById) {
+                throw new ServiceError('You can only re-provision your own instances.', 403);
+            }
+
+            // Check if provisioning failed
+            if (instance.provisionStatus !== 'FAILED') {
+                throw new ServiceError('Only failed instances can be re-provisioned.', 400);
+            }
+
+            // Reset provision status and clear error
+            const updatedInstance = await this.prisma.instance.update({
+                where: { id: instanceId },
+                data: {
+                    provisionStatus: 'QUEUED',
+                    provisionError: null,
+                },
+                select: {
+                    id: true,
+                    provisionStatus: true,
+                },
+            });
+
+            // Create audit log entry
+            await this.prisma.instanceAuditLog.create({
+                data: {
+                    instanceId,
+                    action: 'RE_PROVISIONED',
+                    performedById,
+                    notes: 'Instance queued for re-provisioning after failure',
+                },
+            });
+
+            // Clear cache for this instance and audit logs
+            await Promise.all([
+                this.cache.deleteCacheByPattern(`instance:${instanceId}`),
+                this.cache.deleteCacheByPattern(`instance:${instanceId}:audit-logs:*`),
+            ]);
+
+            // Queue the VM provisioning job
+            await this.queue.provisionInstanceQueue.add(
+                'provision',
+                { instanceId, userId: instance.platformUserId },
+                { jobId: `reprovision-${instanceId}`, removeOnComplete: true, removeOnFail: false }
+            );
+
+            logger.info({ instanceId }, '📋 VM re-provisioning queued');
+
+            return {
+                id: updatedInstance.id,
+                provisionStatus: updatedInstance.provisionStatus,
+                message: 'Instance successfully queued for re-provisioning.',
+            };
+        } catch (error: unknown) {
+            handlePrismaError(error, 'while re-provisioning the instance', { notFoundMessage: 'Instance not found.' });
         }
     }
 
@@ -379,6 +462,10 @@ export class InstanceService {
     ): Promise<Static<typeof GetInstanceAuditLogsResponse>> {
         try {
             const skip = (page - 1) * pageSize;
+            const cacheKey = `instance:${instanceId}:audit-logs:page:${page}:size:${pageSize}`;
+
+            const cached = await this.cache.getCacheValue(cacheKey);
+            if (cached) return JSON.parse(cached);
 
             // Verify instance exists
             const instance = await this.prisma.instance.findUnique({
@@ -417,7 +504,7 @@ export class InstanceService {
                 }),
             ]);
 
-            return {
+            const response = {
                 values: logs.map(log => ({
                     id: log.id,
                     action: log.action,
@@ -434,6 +521,9 @@ export class InstanceService {
                 totalItems,
                 totalPages: Math.ceil(totalItems / pageSize),
             };
+
+            await this.cache.createCacheKey(cacheKey, JSON.stringify(response), 600);
+            return response;
         } catch (error: unknown) {
             handlePrismaError(error, 'while retrieving audit logs', { notFoundMessage: 'Instance not found.' });
         }

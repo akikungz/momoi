@@ -11,16 +11,17 @@ import { authHandler, authMacro, authOpenAPI } from "./auth";
 import { CacheModule } from "./cache";
 import { prisma } from "./database";
 import { env } from "./env";
+import { logger } from "./logger";
 import { QueueModule } from "./queue";
 import { academicRoute } from "./routes/academic";
 import { autocompleteRoute } from "./routes/autocomplete";
 import { instanceRoute } from "./routes/instance";
 import { requestRoute } from "./routes/request";
-import { storageRoute } from "./routes/storage";
 import { userRoute } from "./routes/user";
 import { ServiceError } from "./utils/error";
 
 const cache = new CacheModule();
+const queue = new QueueModule();
 
 export const api = new Elysia({
   name: "momoi.api", prefix: "/api", cookie: {
@@ -90,63 +91,50 @@ export const api = new Elysia({
   })
   .trace(({ context, onHandle }) => {
     onHandle(async ({ error, total }) => {
-      console.info(
-        JSON.stringify({
-          timestamp: new Date().toISOString(),
-          level: "info",
-          message: "Request handled",
-          method: context.request.method,
-          route: context.route,
-          url: context.request.url,
-          status: context.set.status,
-          totalTime: `${total} ms`,
-          userAgent: context.request.headers.get("user-agent") || "",
-        })
-      );
+      logger.info({
+        timestamp: new Date().toISOString(),
+        method: context.request.method,
+        route: context.route,
+        url: context.request.url,
+        status: context.set.status,
+        totalTime: `${total} ms`,
+        userAgent: context.request.headers.get("user-agent") || "",
+      }, "Request handled");
 
       const err = await error;
       if (err) {
         if (err instanceof Error) {
-          console.error(
-            JSON.stringify({
-              timestamp: new Date().toISOString(),
-              level: "error",
-              message: "Error occurred",
-              method: context.request.method,
-              route: context.route,
-              url: context.request.url,
-              status: context.set.status,
-              errorMessage: err.message,
-              stack: err.stack,
-              userAgent: context.request.headers.get("user-agent") || "",
-            })
-          );
-
-          return;
-        }
-
-        console.error(
-          JSON.stringify({
+          logger.error({
             timestamp: new Date().toISOString(),
-            level: "error",
-            message: "Unknown error occurred",
             method: context.request.method,
             route: context.route,
             url: context.request.url,
             status: context.set.status,
-            error: err,
+            errorMessage: err.message,
+            stack: err.stack,
             userAgent: context.request.headers.get("user-agent") || "",
-          })
-        );
+          }, "Error occurred");
+
+          return;
+        }
+
+        logger.error({
+          timestamp: new Date().toISOString(),
+          method: context.request.method,
+          route: context.route,
+          url: context.request.url,
+          status: context.set.status,
+          error: err,
+          userAgent: context.request.headers.get("user-agent") || "",
+        }, "Unknown error occurred");
       }
     });
   })
   .use(authHandler)
   .use(userRoute(prisma, cache, authMacro))
-  .use(instanceRoute(prisma, cache, authMacro, new QueueModule()))
+  .use(instanceRoute(prisma, cache, authMacro, queue))
   .use(academicRoute(prisma, cache, authMacro))
-  .use(requestRoute(prisma, cache, authMacro))
-  .use(storageRoute(prisma, cache, authMacro))
-  .use(autocompleteRoute(prisma, authMacro));
+  .use(requestRoute(prisma, cache, authMacro, queue))
+  .use(autocompleteRoute(prisma, cache, authMacro));
 
 export type Api = typeof api;
