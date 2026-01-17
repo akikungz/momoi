@@ -12,11 +12,11 @@ const app = new Elysia()
     const host = request.headers.get('x-forwarded-host') || request.headers.get('host');
 
     return {
-      realUrl: `${protocol}://${host}`
+      realUrl: `${protocol}://${host}`,
     };
   })
   .use(api);
 
-app.listen(env.PORT, ({ port }) => {
-  logger.info(`🚀 Server running at http://localhost:${port}/api`);
+app.listen(env.PORT, ({ port, hostname }) => {
+  logger.info(`🚀 Server running at http://${hostname || "localhost"}:${port}/api`);
 });

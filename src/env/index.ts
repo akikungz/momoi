@@ -36,6 +36,7 @@ export const TelemetryEnvSchema = z.object({
     .enum(["debug", "info", "warn", "error"])
     .default("info"),
   LOG_FORMAT: z.enum(["json", "plain"]).default("plain"),
+  LOG_PRETTY: z.coerce.boolean().default(false),
 });
 
 export const EnvSchema = z.object({
@@ -54,7 +55,10 @@ function getEnv(): z.infer<typeof EnvSchema> {
     process.exit(1);
   }
 
-  return parsedEnv.data!;
+  const parsed = parsedEnv.data!;
+  process.env.LOG_PRETTY = parsed.LOG_PRETTY.toString();
+
+  return parsed;
 }
 
 export type Env = z.infer<typeof EnvSchema>;
