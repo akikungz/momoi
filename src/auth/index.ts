@@ -146,7 +146,12 @@ export const auth = betterAuth({
 });
 
 export const authHandler = new Elysia({ name: "auth.handler", prefix: "/auth" })
-  .mount((req) => auth.handler(new Request(env.BETTER_AUTH_URL?.startsWith("https://") ? "https://" : "http://" + req.url, req)));
+  .mount(
+    (req) => auth.handler(
+      new Request(env.BETTER_AUTH_URL?.startsWith("https://")
+        ? req.url.replace("http://", "https://") : req.url, req),
+    )
+  );
 
 export const authOpenAPI = async (_auth: typeof auth = auth) => {
   let _schema: ReturnType<typeof _auth.api.generateOpenAPISchema>;
