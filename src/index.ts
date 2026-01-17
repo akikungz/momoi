@@ -5,13 +5,21 @@ import { logger } from "./logger";
 
 // Create root app that mounts both auth and api
 const app = new Elysia()
-  .derive(({ request }) => {
+  .derive(({ request, redirect }) => {
     // Manually extract the forwarded proto if you need to 
     // use it for logic outside of Better-Auth
     const protocol = request.headers.get('x-forwarded-proto') || env.BETTER_AUTH_URL?.startsWith('https') ? 'https' : 'http';
+    logger.info(`Request protocol is ${protocol} but request.url is ${request.url}`);
+
+    if (protocol === "https" && request.url.startsWith("http://")) {
+      const httpsURL = request.url.replace("http://", "https://");
+      logger.info(`Redirecting to secure URL: ${httpsURL}`);
+      redirect(httpsURL, 301);
+    }
 
     return {
       protocol,
+      proto: protocol,
     };
   })
   .use(api);
