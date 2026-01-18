@@ -154,15 +154,24 @@ export const betterAuthView = (c: Context) => {
     c.request
   );
 
-  logger.info({
-    msg: `Handling Better-Auth request: ${req.method} ${req.url}`,
-    details: JSON.stringify(req)
-  });
-
   return auth.handler(req);
 }
 
 export const authHandler = new Elysia({ name: "auth.handler", prefix: "/auth" })
+  .onBeforeHandle(({ request }) => {
+    // Look for the headers Cloudflare/Ingress sends
+    const forwardedProto = request.headers.get('x-forwarded-proto');
+    const isHttp = request.url.startsWith('http://');
+
+    if (forwardedProto === 'https' && isHttp) {
+      // We overwrite the URL property so Better Auth sees "https"
+      const secureUrl = request.url.replace('http://', 'https://');
+      Object.defineProperty(request, 'url', {
+        value: secureUrl,
+        writable: false
+      });
+    }
+  })
   .all("*", betterAuthView, { detail: { hide: true, } });
 
 export const authOpenAPI = async (_auth: typeof auth = auth) => {
