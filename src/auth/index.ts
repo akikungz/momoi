@@ -146,12 +146,13 @@ export const auth = betterAuth({
 });
 
 export const betterAuthView = (c: Context) => {
-  return auth.handler({
-    ...c.request,
-    url: env.BETTER_AUTH_URL?.startsWith("https://")
-      ? c.request.url.replace("http://", "https://")
-      : c.request.url,
-  });
+  return auth.handler(
+    new Request(
+      env.BETTER_AUTH_URL?.startsWith("https://")
+        ? c.request.url.replace("http://", "https://")
+        : c.request.url,
+      c.request)
+  );
 }
 
 export const authHandler = new Elysia({ name: "auth.handler", prefix: "/auth" })
