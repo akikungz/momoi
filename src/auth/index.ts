@@ -40,6 +40,7 @@ export const auth = betterAuth({
   },
   advanced: {
     disableCSRFCheck: true,
+    trustedProxyHeaders: true,
     ...(
       env.NODE_ENV === "production"
         ? {
@@ -146,13 +147,19 @@ export const auth = betterAuth({
 });
 
 export const betterAuthView = (c: Context) => {
-  return auth.handler(
-    new Request(
-      env.BETTER_AUTH_URL?.startsWith("https://")
-        ? c.request.url.replace("http://", "https://")
-        : c.request.url,
-      c.request)
+  const req = new Request(
+    env.BETTER_AUTH_URL?.startsWith("https://")
+      ? c.request.url.replace("http://", "https://")
+      : c.request.url,
+    c.request
   );
+
+  logger.info({
+    msg: `Handling Better-Auth request: ${req.method} ${req.url}`,
+    details: JSON.stringify(req)
+  });
+
+  return auth.handler(req);
 }
 
 export const authHandler = new Elysia({ name: "auth.handler", prefix: "/auth" })
