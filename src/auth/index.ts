@@ -1,7 +1,7 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { customSession, openAPI } from "better-auth/plugins";
-import { Elysia } from "elysia";
+import { Elysia, type Context } from "elysia";
 
 import { CacheModule } from "@momoi/cache";
 import { prisma } from "@momoi/database";
@@ -145,13 +145,17 @@ export const auth = betterAuth({
   ],
 });
 
+export const betterAuthView = (c: Context) => {
+  return auth.handler({
+    ...c.request,
+    url: env.BETTER_AUTH_URL?.startsWith("https://")
+      ? c.request.url.replace("http://", "https://")
+      : c.request.url,
+  });
+}
+
 export const authHandler = new Elysia({ name: "auth.handler", prefix: "/auth" })
-  .mount(
-    (req) => auth.handler(
-      new Request(env.BETTER_AUTH_URL?.startsWith("https://")
-        ? req.url.replace("http://", "https://") : req.url, req),
-    )
-  );
+  .all("*", betterAuthView, { detail: { hide: true, } });
 
 export const authOpenAPI = async (_auth: typeof auth = auth) => {
   let _schema: ReturnType<typeof _auth.api.generateOpenAPISchema>;

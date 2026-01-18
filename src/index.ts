@@ -22,6 +22,9 @@ const app = new Elysia()
       proto: protocol,
     };
   })
+  .onBeforeHandle(({ set }) => {
+    set.headers["x-forwarded-proto"] = env.BETTER_AUTH_URL?.startsWith("https") ? "https" : "http";
+  })
   .use(api);
 
 app.listen(env.PORT, ({ port, hostname }) => {
