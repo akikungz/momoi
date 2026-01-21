@@ -20,7 +20,7 @@ export const userRoute = (
     return pick(user, ["id", "email", "name", "role", "image"]);
   }, {
     response: {
-      200: "GetMeResponse",
+      200: "UserGetMeResponse",
     },
     detail: {
       summary: "Get current user",
@@ -31,9 +31,9 @@ export const userRoute = (
   .get("/ssh-keys", async ({ userService, user, query }) => {
     return userService.getSSHKeys(user.id, query.page, query.pageSize);
   }, {
-    query: "GetSSHKeyRequestQuery",
+    query: "UserGetSSHKeyRequestQuery",
     response: {
-      200: "GetSSHKeyResponse",
+      200: "UserGetSSHKeyResponse",
     },
     detail: {
       summary: "Get user SSH keys",
@@ -44,9 +44,9 @@ export const userRoute = (
   .post("/ssh-keys", async ({ userService, user, body }) => {
     return userService.addSSHKey(user.id, body.name, body.publicKey);
   }, {
-    body: "AddSSHKeyRequestBody",
+    body: "UserAddSSHKeyRequestBody",
     response: {
-      200: "AddSSHKeyResponse",
+      200: "UserAddSSHKeyResponse",
     },
     detail: {
       summary: "Add SSH key",
@@ -57,7 +57,7 @@ export const userRoute = (
   .delete("/ssh-keys", async ({ userService, user, body }) => {
     return userService.removeSSHKey(user.id, body.keyIds);
   }, {
-    body: "RemoveSSHKeyRequestBody",
+    body: "UserRemoveSSHKeyRequestBody",
     response: {
       200: t.Number({ description: "Number of SSH keys removed" }),
     },
@@ -67,3 +67,5 @@ export const userRoute = (
       tags: ["User", "SSH Keys"],
     },
   });
+
+

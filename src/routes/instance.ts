@@ -1,4 +1,4 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
 
 import { AuthMacro } from "@momoi/auth";
 import { CacheModule } from "@momoi/cache";
@@ -133,9 +133,7 @@ export const instanceRoute = (
       return await instanceService.createReverseProxy(params.instanceId, body);
     },
     {
-      params: t.Object({
-        instanceId: t.Number({ description: "Unique identifier for the instance" }),
-      }),
+      params: "InstanceIdParams",
       body: "CreateReverseProxyRequestBody",
       response: "CreateReverseProxyResponse",
       detail: {
@@ -151,9 +149,7 @@ export const instanceRoute = (
       return await instanceService.getReverseProxies(params.instanceId);
     },
     {
-      params: t.Object({
-        instanceId: t.Number({ description: "Unique identifier for the instance" }),
-      }),
+      params: "InstanceIdParams",
       response: "GetReverseProxiesResponse",
       detail: {
         summary: "Get reverse proxies",
@@ -234,13 +230,8 @@ export const instanceRoute = (
       );
     },
     {
-      params: t.Object({
-        instanceId: t.Number({ description: "Unique identifier for the instance" }),
-      }),
-      query: t.Object({
-        page: t.Optional(t.Number({ minimum: 1, default: 1 })),
-        pageSize: t.Optional(t.Number({ minimum: 1, maximum: 100, default: 10 })),
-      }),
+      params: "InstanceIdParams",
+      query: "AuditLogsQuery",
       response: {
         200: "GetInstanceAuditLogsResponse",
         403: ErrorResponse,
@@ -262,9 +253,7 @@ export const instanceRoute = (
       });
     },
     {
-      params: t.Object({
-        instanceId: t.Number({ description: "Instance ID to get extended requests for" }),
-      }),
+      params: "InstanceExtendedRequestParams",
       query: "GetExtendedRequestsRequestQuery",
       response: "GetExtendedRequestsResponse",
       detail: {
@@ -287,9 +276,7 @@ export const instanceRoute = (
       });
     },
     {
-      params: t.Object({
-        instanceId: t.Number({ description: "Instance ID to extend" }),
-      }),
+      params: "InstanceExtendedRequestParams",
       body: "CreateInstanceExtendedRequestBody",
       response: {
         200: "CreateExtendedRequestResponse",

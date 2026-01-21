@@ -178,6 +178,22 @@ export const ReprovisionInstanceResponse = t.Object({
   message: t.String({ description: "Success message" }),
 });
 
+// Common params for routes that only need instanceId
+export const InstanceIdParams = t.Object({
+  instanceId: t.Number({ description: "Unique identifier for the instance" }),
+});
+
+// Query params for audit logs
+export const AuditLogsQuery = t.Object({
+  page: t.Optional(t.Number({ minimum: 1, default: 1 })),
+  pageSize: t.Optional(t.Number({ minimum: 1, maximum: 100, default: 10 })),
+});
+
+// Params for extended request with instanceId
+export const InstanceExtendedRequestParams = t.Object({
+  instanceId: t.Number({ description: "Instance ID to get extended requests for" }),
+});
+
 export const instanceModel = new Elysia({ name: "instance.model" })
   .model("GetInstancesRequestQuery", GetInstancesRequestQuery)
   .model("GetInstancesResponse", GetInstancesResponse)
@@ -196,4 +212,8 @@ export const instanceModel = new Elysia({ name: "instance.model" })
   .model("PromoteInstanceResponse", PromoteInstanceResponse)
   .model("GetInstanceAuditLogsResponse", GetInstanceAuditLogsResponse)
   .model("ReprovisionInstanceRequestParams", ReprovisionInstanceRequestParams)
-  .model("ReprovisionInstanceResponse", ReprovisionInstanceResponse);
+  .model("ReprovisionInstanceResponse", ReprovisionInstanceResponse)
+  .model("InstanceIdParams", InstanceIdParams)
+  .model("AuditLogsQuery", AuditLogsQuery)
+  .model("InstanceExtendedRequestParams", InstanceExtendedRequestParams);
+

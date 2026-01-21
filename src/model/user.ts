@@ -54,4 +54,5 @@ export const userModel = new Elysia({ name: "user.model" })
   .model("GetSSHKeyRequestQuery", getSSHKeyRequestQuery)
   .model("AddSSHKeyRequestBody", addSSHKeyRequestBody)
   .model("AddSSHKeyResponse", addSSHKeyResponse)
-  .model("RemoveSSHKeyRequestBody", removeSSHKeyRequestBody);
+  .model("RemoveSSHKeyRequestBody", removeSSHKeyRequestBody)
+  .prefix("model", "User");
