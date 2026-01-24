@@ -184,7 +184,7 @@ export class AcademicService {
 
         const instructor = await this.prisma.platformUser.findUnique({
             where: { id: instructorId },
-            include: INSTRUCTOR_DETAIL_SELECT,
+            select: INSTRUCTOR_DETAIL_SELECT,
         });
 
         if (!instructor) {
@@ -218,7 +218,7 @@ export class AcademicService {
                         set: body.courseIds?.map((id) => ({ id })) ?? undefined,
                     },
                 },
-                include: INSTRUCTOR_DETAIL_SELECT,
+                select: INSTRUCTOR_DETAIL_SELECT,
             });
 
             const affectedCourseIds = new Set([
