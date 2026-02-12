@@ -131,7 +131,14 @@ describe("E2E: Instance Routes", () => {
         const mockInstances = [
           {
             id: 1,
-            ownerId: 1,
+            platformUserId: 1,
+            platformUser: {
+              id: 1,
+              user: {
+                name: "Admin User",
+                email: "admin@example.com",
+              },
+            },
             courseOfferingId: 1,
             status: "ACTIVE",
             provisionStatus: "COMPLETED",
