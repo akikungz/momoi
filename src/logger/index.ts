@@ -47,8 +47,6 @@ interface LogConfig {
   format: "json" | "plain";
   pretty: boolean;
   serviceName: string;
-  lokiUrl?: string;
-  lokiLabels?: Record<string, string>;
 }
 
 function getLogConfig(): LogConfig {
@@ -57,11 +55,6 @@ function getLogConfig(): LogConfig {
     format: (process.env.LOG_FORMAT as "json" | "plain") || "json",
     pretty: process.env.LOG_PRETTY === "true",
     serviceName: process.env.OTEL_SERVICE_NAME || "momoi",
-    lokiUrl: process.env.LOKI_URL,
-    lokiLabels: {
-      app: process.env.OTEL_SERVICE_NAME || "momoi",
-      env: process.env.NODE_ENV || "development",
-    },
   };
 }
 
@@ -93,23 +86,6 @@ function buildTransports() {
       target: "pino/file",
       level: config.level,
       options: { destination: 1 }, // stdout
-    });
-  }
-
-  // Add Loki transport if configured
-  if (config.lokiUrl) {
-    targets.push({
-      target: "pino-loki",
-      level: config.level,
-      options: {
-        host: config.lokiUrl,
-        labels: config.lokiLabels,
-        batching: true,
-        interval: 5, // seconds
-        replaceTimestamp: false,
-        // Include trace context in Loki labels for correlation
-        propsToLabels: ["traceId", "spanId", "level"],
-      },
     });
   }
 

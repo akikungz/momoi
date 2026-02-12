@@ -43,8 +43,6 @@ This project uses a `.env` file for local configuration. The `.env.example` file
   - Example: `momoi`
 - `OTEL_EXPORTER_OTLP_ENDPOINT` — OTLP exporter endpoint.
   - Example: `http://localhost:4317`
-- `LOKI_URL` — Loki endpoint for log shipping.
-  - Example: `http://localhost:3100`
 - `LOG_LEVEL` — Logging level.
   - Example: `info`
 - `LOG_FORMAT` — Log output format.

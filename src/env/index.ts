@@ -32,9 +32,6 @@ export const S3EnvSchema = z.object({
 export const TelemetryEnvSchema = z.object({
   OTEL_SERVICE_NAME: z.string().default("momoi"),
   OTEL_EXPORTER_OTLP_ENDPOINT: z.url().optional(),
-  LOKI_URL: z.url({ pattern: /^http(?:s)?:\/\// }).optional(),
-  LOKI_USERNAME: z.string().optional(),
-  LOKI_PASSWORD: z.string().optional(),
   LOG_LEVEL: z
     .enum(["debug", "info", "warn", "error"])
     .default("info"),

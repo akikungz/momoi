@@ -410,7 +410,6 @@ Add these to your `.env` file:
 # Telemetry
 OTEL_SERVICE_NAME=momoi
 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
-LOKI_URL=http://localhost:3100
 
 # Logging
 LOG_LEVEL=info
@@ -497,10 +496,10 @@ Defined in `src/metrics/business.ts`:
 
 #### Academic Metrics
 
-| Metric                       | Type  | Labels                    | Meaning               |
-| ---------------------------- | ----- | ------------------------- | --------------------- |
+| Metric                       | Type  | Labels                    | Meaning                 |
+| ---------------------------- | ----- | ------------------------- | ----------------------- |
 | `momoi_active_courses_count` | Gauge | `semester`                | Active course offerings |
-| `momoi_instances_per_course` | Gauge | `course_code`, `semester` | Instances per course  |
+| `momoi_instances_per_course` | Gauge | `course_code`, `semester` | Instances per course    |
 
 > Note: `http_active_connections` is currently implemented as a **Counter**. If you need a true live gauge, consider converting this to a `Gauge` in the future.
 
@@ -524,15 +523,15 @@ These create spans for SQL queries and Redis commands, which appear as child spa
 
 ### Trace identifiers in logs
 The logger injects `traceId` and `spanId` into all logs (see `src/logger/index.ts`).
-If Loki is configured, `traceId` and `spanId` are also included as labels for easy navigation from logs → traces.
+Logs are always written to console (stdout), so Kubernetes log collectors (for example Promtail) can scrape and ship them to Loki.
 
 ---
 
-## 🧾 Logs (Pino → Loki)
+## 🧾 Logs (Pino → Console)
 
-Logging is handled in `src/logger/index.ts` with support for Loki:
+Logging is handled in `src/logger/index.ts` and is emitted directly to console:
 
-- If `LOKI_URL` is set, logs are shipped to Loki via `pino-loki`.
+- Logs are always written to stdout.
 - Trace context is attached to every log entry.
 - Request logs and error logs are generated in `src/api.ts` inside `.trace()`.
 
@@ -796,7 +795,6 @@ These values control observability behavior:
 | ----------------------------- | -------------------------------------------- |
 | `OTEL_SERVICE_NAME`           | Service name used in traces/logs             |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP gRPC endpoint for traces                |
-| `LOKI_URL`                    | Loki log ingestion endpoint                  |
 | `LOG_LEVEL`                   | Log level (`debug`, `info`, `warn`, `error`) |
 | `LOG_FORMAT`                  | Log format (`json` or `plain`)               |
 | `LOG_PRETTY`                  | Pretty logs in dev (`true`/`false`)          |
@@ -807,7 +805,7 @@ These values control observability behavior:
 
 - **No metrics in Prometheus:** ensure `/metrics` is reachable and scraped.
 - **No traces:** confirm `OTEL_EXPORTER_OTLP_ENDPOINT` is reachable and OTLP gRPC is enabled.
-- **No logs in Loki:** verify `LOKI_URL` and that Loki is accepting JSON payloads.
+- **No logs in Loki:** verify your log collector (eg. Promtail) is scraping pod stdout and forwarding to Loki.
 - **Missing trace/log correlation:** check `traceId`/`spanId` labels in Loki and `OTEL_SERVICE_NAME` consistency.
 
 ---
