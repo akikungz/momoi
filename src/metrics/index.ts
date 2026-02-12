@@ -38,13 +38,27 @@ export const activeConnections = new Counter({
   registers: [metricsRegistry],
 });
 
+const resolveRoutePath = (route: string | undefined, request: Request) => {
+  if (route) return route;
+
+  try {
+    return new URL(request.url).pathname;
+  } catch {
+    return "unknown";
+  }
+};
+
 /**
  * Elysia plugin that exposes Prometheus metrics endpoint
  * and collects HTTP request metrics
  */
 export const metricsPlugin = new Elysia({ name: "momoi.metrics" })
   // Metrics endpoint
-  .get("/metrics", async ({ set }) => {
+  .get("/metrics", async ({ request, set }) => {
+    httpRequestTotal
+      .labels(request.method, "/metrics", "200")
+      .inc();
+
     set.headers["content-type"] = metricsRegistry.contentType;
     return await metricsRegistry.metrics();
   })
@@ -52,7 +66,9 @@ export const metricsPlugin = new Elysia({ name: "momoi.metrics" })
   .onAfterHandle(({ request, set, route }) => {
     const method = request.method;
     const statusCode = typeof set.status === "number" ? set.status : 200;
-    const routePath = route || "unknown";
+    const routePath = resolveRoutePath(route, request);
+
+    if (routePath === "/metrics") return;
 
     httpRequestTotal.labels(method, routePath, String(statusCode)).inc();
   })
@@ -65,7 +81,7 @@ export const metricsPlugin = new Elysia({ name: "momoi.metrics" })
       const method = context.request.method;
       const statusCode =
         typeof context.set.status === "number" ? context.set.status : 200;
-      const routePath = context.route || "unknown";
+      const routePath = resolveRoutePath(context.route, context.request);
 
       httpRequestDuration
         .labels(method, routePath, String(statusCode))

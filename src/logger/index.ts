@@ -249,14 +249,6 @@ function createLogger(): Logger {
     },
   };
 
-  // In test environment, use minimal logging
-  if (process.env.NODE_ENV === "test") {
-    return pino({
-      ...loggerOptions,
-      level: "silent",
-    });
-  }
-
   // Create transport if we have targets
   if (targets.length > 0) {
     const pinoTransport = transport({
