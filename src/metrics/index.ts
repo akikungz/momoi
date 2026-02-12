@@ -5,6 +5,9 @@ import { metricsRegistry } from "./registry";
 // Re-export registry for use in other modules
 export { metricsRegistry } from "./registry";
 
+// Re-export business metrics
+export * from "./business";
+
 // Custom metrics for HTTP requests
 export const httpRequestDuration = new Histogram({
   name: "http_request_duration_seconds",

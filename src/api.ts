@@ -5,6 +5,8 @@ import { openapi } from "@elysiajs/openapi";
 import { opentelemetry } from "@elysiajs/opentelemetry";
 import { serverTiming } from "@elysiajs/server-timing";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-grpc";
+import { IORedisInstrumentation } from "@opentelemetry/instrumentation-ioredis";
+import { PgInstrumentation } from "@opentelemetry/instrumentation-pg";
 import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-base";
 
 import { authHandler, authMacro, authOpenAPI } from "./auth";
@@ -60,6 +62,7 @@ export const api = new Elysia({
   .use(
     opentelemetry({
       serviceName: env.OTEL_SERVICE_NAME,
+      instrumentations: [new PgInstrumentation(), new IORedisInstrumentation()],
       spanProcessors: [
         new BatchSpanProcessor(
           new OTLPTraceExporter({
