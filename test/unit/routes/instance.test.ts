@@ -101,6 +101,13 @@ describe("Instance Route - Admin", () => {
     const mockInstances = [
       {
         id: 1,
+        platformUser: {
+          id: 1,
+          user: {
+            name: "Student User",
+            email: "student@example.com",
+          },
+        },
         courseOffering: {
           course: {
             code: mockCourse.code,
@@ -147,6 +154,7 @@ describe("Instance Route - Admin", () => {
     expect(response.data).toHaveProperty("currentPage");
     expect(response.data).toHaveProperty("pageSize");
     expect(response.data!.values).toHaveLength(1);
+    expect(response.data!.values[0]).toHaveProperty("owner.email", "student@example.com");
     expect(response.data!.totalItems).toBe(1);
   });
 
@@ -218,6 +226,13 @@ describe("Instance Route - Admin", () => {
     const mockInstances = [
       {
         id: 1,
+        platformUser: {
+          id: 1,
+          user: {
+            name: "Student User",
+            email: "student@example.com",
+          },
+        },
         courseOffering: {
           course: {
             code: mockCourse.code,
@@ -253,6 +268,7 @@ describe("Instance Route - Admin", () => {
 
     expect(response.status).toBe(200);
     expect(response.data!.values).toHaveLength(1);
+    expect(response.data!.values[0]).toHaveProperty("owner.email", "student@example.com");
     expect(mockPrisma.instance.count).toHaveBeenCalled();
   });
 
@@ -265,6 +281,13 @@ describe("Instance Route - Admin", () => {
 
     const mockInstanceData = {
       id: 1,
+      platformUser: {
+        id: 1,
+        user: {
+          name: "Student User",
+          email: "student@example.com",
+        },
+      },
       courseOffering: {
         course: {
           code: mockCourse.code,
@@ -306,6 +329,7 @@ describe("Instance Route - Admin", () => {
     expect(response.status).toBe(200);
     expect(response.data).toHaveProperty("id", 1);
     expect(response.data).toHaveProperty("status", "ACTIVE");
+    expect(response.data).toHaveProperty("owner.email", "student@example.com");
     expect(response.data).toHaveProperty("reverseProxy");
     expect(response.data!.reverseProxy).toHaveLength(1);
     expect(response.data!.reverseProxy[0]).toHaveProperty("targetPort", 3000);
@@ -344,8 +368,31 @@ describe("Instance Route - Admin", () => {
   it("should get admin instances", async () => {
     const client = treaty(instanceRoute(mockPrisma, mockCache as any, mockAdminAuth, mockQueue as any));
 
-    mockPrisma.instance.count.mockResolvedValueOnce(5);
-    mockPrisma.instance.findMany.mockResolvedValueOnce([]);
+    mockPrisma.instance.count.mockResolvedValueOnce(1);
+    mockPrisma.instance.findMany.mockResolvedValueOnce([
+      {
+        id: 10,
+        platformUser: {
+          id: 2,
+          user: {
+            name: "Owner Admin View",
+            email: "owner@example.com",
+          },
+        },
+        courseOffering: null,
+        status: "ACTIVE",
+        provisionStatus: "COMPLETED",
+        pveVM: null,
+        cpus: 2,
+        memoryMB: 4096,
+        diskGB: 50,
+        pveTemplate: {
+          name: "Ubuntu 22.04",
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ]);
 
     const response = await client.instances.admin.get({
       query: {
@@ -355,7 +402,9 @@ describe("Instance Route - Admin", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(response.data!.totalItems).toBe(5);
+    expect(response.data!.totalItems).toBe(1);
+    expect(response.data!.values).toHaveLength(1);
+    expect(response.data!.values[0]).toHaveProperty("owner.email", "owner@example.com");
   });
 
   it("should handle cache for get instances", async () => {

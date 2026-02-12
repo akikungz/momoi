@@ -44,11 +44,26 @@ function mapVmDetails(
 }
 
 /**
+ * Maps owner details to API response format
+ */
+function mapOwner(
+    platformUserId: number,
+    platformUser?: { id: number; user: { name: string; email: string } } | null
+): { id: number; name: string; email: string } {
+    return {
+        id: platformUser?.id ?? platformUserId,
+        name: platformUser?.user?.name ?? 'Unknown Owner',
+        email: platformUser?.user?.email ?? 'unknown-owner@momoi.local',
+    };
+}
+
+/**
  * Maps a single instance from Prisma result to list item response format
  */
 export function mapInstanceToListItem(instance: InstanceListResult): Static<typeof GetInstancesResponse>['values'][number] {
     return {
         id: instance.id,
+        owner: mapOwner(instance.platformUserId, instance.platformUser),
         courseOffering: mapCourseOffering(instance.courseOffering),
         status: instance.status,
         vmDetails: mapVmDetails(
@@ -88,6 +103,7 @@ export function mapInstancesToResponse(
 export function mapInstanceToDetail(instance: InstanceDetailResult): Static<typeof GetInstanceResponse> {
     return {
         id: instance.id,
+        owner: mapOwner(instance.platformUserId, instance.platformUser),
         courseOffering: mapCourseOffering(instance.courseOffering),
         status: instance.status,
         vmDetails: mapVmDetails(

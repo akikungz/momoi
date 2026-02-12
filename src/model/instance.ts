@@ -43,6 +43,11 @@ export const VMDetails = t.Object({
 
 export const InstancesData = t.Object({
   id: t.Number({ description: "Unique identifier for the instance" }),
+  owner: t.Object({
+    id: t.Number({ description: "Platform user ID of the instance owner" }),
+    name: t.String({ description: "Name of the instance owner" }),
+    email: t.String({ description: "Email of the instance owner" }),
+  }, { description: "Details of the instance owner" }),
   courseOffering: t.Optional(courseOfferingDetails),
   status: InstanceStatus,
   vmDetails: t.Optional(VMDetails),

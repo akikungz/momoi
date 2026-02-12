@@ -152,6 +152,13 @@ describe("InstanceService", () => {
       const mockInstances = [
         {
           id: 1,
+          platformUser: {
+            id: scenario.platformUser.id,
+            user: {
+              name: scenario.user.name,
+              email: scenario.user.email,
+            },
+          },
           courseOffering: {
             course: {
               code: scenario.course.code,
@@ -185,6 +192,7 @@ describe("InstanceService", () => {
 
       expect(result.values).toHaveLength(1);
       expect(result.values[0].id).toBe(1);
+      expect(result.values[0].owner.email).toBe(scenario.user.email);
       expect(result.totalItems).toBe(1);
       expect(result.currentPage).toBe(1);
     });
@@ -257,6 +265,13 @@ describe("InstanceService", () => {
       const mockInstances = [
         {
           id: 1,
+          platformUser: {
+            id: 1,
+            user: {
+              name: "Instructor User",
+              email: "instructor@example.com",
+            },
+          },
           courseOffering: {
             course: {
               code: "CS101",
@@ -340,6 +355,13 @@ describe("InstanceService", () => {
       const mockInstances = [
         {
           id: 1,
+          platformUser: {
+            id: 1,
+            user: {
+              name: "Student User",
+              email: "student@example.com",
+            },
+          },
           courseOffering: {
             course: {
               code: "CS101",
@@ -430,6 +452,13 @@ describe("InstanceService", () => {
       const instanceId = 1;
       const mockInstance = {
         id: 1,
+        platformUser: {
+          id: 1,
+          user: {
+            name: "Student User",
+            email: "student@example.com",
+          },
+        },
         courseOffering: {
           course: {
             code: "CS101",
@@ -466,6 +495,7 @@ describe("InstanceService", () => {
       const result = await instanceService.getInstanceById(instanceId);
 
       expect(result.id).toBe(1);
+      expect(result.owner.email).toBe("student@example.com");
       expect(result.reverseProxy).toHaveLength(2);
       expect(result.reverseProxy[0].targetPort).toBe(8080);
     });
@@ -524,6 +554,13 @@ describe("InstanceService", () => {
       const instanceId = 1;
       const mockInstance = {
         id: 1,
+        platformUser: {
+          id: 1,
+          user: {
+            name: "Student User",
+            email: "student@example.com",
+          },
+        },
         courseOffering: null,
         status: "PENDING",
         pveVM: null,

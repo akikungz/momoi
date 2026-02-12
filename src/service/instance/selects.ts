@@ -44,10 +44,27 @@ export const PVE_TEMPLATE_SELECT = {
 } as const;
 
 /**
+ * Shared select clause for instance owner details
+ */
+export const INSTANCE_OWNER_SELECT = {
+    select: {
+        id: true,
+        user: {
+            select: {
+                name: true,
+                email: true,
+            }
+        }
+    }
+} as const;
+
+/**
  * Base select clause for instance list queries
  */
 export const INSTANCE_LIST_SELECT = {
     id: true,
+    platformUserId: true,
+    platformUser: INSTANCE_OWNER_SELECT,
     courseOffering: COURSE_OFFERING_SELECT,
     status: true,
     pveVM: PVE_VM_SELECT,
