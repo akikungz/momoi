@@ -1,17 +1,24 @@
 import { PrismaClient } from "@momoi/database";
 import { ServiceError } from "../../utils/error";
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { Upload } from "@aws-sdk/lib-storage";
+import { env } from "../../env";
 
 export class StorageService {
-  constructor(private prisma: PrismaClient) {}
+  private s3Client: S3Client;
+  private bucketName: string;
 
-  /**
-   * RustFS Integration placeholder
-   * In a real implementation, this would interact with RustFS via its API or FSY
-   */
-  private async uploadToRustFS(file: File): Promise<string> {
-    // RustFS Logic here
-    const storagePath = `/rustfs/storage/${Date.now()}_${file.name}`;
-    return storagePath;
+  constructor(private prisma: PrismaClient) {
+    this.bucketName = env.S3_BUCKET_NAME || "momoi-storage";
+    this.s3Client = new S3Client({
+      endpoint: env.S3_ENDPOINT, // RustFS or S3 compatible endpoint
+      region: env.S3_REGION || "auto",
+      credentials: {
+        accessKeyId: env.S3_ACCESS_KEY_ID || "",
+        secretAccessKey: env.S3_SECRET_ACCESS_KEY || "",
+      },
+      forcePathStyle: true, // Often required for non-AWS S3 providers
+    });
   }
 
   async listFiles(userId: number, parentId?: string, page = 1, pageSize = 20) {
@@ -53,44 +60,75 @@ export class StorageService {
   }
 
   async uploadFile(userId: number, file: File, parentId?: string) {
-    const storagePath = await this.uploadToRustFS(file);
+    const fileId = crypto.randomUUID();
+    const storagePath = `users/${userId}/${fileId}/${file.name}`;
 
-    return await this.prisma.$transaction(async (tx) => {
-      const platformFile = await tx.platformFile.create({
-        data: {
-          name: file.name,
-          type: "FILE",
-          sizeBytes: file.size,
-          platformUserId: userId,
-          parentId: parentId || null,
+    try {
+      const parallelUploads3 = new Upload({
+        client: this.s3Client,
+        params: {
+          Bucket: this.bucketName,
+          Key: storagePath,
+          Body: Buffer.from(await file.arrayBuffer()),
+          ContentType: file.type,
         },
       });
 
-      await tx.platformFileVersion.create({
-        data: {
-          platformFileId: platformFile.id,
-          versionNumber: 1,
-          sizeBytes: file.size,
-          storagePath: storagePath,
-        },
-      });
+      await parallelUploads3.done();
 
-      return platformFile;
-    });
+      return await this.prisma.$transaction(async (tx) => {
+        const platformFile = await tx.platformFile.create({
+          data: {
+            id: fileId,
+            name: file.name,
+            type: "FILE",
+            sizeBytes: file.size,
+            platformUserId: userId,
+            parentId: parentId || null,
+          },
+        });
+
+        await tx.platformFileVersion.create({
+          data: {
+            platformFileId: platformFile.id,
+            versionNumber: 1,
+            sizeBytes: file.size,
+            storagePath: storagePath,
+          },
+        });
+
+        return platformFile;
+      });
+    } catch (error) {
+      console.error("S3 Upload Error:", error);
+      throw new ServiceError(500, "Failed to upload file to storage");
+    }
   }
 
   async deleteFile(userId: number, fileId: string) {
     const file = await this.prisma.platformFile.findUnique({
       where: { id: fileId },
+      include: { platformFileVersions: true }
     });
 
     if (!file) throw new ServiceError(404, "File not found");
     if (file.platformUserId !== userId) throw new ServiceError(403, "Forbidden");
 
-    // RustFS: In real usage, we would also trigger a deletion in RustFS here
+    try {
+      // Delete all versions from S3
+      for (const version of file.platformFileVersions) {
+        await this.s3Client.send(new DeleteObjectCommand({
+          Bucket: this.bucketName,
+          Key: version.storagePath,
+        }));
+      }
 
-    return await this.prisma.platformFile.delete({
-      where: { id: fileId },
-    });
+      return await this.prisma.platformFile.delete({
+        where: { id: fileId },
+      });
+    } catch (error) {
+      console.error("S3 Delete Error:", error);
+      throw new ServiceError(500, "Failed to delete file from storage");
+    }
   }
 }
