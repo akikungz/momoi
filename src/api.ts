@@ -19,6 +19,7 @@ import { academicRoute } from "./routes/academic";
 import { autocompleteRoute } from "./routes/autocomplete";
 import { instanceRoute } from "./routes/instance";
 import { requestRoute } from "./routes/request";
+import { storageRoute } from "./routes/storage";
 import { userRoute } from "./routes/user";
 import { ServiceError } from "./utils/error";
 
@@ -138,6 +139,7 @@ export const api = new Elysia({
   .use(instanceRoute(prisma, cache, authMacro, queue))
   .use(academicRoute(prisma, cache, authMacro))
   .use(requestRoute(prisma, cache, authMacro, queue))
+  .use(storageRoute(prisma, authMacro))
   .use(autocompleteRoute(prisma, cache, authMacro));
 
 export type Api = typeof api;
