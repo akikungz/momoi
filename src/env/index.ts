@@ -22,11 +22,14 @@ export const DatabaseEnvSchema = z.object({
 });
 
 export const S3EnvSchema = z.object({
+  STORAGE_PROVIDER: z.enum(["database", "s3"]).default("database"),
   S3_ENDPOINT: z.url({ pattern: /^http(?:s)?:\/\// }).optional(),
   S3_ACCESS_KEY_ID: z.string().optional(),
   S3_SECRET_ACCESS_KEY: z.string().optional(),
   S3_REGION: z.string().optional(),
   S3_BUCKET_NAME: z.string().optional(),
+  S3_FORCE_PATH_STYLE: z.coerce.boolean().default(true),
+  S3_PRESIGN_EXPIRES_SECONDS: z.coerce.number().int().min(60).max(604800).default(900),
 });
 
 export const TelemetryEnvSchema = z.object({

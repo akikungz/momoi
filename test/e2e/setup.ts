@@ -10,7 +10,9 @@ import { academicRoute } from "@momoi/routes/academic";
 import { autocompleteRoute } from "@momoi/routes/autocomplete";
 import { instanceRoute } from "@momoi/routes/instance";
 import { requestRoute } from "@momoi/routes/request";
+import { storageRoute } from "@momoi/routes/storage";
 import { userRoute } from "@momoi/routes/user";
+import type { ObjectStorageProvider } from "@momoi/storage-provider";
 import { ServiceError } from "@momoi/utils/error";
 
 import { createMockPrisma, resetMockFactoryCounters } from "@test/mocks";
@@ -18,6 +20,33 @@ import { createMockPrisma, resetMockFactoryCounters } from "@test/mocks";
 import type { MockAuth } from "@momoi/auth/mock";
 
 export type TestRole = "admin" | "instructor" | "student" | "unauthenticated";
+
+function createMockObjectStorageProvider(): ObjectStorageProvider {
+  return {
+    kind: "s3",
+    enabled: true,
+    createObjectKey(ownerId: number, filename?: string) {
+      return `user/${ownerId}/objects/e2e/${filename ?? "file.bin"}`;
+    },
+    async createUploadUrl(objectKey: string) {
+      return {
+        objectKey,
+        url: `https://e2e.storage.local/upload/${encodeURIComponent(objectKey)}`,
+        expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+      };
+    },
+    async createDownloadUrl(objectKey: string) {
+      return {
+        objectKey,
+        url: `https://e2e.storage.local/download/${encodeURIComponent(objectKey)}`,
+        expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+      };
+    },
+    async deleteObject() {
+      return;
+    },
+  };
+}
 
 /**
  * Get the appropriate mock auth based on role
@@ -45,6 +74,7 @@ export function createTestApp(role: TestRole = "admin") {
   const mockCache = new MockCache();
   const mockQueue = new MockQueueModule();
   const mockAuth = getMockAuth(role);
+  const mockObjectStorage = createMockObjectStorageProvider();
 
   const app = new Elysia({ name: "test.app", prefix: "/api" })
     .onError(({ error, status }) => {
@@ -62,6 +92,7 @@ export function createTestApp(role: TestRole = "admin") {
     .use(instanceRoute(mockPrisma, mockCache as any, mockAuth, mockQueue as any))
     .use(academicRoute(mockPrisma, mockCache as any, mockAuth))
     .use(requestRoute(mockPrisma, mockCache as any, mockAuth, mockQueue as any))
+    .use(storageRoute(mockPrisma, mockCache as any, mockAuth, mockObjectStorage))
     .use(autocompleteRoute(mockPrisma, mockCache as any, mockAuth));
 
   return {

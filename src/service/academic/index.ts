@@ -213,7 +213,7 @@ export class AcademicService {
             const updated = await this.prisma.platformUser.update({
                 where: { id: instructorId },
                 data: {
-                    role: existing.id !== instructorId ? body.role ?? undefined : undefined,
+                    role: body.role ?? undefined,
                     courses: {
                         set: body.courseIds?.map((id) => ({ id })) ?? undefined,
                     },

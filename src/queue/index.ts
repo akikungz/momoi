@@ -13,13 +13,11 @@ import type {
 } from './types';
 
 export class QueueModule {
-  private redis: Redis;
-
   public provisionInstanceQueue: Queue<ProvisionInstanceJobData, ProvisionInstanceJobResult>;
   public deprovisionInstanceQueue: Queue<DeprovisionInstanceJobData, DeprovisionInstanceJobResult>;
   public toggleInstanceStatusQueue: Queue<ToggleInstanceStatusJobData, ToggleInstanceStatusJobResult>;
 
-  constructor() {
+  constructor(base_key: string = env.NODE_ENV) {
     // Initialize Redis connection
     if (!env.REDIS_URL) {
       throw new Error("REDIS_URL is not defined in environment variables");
@@ -33,22 +31,20 @@ export class QueueModule {
       db: redisUrl.pathname ? parseInt(redisUrl.pathname.slice(1), 10) : 0,
     };
 
-    this.redis = new Redis(redisConfig);
-
     // Initialize queues
-    this.provisionInstanceQueue = new Queue<ProvisionInstanceJobData, ProvisionInstanceJobResult>(
-      'provision-instance',
-      { connection: this.redis, defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 2000 } } }
+    this.provisionInstanceQueue = new Queue<ProvisionInstanceJobData, ProvisionInstanceJobResult, string, ProvisionInstanceJobData, ProvisionInstanceJobResult, string>(
+      `${base_key}_provision-instance`,
+      { connection: redisConfig, defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 2000 } } }
     );
 
-    this.deprovisionInstanceQueue = new Queue<DeprovisionInstanceJobData, DeprovisionInstanceJobResult>(
-      'deprovision-instance',
-      { connection: this.redis, defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 2000 } } }
+    this.deprovisionInstanceQueue = new Queue<DeprovisionInstanceJobData, DeprovisionInstanceJobResult, string, DeprovisionInstanceJobData, DeprovisionInstanceJobResult, string>(
+      `${base_key}_deprovision-instance`,
+      { connection: redisConfig, defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 2000 } } }
     );
 
-    this.toggleInstanceStatusQueue = new Queue<ToggleInstanceStatusJobData, ToggleInstanceStatusJobResult>(
-      'toggle-instance-status',
-      { connection: this.redis, defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 2000 } } }
+    this.toggleInstanceStatusQueue = new Queue<ToggleInstanceStatusJobData, ToggleInstanceStatusJobResult, string, ToggleInstanceStatusJobData, ToggleInstanceStatusJobResult, string>(
+      `${base_key}_toggle-instance-status`,
+      { connection: redisConfig, defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 2000 } } }
     );
   }
 
@@ -56,6 +52,5 @@ export class QueueModule {
     await this.provisionInstanceQueue.close();
     await this.deprovisionInstanceQueue.close();
     await this.toggleInstanceStatusQueue.close();
-    await this.redis.quit();
   }
 }

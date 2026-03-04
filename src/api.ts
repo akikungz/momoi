@@ -19,11 +19,14 @@ import { academicRoute } from "./routes/academic";
 import { autocompleteRoute } from "./routes/autocomplete";
 import { instanceRoute } from "./routes/instance";
 import { requestRoute } from "./routes/request";
+import { storageRoute } from "./routes/storage";
+import { createObjectStorageProvider } from "./storage-provider";
 import { userRoute } from "./routes/user";
 import { ServiceError } from "./utils/error";
 
 const cache = new CacheModule();
 const queue = new QueueModule();
+const objectStorage = createObjectStorageProvider();
 
 export const api = new Elysia({
   name: "momoi.api", prefix: "/api", cookie: {
@@ -138,6 +141,7 @@ export const api = new Elysia({
   .use(instanceRoute(prisma, cache, authMacro, queue))
   .use(academicRoute(prisma, cache, authMacro))
   .use(requestRoute(prisma, cache, authMacro, queue))
+  .use(storageRoute(prisma, cache, authMacro, objectStorage))
   .use(autocompleteRoute(prisma, cache, authMacro));
 
 export type Api = typeof api;

@@ -155,6 +155,12 @@ describe("AcademicService", () => {
 
       expect(result.role).toBe("ADMIN");
       expect(result.courses[0].id).toBe(course.id);
+      expect(mockPrisma.platformUser.update).toHaveBeenCalledWith(expect.objectContaining({
+        where: { id: 1 },
+        data: expect.objectContaining({
+          role: "ADMIN",
+        }),
+      }));
       expect(mockCache.deleteCacheByPattern).toHaveBeenCalledWith('academic:instructors:*');
       expect(mockCache.deleteCacheByPattern).toHaveBeenCalledWith('academic:instructor:1');
       expect(mockCache.deleteCacheByPattern).toHaveBeenCalledWith('academic:course:5');
