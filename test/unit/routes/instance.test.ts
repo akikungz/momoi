@@ -312,6 +312,7 @@ describe("Instance Route - Admin", () => {
       pveTemplate: {
         name: mockTemplate.name,
       },
+      defaultPassword: "from-consumer-456",
       instanceReverseProxies: [
         {
           id: 1,
@@ -330,6 +331,8 @@ describe("Instance Route - Admin", () => {
     expect(response.data).toHaveProperty("id", 1);
     expect(response.data).toHaveProperty("status", "ACTIVE");
     expect(response.data).toHaveProperty("owner.email", "student@example.com");
+    expect(response.data).toHaveProperty("defaultUser", "user");
+    expect(response.data).toHaveProperty("defaultPassword", "from-consumer-456");
     expect(response.data).toHaveProperty("reverseProxy");
     expect(response.data!.reverseProxy).toHaveLength(1);
     expect(response.data!.reverseProxy[0]).toHaveProperty("targetPort", 3000);

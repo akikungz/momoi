@@ -482,6 +482,7 @@ describe("InstanceService", () => {
         pveTemplate: {
           name: "Ubuntu 22.04",
         },
+        defaultPassword: "generated-pass-123",
         instanceReverseProxies: [
           { id: 1, targetPort: 8080 },
           { id: 2, targetPort: 8443 },
@@ -496,6 +497,8 @@ describe("InstanceService", () => {
 
       expect(result.id).toBe(1);
       expect(result.owner.email).toBe("student@example.com");
+      expect(result.defaultUser).toBe("user");
+      expect(result.defaultPassword).toBe("generated-pass-123");
       expect(result.reverseProxy).toHaveLength(2);
       expect(result.reverseProxy[0].targetPort).toBe(8080);
     });
@@ -568,6 +571,7 @@ describe("InstanceService", () => {
         memoryMB: 4096,
         diskGB: 50,
         pveTemplate: null,
+        defaultPassword: null,
         instanceReverseProxies: [
           { id: 5, targetPort: 3000 },
         ],
@@ -579,6 +583,8 @@ describe("InstanceService", () => {
 
       const result = await instanceService.getInstanceById(instanceId);
 
+      expect(result.defaultUser).toBe("user");
+      expect(result.defaultPassword).toBeUndefined();
       expect(result.reverseProxy).toHaveLength(1);
       expect(result.reverseProxy[0].id).toBe(5);
       expect(result.reverseProxy[0].targetPort).toBe(3000);

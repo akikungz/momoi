@@ -76,6 +76,8 @@ export const GetInstancesResponse = t.Object({
 
 export const GetInstanceResponse = t.Object({
   ...InstancesData.properties,
+  defaultUser: t.String({ description: "Default username for instance login" }),
+  defaultPassword: t.Optional(t.String({ description: "Default password generated during provisioning" })),
   reverseProxy: t.Array(
     t.Object({
       id: t.Number({ description: "Unique identifier for the reverse proxy configuration" }),

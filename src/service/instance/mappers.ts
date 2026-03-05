@@ -114,6 +114,8 @@ export function mapInstanceToDetail(instance: InstanceDetailResult): Static<type
             instance.diskGB
         ),
         provisionStatus: instance.provisionStatus,
+        defaultUser: 'user',
+        defaultPassword: instance.defaultPassword ?? undefined,
         reverseProxy: instance.instanceReverseProxies.map(proxy => ({
             id: proxy.id,
             targetPort: proxy.targetPort,

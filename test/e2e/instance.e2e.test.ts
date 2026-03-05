@@ -273,6 +273,7 @@ describe("E2E: Instance Routes", () => {
             pveNetworkIP: { ipAddress: "192.168.1.100" },
           },
           pveTemplate: { name: "Ubuntu 22.04" },
+          defaultPassword: "db-generated-password",
           instanceReverseProxies: [],
         });
 
@@ -282,6 +283,8 @@ describe("E2E: Instance Routes", () => {
         expect(response.data).toBeDefined();
         expect(response.data!.id).toBe(1);
         expect(response.data!.status).toBe("ACTIVE");
+        expect(response.data!.defaultUser).toBe("user");
+        expect(response.data!.defaultPassword).toBe("db-generated-password");
       });
     });
   });

@@ -241,28 +241,30 @@ model PVEVM {
 }
 
 model Instance {
-  id                     Int                     @id @default(autoincrement())
-  platformUserId         Int
-  pveVMId                Int?
-  pveTemplateId          Int
-  cpus                   Int
-  memoryMB               Int
-  diskGB                 Int
-  courseOfferingId       Int?
-  requestId              Int?                    @unique
-  status                 InstanceStatus          @default(PENDING)
-  provisionStatus        InstanceProvisionStatus @default(NOT_STARTED)
-  provisionError         String?
-  createdAt              DateTime                @default(now())
-  updatedAt              DateTime                @updatedAt
-  semesterId             Int?
+  id               Int                     @id @default(autoincrement())
+  platformUserId   Int
+  pveVMId          Int?
+  pveTemplateId    Int
+  cpus             Int
+  memoryMB         Int
+  diskGB           Int
+  courseOfferingId Int?
+  requestId        Int?                    @unique
+  semesterId       Int?
+  status           InstanceStatus          @default(PENDING)
+  provisionStatus  InstanceProvisionStatus @default(NOT_STARTED)
+  provisionError   String?
+  defaultPassword  String?
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
   extendedRequests       ExtendedRequest[]
-  courseOffering         CourseOffering?         @relation(fields: [courseOfferingId], references: [id], onDelete: Restrict)
-  platformUser           PlatformUser            @relation(fields: [platformUserId], references: [id])
-  pveTemplate            PVETemplate             @relation(fields: [pveTemplateId], references: [id])
-  pveVM                  PVEVM?                  @relation(fields: [pveVMId], references: [id])
-  request                Request?                @relation(fields: [requestId], references: [id], onDelete: Restrict)
-  semester               Semester?               @relation(fields: [semesterId], references: [id])
+  courseOffering         CourseOffering?        @relation(fields: [courseOfferingId], references: [id], onDelete: Restrict)
+  platformUser           PlatformUser           @relation(fields: [platformUserId], references: [id])
+  pveTemplate            PVETemplate            @relation(fields: [pveTemplateId], references: [id])
+  pveVM                  PVEVM?                 @relation(fields: [pveVMId], references: [id])
+  request                Request?               @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  semester               Semester?              @relation(fields: [semesterId], references: [id])
   instanceAuditLogs      InstanceAuditLog[]
   instanceReverseProxies InstanceReverseProxy[]
 

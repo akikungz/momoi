@@ -82,6 +82,7 @@ export const INSTANCE_LIST_SELECT = {
  */
 export const INSTANCE_DETAIL_SELECT = {
     ...INSTANCE_LIST_SELECT,
+    defaultPassword: true,
     instanceReverseProxies: {
         select: {
             id: true,
