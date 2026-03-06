@@ -28,6 +28,20 @@ const cache = new CacheModule();
 const queue = new QueueModule();
 const objectStorage = createObjectStorageProvider();
 
+export async function shutdownApiResources() {
+  const results = await Promise.allSettled([
+    queue.closeConnections(),
+    cache.disconnect(),
+    prisma.$disconnect(),
+  ]);
+
+  return {
+    queue: results[0],
+    cache: results[1],
+    prisma: results[2],
+  };
+}
+
 export const api = new Elysia({
   name: "momoi.api", prefix: "/api", cookie: {
     secure: env.BETTER_AUTH_URL?.startsWith("https://") ?? false,
