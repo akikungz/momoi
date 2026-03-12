@@ -1,0 +1,48 @@
+{
+  "target": "https://dev.fitm.cloud",
+  "startedAt": "2026-03-12T02:12:46.920Z",
+  "durationSec": 30,
+  "concurrencyPerPath": 100,
+  "logFile": "momoi-perf-requests.log",
+  "summary": {
+    "requests": 7216,
+    "ok": 7216,
+    "fail": 0,
+    "throughputRps": 234.87,
+    "transferredMB": 880.339
+  },
+  "results": [
+    {
+      "path": "/api/openapi/json",
+      "url": "https://dev.fitm.cloud/api/openapi/json",
+      "total": 4228,
+      "ok": 4228,
+      "fail": 0,
+      "bytes": 922520004,
+      "elapsedSec": 30.697,
+      "rps": 137.73,
+      "min": 123.90089999999691,
+      "p50": 566.4578499999993,
+      "p90": 890.1770699999984,
+      "p95": 987.0898349999994,
+      "p99": 1479.7542049999954,
+      "max": 1688.9261000000001
+    },
+    {
+      "path": "/api/academic/semesters/current",
+      "url": "https://dev.fitm.cloud/api/academic/semesters/current",
+      "total": 2988,
+      "ok": 2988,
+      "fail": 0,
+      "bytes": 582660,
+      "elapsedSec": 30.723,
+      "rps": 97.25,
+      "min": 585.3824000000002,
+      "p50": 987.896999999999,
+      "p90": 1209.8724600000016,
+      "p95": 1308.2702700000013,
+      "p99": 1740.05103,
+      "max": 2736.64
+    }
+  ]
+}
