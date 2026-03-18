@@ -16,7 +16,7 @@ import type {
   PlatformFilePermission,
 } from "@momoi/database/prisma/generated/client";
 
-import type { PlatformRole, InstanceStatus, ApprovalStatus, PVEVMStatus, PVEVMType, InstanceProvisionStatus, PlatformFileType, PlatformFileViewerRole } from "@momoi/database/prisma/generated/enums";
+import type { PlatformRole, InstanceStatus, ApprovalStatus, PVEVMStatus, PVEVMType, InstanceProvisionStatus, PlatformFileType, PlatformFileViewerRole, PlatformFileVisibility } from "@momoi/database/prisma/generated/enums";
 
 /**
  * Factory functions to create mock data for testing.
@@ -273,6 +273,7 @@ export function createMockInstance(overrides?: Partial<Instance>): Instance {
     status: "PENDING" as InstanceStatus,
     provisionStatus: "NOT_STARTED" as InstanceProvisionStatus,
     provisionError: null,
+    defaultPassword: null,
     semesterId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -331,10 +332,16 @@ export function createMockPlatformFile(overrides?: Partial<PlatformFile>): Platf
     name: `Test File ${platformFileIdCounter}`,
     type: "FILE" as PlatformFileType,
     sizeBytes: 1024,
-    visibility: "OWNER" as PlatformFileViewerRole,
+    visibility: "PRIVATE" as PlatformFileVisibility,
     parentId: null,
-    platformUserId: overrides?.platformUserId || 1,
+    ownerId: overrides?.ownerId || 1,
     isPublic: false,
+    mimeType: null,
+    extension: null,
+    description: null,
+    trashedAt: null,
+    deletedAt: null,
+    latestVersionId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -351,10 +358,16 @@ export function createMockPlatformFolder(overrides?: Partial<PlatformFile>): Pla
     name: `Test Folder ${platformFileIdCounter}`,
     type: "FOLDER" as PlatformFileType,
     sizeBytes: 0,
-    visibility: "OWNER" as PlatformFileViewerRole,
+    visibility: "PRIVATE" as PlatformFileVisibility,
     parentId: null,
-    platformUserId: overrides?.platformUserId || 1,
+    ownerId: overrides?.ownerId || 1,
     isPublic: false,
+    mimeType: null,
+    extension: null,
+    description: null,
+    trashedAt: null,
+    deletedAt: null,
+    latestVersionId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -372,6 +385,9 @@ export function createMockPlatformFileVersion(overrides?: Partial<PlatformFileVe
     versionNumber: overrides?.versionNumber || 1,
     sizeBytes: 1024,
     storagePath: `/storage/files/file-1/v${id}`,
+    mimeType: null,
+    checksumSha256: null,
+    createdById: null,
     createdAt: new Date(),
     ...overrides,
   };
@@ -386,7 +402,13 @@ export function createMockPlatformFilePermission(overrides?: Partial<PlatformFil
     id,
     platformFileId: overrides?.platformFileId || "file-1",
     platformUserId: overrides?.platformUserId || 2,
+    email: null,
     permission: "VIEWER" as PlatformFileViewerRole,
+    canReshare: false,
+    expiresAt: null,
+    grantedById: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
     ...overrides,
   };
 }
@@ -394,32 +416,32 @@ export function createMockPlatformFilePermission(overrides?: Partial<PlatformFil
 /**
  * Creates a mock file hierarchy scenario
  */
-export function createMockFileHierarchy(platformUserId: number = 1) {
+export function createMockFileHierarchy(ownerId: number = 1) {
   const rootFolder = createMockPlatformFolder({
     id: "folder-root",
     name: "Root Folder",
-    platformUserId,
+    ownerId,
   });
 
   const subFolder = createMockPlatformFolder({
     id: "folder-sub",
     name: "Sub Folder",
     parentId: rootFolder.id,
-    platformUserId,
+    ownerId,
   });
 
   const file1 = createMockPlatformFile({
     id: "file-1",
     name: "document.txt",
     parentId: rootFolder.id,
-    platformUserId,
+    ownerId,
   });
 
   const file2 = createMockPlatformFile({
     id: "file-2",
     name: "image.png",
     parentId: subFolder.id,
-    platformUserId,
+    ownerId,
     sizeBytes: 2048,
   });
 

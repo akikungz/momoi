@@ -90,8 +90,10 @@ model PlatformUser {
   extendedRequestAuditLogs ExtendedRequestAuditLog[]
   instances                Instance[]
   instanceAuditLogs        InstanceAuditLog[]
-  platform_file            PlatformFile[]
+  platformFiles            PlatformFile[]            @relation("FileOwner")
   platformFilePermissions  PlatformFilePermission[]  @relation("PlatformFilePermissionTarget")
+  createdFileVersions      PlatformFileVersion[]     @relation("FileVersionCreator")
+  grantedFilePermissions   PlatformFilePermission[]  @relation("PermissionGrantedBy")
   platformSSHKeys          PlatformSSHKey[]
   user                     User                      @relation(fields: [userId], references: [id])
   requestsAsRequester      Request[]                 @relation("Requester")
@@ -392,32 +394,44 @@ model PlatformFile {
   id                      String                   @id @default(cuid())
   name                    String
   type                    PlatformFileType
+  mimeType                String?
+  extension               String?
+  description             String?
   sizeBytes               Int                      @default(0)
-  visibility              PlatformFileViewerRole   @default(OWNER)
+  visibility              PlatformFileVisibility   @default(PRIVATE)
   parentId                String?
-  platformUserId          Int
+  ownerId                 Int
   isPublic                Boolean                  @default(false)
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
+  trashedAt               DateTime?
+  deletedAt               DateTime?
+  latestVersionId         Int?
   parent                  PlatformFile?            @relation("ParentChild", fields: [parentId], references: [id], onDelete: Cascade)
   children                PlatformFile[]           @relation("ParentChild")
-  platform_user           PlatformUser             @relation(fields: [platformUserId], references: [id], onDelete: Cascade)
+  owner                   PlatformUser             @relation("FileOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   platformFilePermissions PlatformFilePermission[]
   platformFileVersions    PlatformFileVersion[]    @relation("FileVersions")
+  latestVersion           PlatformFileVersion?     @relation("LatestVersion", fields: [latestVersionId], references: [id])
 
   @@index([parentId])
-  @@index([platformUserId])
+  @@index([ownerId])
   @@map("platform_file")
 }
 
 model PlatformFileVersion {
-  id             Int          @id @default(autoincrement())
+  id             Int            @id @default(autoincrement())
   platformFileId String
   versionNumber  Int
   sizeBytes      Int
+  mimeType       String?
   storagePath    String
-  createdAt      DateTime     @default(now())
-  platformFile   PlatformFile @relation("FileVersions", fields: [platformFileId], references: [id], onDelete: Cascade)
+  checksumSha256 String?
+  createdById    Int?
+  createdAt      DateTime       @default(now())
+  platformFile   PlatformFile   @relation("FileVersions", fields: [platformFileId], references: [id], onDelete: Cascade)
+  createdBy      PlatformUser?  @relation("FileVersionCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  latestInFiles  PlatformFile[] @relation("LatestVersion")
 
   @@unique([platformFileId, versionNumber])
   @@map("platform_file_version")
@@ -426,10 +440,17 @@ model PlatformFileVersion {
 model PlatformFilePermission {
   id             Int                    @id @default(autoincrement())
   platformFileId String
-  platformUserId Int
+  platformUserId Int?
+  email          String?
   permission     PlatformFileViewerRole @default(VIEWER)
+  canReshare     Boolean                @default(false)
+  expiresAt      DateTime?
+  grantedById    Int?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
   platformFile   PlatformFile           @relation(fields: [platformFileId], references: [id], onDelete: Cascade)
-  platformUser   PlatformUser           @relation("PlatformFilePermissionTarget", fields: [platformUserId], references: [id], onDelete: Cascade)
+  platformUser   PlatformUser?          @relation("PlatformFilePermissionTarget", fields: [platformUserId], references: [id], onDelete: Cascade)
+  grantedBy      PlatformUser?          @relation("PermissionGrantedBy", fields: [grantedById], references: [id], onDelete: SetNull)
 
   @@unique([platformFileId, platformUserId])
   @@index([platformUserId])
@@ -489,6 +510,13 @@ enum PlatformFileType {
 
 enum PlatformFileViewerRole {
   VIEWER
+  COMMENTER
   EDITOR
   OWNER
+}
+
+enum PlatformFileVisibility {
+  PRIVATE
+  SHARED
+  PUBLIC
 }
