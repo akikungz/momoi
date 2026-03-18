@@ -3,8 +3,12 @@ import {
 } from "@momoi/database/prisma/generated/internal/prismaNamespace";
 
 export class ServiceError extends Error {
-  constructor(public readonly message: string, public readonly status: number) {
-    super(message);
+  constructor(
+    public readonly message: string,
+    public readonly status: number,
+    options?: { cause?: unknown }
+  ) {
+    super(message, options);
     this.name = "ServiceError";
   }
 }
@@ -55,7 +59,7 @@ export function handlePrismaError(
     }
   }
 
-  // Handle unexpected errors
-  throw new ServiceError(`An unexpected error occurred ${context}.`, 500);
+  // Handle unexpected errors and preserve original cause for diagnostics.
+  throw new ServiceError(`An unexpected error occurred ${context}.`, 500, { cause: error });
 }
 

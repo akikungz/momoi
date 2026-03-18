@@ -124,6 +124,8 @@ export const api = new Elysia({
       const err = await error;
       if (err) {
         if (err instanceof Error) {
+          const cause = err.cause;
+          const causeError = cause instanceof Error ? cause : undefined;
           logger.error({
             timestamp: new Date().toISOString(),
             method: context.request.method,
@@ -132,6 +134,9 @@ export const api = new Elysia({
             status: context.set.status,
             errorMessage: err.message,
             stack: err.stack,
+            causeMessage: causeError?.message,
+            causeStack: causeError?.stack,
+            cause: !causeError ? cause : undefined,
             userAgent: context.request.headers.get("user-agent") || "",
           }, "Error occurred");
 

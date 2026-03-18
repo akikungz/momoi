@@ -261,6 +261,7 @@ model Instance {
   semester               Semester?               @relation(fields: [semesterId], references: [id])
   instanceAuditLogs      InstanceAuditLog[]
   instanceReverseProxies InstanceReverseProxy[]
+  defaultPassword        String?
 
   @@unique([platformUserId, courseOfferingId])
   @@index([status, provisionStatus, platformUserId, pveTemplateId, semesterId])
