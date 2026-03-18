@@ -80,27 +80,24 @@ model Verification {
 }
 
 model PlatformUser {
-  id                             Int                       @id @default(autoincrement())
-  userId                         String                    @unique
-  role                           PlatformRole              @default(STUDENT)
-  createdAt                      DateTime                  @default(now())
-  updatedAt                      DateTime                  @updatedAt
-  extendedRequests               ExtendedRequest[]         @relation("Requester")
-  extendedReviews                ExtendedRequest[]         @relation("Reviewer")
-  extendedRequestAuditLogs       ExtendedRequestAuditLog[]
-  instances                      Instance[]
-  instanceAuditLogs              InstanceAuditLog[]
-  platformFiles                  PlatformFile[]            @relation("OwnedFiles")
-  platformFilePermissions        PlatformFilePermission[]  @relation("PlatformFilePermissionTarget")
-  grantedPlatformFilePermissions PlatformFilePermission[]  @relation("PlatformFilePermissionGrantedBy")
-  platformFileVersions           PlatformFileVersion[]
-  platformFileShareLinks         PlatformFileShareLink[]
-  platformSSHKeys                PlatformSSHKey[]
-  user                           User                      @relation(fields: [userId], references: [id])
-  requestsAsRequester            Request[]                 @relation("Requester")
-  requestsAsReviewer             Request[]                 @relation("Reviewer")
-  requestAuditLogs               RequestAuditLog[]
-  courses                        Course[]                  @relation("CourseInstructors")
+  id                       Int                       @id @default(autoincrement())
+  userId                   String                    @unique
+  role                     PlatformRole              @default(STUDENT)
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+  extendedRequests         ExtendedRequest[]         @relation("Requester")
+  extendedReviews          ExtendedRequest[]         @relation("Reviewer")
+  extendedRequestAuditLogs ExtendedRequestAuditLog[]
+  instances                Instance[]
+  instanceAuditLogs        InstanceAuditLog[]
+  platform_file            PlatformFile[]
+  platformFilePermissions  PlatformFilePermission[]  @relation("PlatformFilePermissionTarget")
+  platformSSHKeys          PlatformSSHKey[]
+  user                     User                      @relation(fields: [userId], references: [id])
+  requestsAsRequester      Request[]                 @relation("Requester")
+  requestsAsReviewer       Request[]                 @relation("Reviewer")
+  requestAuditLogs         RequestAuditLog[]
+  courses                  Course[]                  @relation("CourseInstructors")
 
   @@index([userId, role])
   @@map("platform_user")
@@ -182,7 +179,6 @@ model PVENetwork {
   subnet        String
   gateway       String
   bridge        String
-  vlanTag       Int
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   pveNetworkIPs PVENetworkIP[]
@@ -241,30 +237,28 @@ model PVEVM {
 }
 
 model Instance {
-  id               Int                     @id @default(autoincrement())
-  platformUserId   Int
-  pveVMId          Int?
-  pveTemplateId    Int
-  cpus             Int
-  memoryMB         Int
-  diskGB           Int
-  courseOfferingId Int?
-  requestId        Int?                    @unique
-  semesterId       Int?
-  status           InstanceStatus          @default(PENDING)
-  provisionStatus  InstanceProvisionStatus @default(NOT_STARTED)
-  provisionError   String?
-  defaultPassword  String?
-  createdAt        DateTime                @default(now())
-  updatedAt        DateTime                @updatedAt
-
+  id                     Int                     @id @default(autoincrement())
+  platformUserId         Int
+  pveVMId                Int?
+  pveTemplateId          Int
+  cpus                   Int
+  memoryMB               Int
+  diskGB                 Int
+  courseOfferingId       Int?
+  requestId              Int?                    @unique
+  status                 InstanceStatus          @default(PENDING)
+  provisionStatus        InstanceProvisionStatus @default(NOT_STARTED)
+  provisionError         String?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  semesterId             Int?
   extendedRequests       ExtendedRequest[]
-  courseOffering         CourseOffering?        @relation(fields: [courseOfferingId], references: [id], onDelete: Restrict)
-  platformUser           PlatformUser           @relation(fields: [platformUserId], references: [id])
-  pveTemplate            PVETemplate            @relation(fields: [pveTemplateId], references: [id])
-  pveVM                  PVEVM?                 @relation(fields: [pveVMId], references: [id])
-  request                Request?               @relation(fields: [requestId], references: [id], onDelete: Restrict)
-  semester               Semester?              @relation(fields: [semesterId], references: [id])
+  courseOffering         CourseOffering?         @relation(fields: [courseOfferingId], references: [id], onDelete: Restrict)
+  platformUser           PlatformUser            @relation(fields: [platformUserId], references: [id])
+  pveTemplate            PVETemplate             @relation(fields: [pveTemplateId], references: [id])
+  pveVM                  PVEVM?                  @relation(fields: [pveVMId], references: [id])
+  request                Request?                @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  semester               Semester?               @relation(fields: [semesterId], references: [id])
   instanceAuditLogs      InstanceAuditLog[]
   instanceReverseProxies InstanceReverseProxy[]
 
@@ -397,93 +391,48 @@ model PlatformFile {
   id                      String                   @id @default(cuid())
   name                    String
   type                    PlatformFileType
-  mimeType                String?
-  extension               String?
-  description             String?
-  ownerId                 Int
-  parentId                String?
-  latestVersionId         Int?                     @unique
   sizeBytes               Int                      @default(0)
-  visibility              PlatformFileVisibility   @default(PRIVATE)
-  trashedAt               DateTime?
-  deletedAt               DateTime?
+  visibility              PlatformFileViewerRole   @default(OWNER)
+  parentId                String?
+  platformUserId          Int
+  isPublic                Boolean                  @default(false)
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
   parent                  PlatformFile?            @relation("ParentChild", fields: [parentId], references: [id], onDelete: Cascade)
   children                PlatformFile[]           @relation("ParentChild")
-  owner                   PlatformUser             @relation("OwnedFiles", fields: [ownerId], references: [id], onDelete: Cascade)
-  latestVersion           PlatformFileVersion?     @relation("LatestVersion", fields: [latestVersionId], references: [id], onDelete: SetNull)
+  platform_user           PlatformUser             @relation(fields: [platformUserId], references: [id], onDelete: Cascade)
   platformFilePermissions PlatformFilePermission[]
   platformFileVersions    PlatformFileVersion[]    @relation("FileVersions")
-  platformFileShareLinks  PlatformFileShareLink[]
 
-  @@index([ownerId])
   @@index([parentId])
-  @@index([ownerId, parentId, type, trashedAt])
-  @@index([visibility])
+  @@index([platformUserId])
   @@map("platform_file")
 }
 
 model PlatformFileVersion {
-  id             Int           @id @default(autoincrement())
+  id             Int          @id @default(autoincrement())
   platformFileId String
   versionNumber  Int
   sizeBytes      Int
-  mimeType       String?
   storagePath    String
-  checksumSha256 String?
-  createdById    Int?
-  createdAt      DateTime      @default(now())
-  platformFile   PlatformFile  @relation("FileVersions", fields: [platformFileId], references: [id], onDelete: Cascade)
-  createdBy      PlatformUser? @relation(fields: [createdById], references: [id], onDelete: SetNull)
-  latestForFile  PlatformFile? @relation("LatestVersion")
+  createdAt      DateTime     @default(now())
+  platformFile   PlatformFile @relation("FileVersions", fields: [platformFileId], references: [id], onDelete: Cascade)
 
   @@unique([platformFileId, versionNumber])
-  @@index([platformFileId, createdAt])
   @@map("platform_file_version")
 }
 
 model PlatformFilePermission {
   id             Int                    @id @default(autoincrement())
   platformFileId String
-  platformUserId Int?
-  email          String?
+  platformUserId Int
   permission     PlatformFileViewerRole @default(VIEWER)
-  canReshare     Boolean                @default(false)
-  expiresAt      DateTime?
-  grantedById    Int?
-  createdAt      DateTime               @default(now())
-  updatedAt      DateTime               @updatedAt
   platformFile   PlatformFile           @relation(fields: [platformFileId], references: [id], onDelete: Cascade)
-  platformUser   PlatformUser?          @relation("PlatformFilePermissionTarget", fields: [platformUserId], references: [id], onDelete: Cascade)
-  grantedBy      PlatformUser?          @relation("PlatformFilePermissionGrantedBy", fields: [grantedById], references: [id], onDelete: SetNull)
+  platformUser   PlatformUser           @relation("PlatformFilePermissionTarget", fields: [platformUserId], references: [id], onDelete: Cascade)
 
   @@unique([platformFileId, platformUserId])
-  @@unique([platformFileId, email])
   @@index([platformUserId])
-  @@index([expiresAt])
   @@map("platform_file_permission")
-}
-
-model PlatformFileShareLink {
-  id             String                 @id @default(cuid())
-  platformFileId String
-  token          String                 @unique
-  permission     PlatformFileViewerRole @default(VIEWER)
-  passwordHash   String?
-  expiresAt      DateTime?
-  maxAccessCount Int?
-  accessCount    Int                    @default(0)
-  isActive       Boolean                @default(true)
-  createdById    Int
-  createdAt      DateTime               @default(now())
-  updatedAt      DateTime               @updatedAt
-  platformFile   PlatformFile           @relation(fields: [platformFileId], references: [id], onDelete: Cascade)
-  createdBy      PlatformUser           @relation(fields: [createdById], references: [id], onDelete: Cascade)
-
-  @@index([platformFileId, isActive, expiresAt])
-  @@index([createdById])
-  @@map("platform_file_share_link")
 }
 
 enum PlatformRole {
@@ -522,6 +471,7 @@ enum InstanceProvisionStatus {
 enum ReverseProxyType {
   HTTPS
   HTTP
+  TCP
 }
 
 enum ApprovalStatus {
@@ -536,15 +486,8 @@ enum PlatformFileType {
   FOLDER
 }
 
-enum PlatformFileVisibility {
-  PRIVATE
-  SHARED
-  PUBLIC
-}
-
 enum PlatformFileViewerRole {
   VIEWER
-  COMMENTER
   EDITOR
   OWNER
 }
