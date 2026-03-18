@@ -10,14 +10,21 @@ import type { InstanceListResult, InstanceDetailResult, InstanceCreateResult } f
  * Maps course offering data to API response format
  */
 function mapCourseOffering(courseOffering: {
-    course: { code: string; title: string };
-    semester: { name: string };
+    course?: { code?: string | null; title?: string | null } | null;
+    semester?: { name?: string | null } | null;
 } | null): { courseCode: string; courseTitle: string; semester: string } | undefined {
     if (!courseOffering) return undefined;
+
+    const courseCode = courseOffering.course?.code;
+    const courseTitle = courseOffering.course?.title;
+    const semesterName = courseOffering.semester?.name;
+
+    if (!courseCode || !courseTitle || !semesterName) return undefined;
+
     return {
-        courseCode: courseOffering.course.code,
-        courseTitle: courseOffering.course.title,
-        semester: courseOffering.semester.name,
+        courseCode,
+        courseTitle,
+        semester: semesterName,
     };
 }
 

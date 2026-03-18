@@ -195,6 +195,7 @@ export class InstanceService {
 
             return response;
         } catch (error: unknown) {
+            logger.error({ instanceId, error }, 'Failed to retrieve instance by id.');
             handlePrismaError(error, 'while retrieving the instance', { notFoundMessage: 'Instance not found.' });
         }
     }
