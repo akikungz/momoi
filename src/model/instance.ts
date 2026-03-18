@@ -116,7 +116,8 @@ export const DeleteInstanceResponse = t.Object({
 
 export const ReverseProxyType = t.Union([
   t.Literal("HTTPS", { description: "HTTPS reverse proxy" }),
-  t.Literal("HTTP", { description: "HTTP reverse proxy" })
+  t.Literal("HTTP", { description: "HTTP reverse proxy" }),
+  t.Literal("TCP", { description: "TCP reverse proxy" }),
 ], { description: "Type of reverse proxy" });
 
 export const ReverseProxyItem = t.Object({
