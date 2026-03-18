@@ -157,13 +157,24 @@ export class InstanceService {
     // ==================== Single Instance Operations ====================
 
     public async getInstanceById(instanceId: number): Promise<Static<typeof GetInstanceResponse>> {
+        const cacheKey = `instance:${instanceId}`;
+
+        // Cache should be best-effort; fall back to DB if cache read/parse fails.
         try {
-            const cacheKey = `instance:${instanceId}`;
             const cachedData = await this.cache.getCacheValue(cacheKey);
             if (cachedData) {
-                return JSON.parse(cachedData);
+                try {
+                    return JSON.parse(cachedData);
+                } catch (cacheParseError: unknown) {
+                    logger.warn({ instanceId, cacheParseError }, 'Failed to parse cached instance data. Invalidating cache key.');
+                    await this.cache.deleteCacheByPattern(cacheKey);
+                }
             }
+        } catch (cacheReadError: unknown) {
+            logger.warn({ instanceId, cacheReadError }, 'Failed to read instance from cache. Falling back to database.');
+        }
 
+        try {
             const instance = await this.prisma.instance.findUnique({
                 where: { id: instanceId },
                 select: INSTANCE_DETAIL_SELECT,
@@ -175,7 +186,12 @@ export class InstanceService {
 
             const response = mapInstanceToDetail(instance);
 
-            await this.cache.createCacheKey(cacheKey, JSON.stringify(response));
+            // Cache write failures should not fail the request.
+            try {
+                await this.cache.createCacheKey(cacheKey, JSON.stringify(response));
+            } catch (cacheWriteError: unknown) {
+                logger.warn({ instanceId, cacheWriteError }, 'Failed to cache instance response.');
+            }
 
             return response;
         } catch (error: unknown) {
