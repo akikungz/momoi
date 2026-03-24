@@ -67,6 +67,11 @@ export const EnvSchema = z.object({
 });
 
 const parsedEnv = EnvSchema.safeParse(process.env);
+const TEST_ENV_FALLBACKS = {
+	NODE_ENV: "test",
+	JWT_SECRET: "test-jwt-secret-0123456789abcdef",
+	DATABASE_URL: "postgresql://test:test@localhost:5432/momoi_test",
+} as const;
 
 function getEnv(): z.infer<typeof EnvSchema> {
 	if (!parsedEnv.success && process.env.NODE_ENV !== "test") {
@@ -77,9 +82,12 @@ function getEnv(): z.infer<typeof EnvSchema> {
 		process.exit(1);
 	}
 
-	// biome-ignore lint/style/noNonNullAssertion: Checked in the if statement above, and we want to allow tests to run with partial env vars
-	const parsed = parsedEnv.data!;
-	process.env.LOG_PRETTY = parsed.LOG_PRETTY.toString();
+	const parsed = parsedEnv.success
+		? parsedEnv.data
+		: EnvSchema.parse({
+			...TEST_ENV_FALLBACKS,
+			...process.env,
+		});
 
 	return parsed;
 }

@@ -374,11 +374,11 @@ describe("E2E: Instance Routes", () => {
 
 				const response = await client.api
 					.instances({ instanceId: 1 })
-					["reverse-proxies"].post({
-						targetPort: 8080,
-						type: "HTTPS",
-						description: "Web server",
-					});
+				["reverse-proxies"].post({
+					targetPort: 8080,
+					type: "HTTPS",
+					description: "Web server",
+				});
 
 				expect(response.status).toBe(200);
 				expect(response.data).toBeDefined();
@@ -391,10 +391,10 @@ describe("E2E: Instance Routes", () => {
 
 				const response = await client.api
 					.instances({ instanceId: 1 })
-					["reverse-proxies"].post({
-						targetPort: 70000, // Invalid port
-						type: "HTTPS",
-					});
+				["reverse-proxies"].post({
+					targetPort: 70000, // Invalid port
+					type: "HTTPS",
+				});
 
 				// Should fail validation
 				expect(response.status).not.toBe(200);
@@ -423,7 +423,7 @@ describe("E2E: Instance Routes", () => {
 
 				const response = await client.api
 					.instances({ instanceId: 1 })
-					["reverse-proxies"].get();
+				["reverse-proxies"].get();
 
 				expect(response.status).toBe(200);
 				expect(response.data).toBeDefined();
@@ -447,7 +447,7 @@ describe("E2E: Instance Routes", () => {
 
 				const response = await client.api
 					.instances({ instanceId: 1 })
-					["reverse-proxies"]({ proxyId: 1 })
+				["reverse-proxies"]({ proxyId: 1 })
 					.delete();
 
 				expect(response.status).toBe(200);
@@ -535,7 +535,7 @@ describe("E2E: Instance Routes", () => {
 
 				const response = await client.api
 					.instances({ instanceId: 1 })
-					["audit-logs"].get();
+				["audit-logs"].get();
 
 				expect(response.status).toBe(200);
 				expect(response.data).toBeDefined();
@@ -544,14 +544,39 @@ describe("E2E: Instance Routes", () => {
 		});
 
 		describe("As Student", () => {
-			it("should return 403 Forbidden", async () => {
-				const { client } = setupTestContext("student");
+			it("should return instance audit logs if the student is the owner", async () => {
+				const { client, mockPrisma } = setupTestContext("student");
+
+				mockPrisma.instance.findUnique.mockResolvedValueOnce({
+					id: 1,
+					platformUserId: 3,
+				});
+				mockPrisma.instanceAuditLog.count.mockResolvedValueOnce(1);
+				mockPrisma.instanceAuditLog.findMany.mockResolvedValueOnce([
+					{
+						id: 1,
+						action: "CREATED",
+						instanceId: 1,
+						timestamp: new Date(),
+						notes: "Instance created",
+						performedBy: {
+							id: 3,
+							user: {
+								name: "Student User",
+								email: "s0006020000000@email.kmutnb.ac.th",
+							},
+						},
+					},
+				]);
 
 				const response = await client.api
 					.instances({ instanceId: 1 })
-					["audit-logs"].get();
+				["audit-logs"].get();
 
-				expect(response.status).toBe(403);
+				// Assuming the student is the owner of the instance
+				expect(response.status).toBe(200);
+				expect(response.data).toBeDefined();
+				expect(response.data?.values).toHaveLength(1);
 			});
 		});
 	});
@@ -596,7 +621,7 @@ describe("E2E: Instance Routes", () => {
 
 				const response = await client.api
 					.instances({ instanceId: 1 })
-					["extended-request"].get();
+				["extended-request"].get();
 
 				expect(response.status).toBe(200);
 				expect(response.data).toBeDefined();
@@ -612,9 +637,9 @@ describe("E2E: Instance Routes", () => {
 
 				const response = await client.api
 					.instances({ instanceId: 1 })
-					["extended-request"].get({
-						query: { page: 2, pageSize: 5, status: "PENDING" },
-					});
+				["extended-request"].get({
+					query: { page: 2, pageSize: 5, status: "PENDING" },
+				});
 
 				expect(response.status).toBe(200);
 				expect(response.data?.currentPage).toBe(2);
@@ -632,7 +657,7 @@ describe("E2E: Instance Routes", () => {
 
 				const response = await client.api
 					.instances({ instanceId: 1 })
-					["extended-request"].get();
+				["extended-request"].get();
 
 				expect(response.status).toBe(200);
 				expect(response.data?.totalItems).toBe(2);
@@ -648,7 +673,7 @@ describe("E2E: Instance Routes", () => {
 
 				const response = await client.api
 					.instances({ instanceId: 1 })
-					["extended-request"].get();
+				["extended-request"].get();
 
 				expect(response.status).toBe(200);
 				expect(response.data?.totalItems).toBe(1);
@@ -661,7 +686,7 @@ describe("E2E: Instance Routes", () => {
 
 				const response = await client.api
 					.instances({ instanceId: 1 })
-					["extended-request"].get();
+				["extended-request"].get();
 
 				expect(response.status).toBe(401);
 			});
