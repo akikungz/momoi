@@ -48,7 +48,7 @@ export class RequestUseCases {
 		private readonly cache: JsonCacheStore,
 		private readonly queue: RequestQueuePort,
 		private readonly telemetry: RequestTelemetryPort,
-	) { }
+	) {}
 
 	public async createRequest(
 		userId: number,
@@ -201,6 +201,8 @@ export class RequestUseCases {
 					memoryMB: request.memoryMB,
 					diskGB: request.diskGB,
 					platformUserId: request.requesterId,
+					requestId: request.id,
+					semesterId: request.courseOffering?.semesterId,
 				},
 			});
 
