@@ -2,7 +2,10 @@ import { Elysia } from "elysia";
 
 import { treaty } from "@elysiajs/eden";
 import {
-  mockAdminAuth, mockInstructorAuth, mockOtherAuth, mockStudentAuth
+	mockAdminAuth,
+	mockInstructorAuth,
+	mockOtherAuth,
+	mockStudentAuth,
 } from "@momoi/auth/mock";
 import { MockCache } from "@momoi/cache/mock";
 import { MockQueueModule } from "@momoi/queue/mock";
@@ -22,47 +25,46 @@ import type { MockAuth } from "@momoi/auth/mock";
 export type TestRole = "admin" | "instructor" | "student" | "unauthenticated";
 
 function createMockObjectStorageProvider(): ObjectStorageProvider {
-  return {
-    kind: "s3",
-    enabled: true,
-    createObjectKey(ownerId: number, filename?: string) {
-      return `user/${ownerId}/objects/e2e/${filename ?? "file.bin"}`;
-    },
-    async createUploadUrl(objectKey: string) {
-      return {
-        objectKey,
-        url: `https://e2e.storage.local/upload/${encodeURIComponent(objectKey)}`,
-        expiresAt: new Date(Date.now() + 15 * 60 * 1000),
-      };
-    },
-    async createDownloadUrl(objectKey: string) {
-      return {
-        objectKey,
-        url: `https://e2e.storage.local/download/${encodeURIComponent(objectKey)}`,
-        expiresAt: new Date(Date.now() + 15 * 60 * 1000),
-      };
-    },
-    async deleteObject() {
-      return;
-    },
-  };
+	return {
+		kind: "s3",
+		enabled: true,
+		createObjectKey(ownerId: number, filename?: string) {
+			return `user/${ownerId}/objects/e2e/${filename ?? "file.bin"}`;
+		},
+		async createUploadUrl(objectKey: string) {
+			return {
+				objectKey,
+				url: `https://e2e.storage.local/upload/${encodeURIComponent(objectKey)}`,
+				expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+			};
+		},
+		async createDownloadUrl(objectKey: string) {
+			return {
+				objectKey,
+				url: `https://e2e.storage.local/download/${encodeURIComponent(objectKey)}`,
+				expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+			};
+		},
+		async deleteObject() {
+			return;
+		},
+	};
 }
 
 /**
  * Get the appropriate mock auth based on role
  */
 function getMockAuth(role: TestRole): MockAuth {
-  switch (role) {
-    case "admin":
-      return mockAdminAuth;
-    case "instructor":
-      return mockInstructorAuth;
-    case "student":
-      return mockStudentAuth;
-    case "unauthenticated":
-    default:
-      return mockOtherAuth;
-  }
+	switch (role) {
+		case "admin":
+			return mockAdminAuth;
+		case "instructor":
+			return mockInstructorAuth;
+		case "student":
+			return mockStudentAuth;
+		default:
+			return mockOtherAuth;
+	}
 }
 
 /**
@@ -70,39 +72,49 @@ function getMockAuth(role: TestRole): MockAuth {
  * Use this for e2e testing to test the full request/response cycle.
  */
 export function createTestApp(role: TestRole = "admin") {
-  const mockPrisma = createMockPrisma() as any;
-  const mockCache = new MockCache();
-  const mockQueue = new MockQueueModule();
-  const mockAuth = getMockAuth(role);
-  const mockObjectStorage = createMockObjectStorageProvider();
+	const mockPrisma = createMockPrisma() as any;
+	const mockCache = new MockCache();
+	const mockQueue = new MockQueueModule();
+	const mockAuth = getMockAuth(role);
+	const mockObjectStorage = createMockObjectStorageProvider();
 
-  const app = new Elysia({ name: "test.app", prefix: "/api" })
-    .onError(({ error, status }) => {
-      if (error instanceof ServiceError) {
-        return status(error.status, { status: error.status, message: error.message });
-      }
+	const app = new Elysia({ name: "test.app", prefix: "/api" })
+		.onError(({ error, status }) => {
+			if (error instanceof ServiceError) {
+				return status(error.status, {
+					status: error.status,
+					message: error.message,
+				});
+			}
 
-      if (error instanceof Error) {
-        return status(500, { status: 500, message: error.message });
-      }
+			if (error instanceof Error) {
+				return status(500, { status: 500, message: error.message });
+			}
 
-      return status(500, { status: 500, message: "An unexpected error occurred." });
-    })
-    .use(userRoute(mockPrisma, mockCache as any, mockAuth))
-    .use(instanceRoute(mockPrisma, mockCache as any, mockAuth, mockQueue as any))
-    .use(academicRoute(mockPrisma, mockCache as any, mockAuth))
-    .use(requestRoute(mockPrisma, mockCache as any, mockAuth, mockQueue as any))
-    .use(storageRoute(mockPrisma, mockCache as any, mockAuth, mockObjectStorage))
-    .use(autocompleteRoute(mockPrisma, mockCache as any, mockAuth));
+			return status(500, {
+				status: 500,
+				message: "An unexpected error occurred.",
+			});
+		})
+		.use(userRoute(mockPrisma, mockCache as any, mockAuth))
+		.use(
+			instanceRoute(mockPrisma, mockCache as any, mockAuth, mockQueue as any),
+		)
+		.use(academicRoute(mockPrisma, mockCache as any, mockAuth))
+		.use(requestRoute(mockPrisma, mockCache as any, mockAuth, mockQueue as any))
+		.use(
+			storageRoute(mockPrisma, mockCache as any, mockAuth, mockObjectStorage),
+		)
+		.use(autocompleteRoute(mockPrisma, mockCache as any, mockAuth));
 
-  return {
-    app,
-    client: treaty(app),
-    mockPrisma,
-    mockCache,
-    mockQueue,
-    mockAuth,
-  };
+	return {
+		app,
+		client: treaty(app),
+		mockPrisma,
+		mockCache,
+		mockQueue,
+		mockAuth,
+	};
 }
 
 /**
@@ -110,8 +122,8 @@ export function createTestApp(role: TestRole = "admin") {
  * Resets all mock counters and returns a fresh test setup
  */
 export function setupTestContext(role: TestRole = "admin") {
-  resetMockFactoryCounters();
-  return createTestApp(role);
+	resetMockFactoryCounters();
+	return createTestApp(role);
 }
 
 /**
@@ -125,9 +137,9 @@ export type TestAppClient = ReturnType<typeof createTestApp>["client"];
 export type TestMockPrisma = ReturnType<typeof createTestApp>["mockPrisma"];
 
 export {
-  mockAdminAuth,
-  mockInstructorAuth,
-  mockStudentAuth,
-  mockOtherAuth,
-  resetMockFactoryCounters,
+	mockAdminAuth,
+	mockInstructorAuth,
+	mockStudentAuth,
+	mockOtherAuth,
+	resetMockFactoryCounters,
 };

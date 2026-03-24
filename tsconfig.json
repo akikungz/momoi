@@ -1,21 +1,34 @@
 {
-  "compilerOptions": {
-    "target": "ES2021",
-    "module": "ES2022",
-    "moduleResolution": "bundler",
-    "baseUrl": "./",
-    "paths": {
-      "@momoi/*": ["./src/*"],
-      "@test/*": ["./test/*"]
-    },
-    "esModuleInterop": true,
-    "allowImportingTsExtensions": true,
-    "forceConsistentCasingInFileNames": true,
-    "strict": true,
-    "skipLibCheck": true,
-    "noEmit": true,
-    "declaration": true,
-    "noErrorTruncation": true,
-    "types": ["bun-types"]
-  }
+	"compilerOptions": {
+		"target": "ES2021",
+		"module": "ES2022",
+		"moduleResolution": "bundler",
+		"baseUrl": "./",
+		"paths": {
+			"@momoi/infrastructure/*": ["./src/infrastructure/*"],
+			"@momoi/auth": ["./src/infrastructure/auth/index.ts"],
+			"@momoi/auth/*": ["./src/infrastructure/auth/*"],
+			"@momoi/cache": ["./src/infrastructure/cache/index.ts"],
+			"@momoi/cache/*": ["./src/infrastructure/cache/*"],
+			"@momoi/database": ["./src/infrastructure/database/index.ts"],
+			"@momoi/database/*": ["./src/infrastructure/database/*"],
+			"@momoi/env": ["./src/infrastructure/env.ts"],
+			"@momoi/queue": ["./src/infrastructure/queue/index.ts"],
+			"@momoi/queue/*": ["./src/infrastructure/queue/*"],
+			"@momoi/storage-provider": ["./src/infrastructure/storage/index.ts"],
+			"@momoi/storage-provider/*": ["./src/infrastructure/storage/*"],
+			"@momoi/telemetry/*": ["./src/infrastructure/telemetry/*"],
+			"@momoi/*": ["./src/*"],
+			"@test/*": ["./test/*"]
+		},
+		"esModuleInterop": true,
+		"allowImportingTsExtensions": true,
+		"forceConsistentCasingInFileNames": true,
+		"strict": true,
+		"skipLibCheck": true,
+		"noEmit": true,
+		"declaration": true,
+		"noErrorTruncation": true,
+		"types": ["bun-types"]
+	}
 }
