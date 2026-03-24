@@ -36,6 +36,10 @@ import type {
 	JsonCacheStore,
 } from "./ports";
 
+const INSTANCE_CPU_MAX = 8;
+const INSTRUCTOR_INSTANCE_MEMORY_MB_MAX = 8192;
+const INSTRUCTOR_INSTANCE_DISK_GB_MAX = 32;
+
 export class InstanceUseCases {
 	constructor(
 		private readonly dataAccess: InstanceDataAccess,
@@ -46,8 +50,30 @@ export class InstanceUseCases {
 
 	public async createInstanceByInstructor(
 		userId: number,
+		userRole: "ADMIN" | "INSTRUCTOR",
 		body: Static<typeof CreateInstanceRequestBody>,
 	): Promise<Static<typeof CreateInstanceResponse>> {
+		if (body.cpus > INSTANCE_CPU_MAX) {
+			throw new ServiceError(
+				`Instance vCPU cannot exceed ${INSTANCE_CPU_MAX}.`,
+				400,
+			);
+		}
+
+		if (body.memoryMB > INSTRUCTOR_INSTANCE_MEMORY_MB_MAX) {
+			throw new ServiceError(
+				`Instance memory cannot exceed ${INSTRUCTOR_INSTANCE_MEMORY_MB_MAX} MB.`,
+				400,
+			);
+		}
+
+		if (body.diskGB > INSTRUCTOR_INSTANCE_DISK_GB_MAX) {
+			throw new ServiceError(
+				`Instance disk cannot exceed ${INSTRUCTOR_INSTANCE_DISK_GB_MAX} GB.`,
+				400,
+			);
+		}
+
 		try {
 			const instance = await this.dataAccess.prisma.instance.create({
 				data: {
@@ -70,7 +96,7 @@ export class InstanceUseCases {
 				"app.operation": "create_instance",
 			});
 			this.telemetry.recordInstanceOperation("create", {
-				"user.role": "INSTRUCTOR",
+				"user.role": userRole,
 			});
 
 			console.info("📋 VM provisioning queued", { instanceId: instance.id });

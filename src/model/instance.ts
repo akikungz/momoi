@@ -3,6 +3,8 @@ import { Elysia, t } from "elysia";
 import { PaginationRequest, PaginationResponse } from "./shared/pagination";
 import { TimestampResponse } from "./shared/timestamp";
 
+const INSTANCE_CREATE_CPU_MAX = 8;
+
 export const InstanceStatus = t.Union(
 	[
 		t.Literal("PENDING", { description: "Instance is being set up" }),
@@ -152,7 +154,10 @@ export const CreateInstanceRequestBody = t.Object({
 				"Unique identifier for the course offering associated with the instance",
 		}),
 	),
-	cpus: t.Number({ description: "Number of CPUs to allocate to the instance" }),
+	cpus: t.Number({
+		description: "Number of CPUs to allocate to the instance",
+		maximum: INSTANCE_CREATE_CPU_MAX,
+	}),
 	memoryMB: t.Number({
 		description: "Amount of memory (in MB) to allocate to the instance",
 	}),

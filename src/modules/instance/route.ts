@@ -34,7 +34,11 @@ export const instanceRoute = (
 						status: 403,
 						message: "Forbidden: Students cannot create instances",
 					});
-				return instanceUseCases.createInstanceByInstructor(user.id, body);
+				return instanceUseCases.createInstanceByInstructor(
+					user.id,
+					user.role,
+					body,
+				);
 			},
 			{
 				body: "CreateInstanceRequestBody",

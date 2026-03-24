@@ -12,6 +12,7 @@ import { MockQueueModule } from "@momoi/queue/mock";
 import { academicRoute } from "@momoi/routes/academic";
 import { autocompleteRoute } from "@momoi/routes/autocomplete";
 import { instanceRoute } from "@momoi/routes/instance";
+import { monitoringRoute } from "@momoi/routes/monitoring";
 import { requestRoute } from "@momoi/routes/request";
 import { storageRoute } from "@momoi/routes/storage";
 import { userRoute } from "@momoi/routes/user";
@@ -99,6 +100,18 @@ export function createTestApp(role: TestRole = "admin") {
 		.use(userRoute(mockPrisma, mockCache as any, mockAuth))
 		.use(
 			instanceRoute(mockPrisma, mockCache as any, mockAuth, mockQueue as any),
+		)
+		.use(
+			monitoringRoute(mockAuth, {
+				query: async () => ({
+					status: "success",
+					data: { resultType: "vector", result: [] },
+				}),
+				queryRange: async () => ({
+					status: "success",
+					data: { resultType: "matrix", result: [] },
+				}),
+			}),
 		)
 		.use(academicRoute(mockPrisma, mockCache as any, mockAuth))
 		.use(requestRoute(mockPrisma, mockCache as any, mockAuth, mockQueue as any))

@@ -143,15 +143,20 @@ export class AutocompleteUseCases {
 		if (cached) return cached;
 
 		const offerings = await this.dataAccess.prisma.courseOffering.findMany({
-			where: search
-				? {
-						OR: [
-							{ course: { code: { contains: search, mode: "insensitive" } } },
-							{ course: { title: { contains: search, mode: "insensitive" } } },
-							{ semester: { name: { contains: search, mode: "insensitive" } } },
-						],
-					}
-				: undefined,
+			where: {
+				course: {
+					isActive: true,
+				},
+				...(search
+					? {
+							OR: [
+								{ course: { code: { contains: search, mode: "insensitive" } } },
+								{ course: { title: { contains: search, mode: "insensitive" } } },
+								{ semester: { name: { contains: search, mode: "insensitive" } } },
+							],
+						}
+					: {}),
+			},
 			take: limit,
 			orderBy: { semester: { startDate: "desc" } },
 			select: {

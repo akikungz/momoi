@@ -42,9 +42,9 @@ describe("InstanceService", () => {
 			const createBody = {
 				pveTemplateId: scenario.template.id,
 				courseOfferingId: scenario.courseOffering.id,
-				cpus: 4,
+				cpus: 8,
 				memoryMB: 8192,
-				diskGB: 100,
+				diskGB: 32,
 			};
 
 			const mockInstanceData = {
@@ -67,6 +67,7 @@ describe("InstanceService", () => {
 
 			const result = await instanceService.createInstanceByInstructor(
 				userId,
+				"INSTRUCTOR",
 				createBody,
 			);
 
@@ -81,9 +82,9 @@ describe("InstanceService", () => {
 			const createBody = {
 				pveTemplateId: 999,
 				courseOfferingId: 999,
-				cpus: 4,
+				cpus: 8,
 				memoryMB: 8192,
-				diskGB: 100,
+				diskGB: 32,
 			};
 
 			const error = new PrismaClientKnownRequestError("Record not found", {
@@ -93,7 +94,11 @@ describe("InstanceService", () => {
 			mockPrisma.instance.create.mockRejectedValueOnce(error);
 
 			try {
-				await instanceService.createInstanceByInstructor(userId, createBody);
+				await instanceService.createInstanceByInstructor(
+					userId,
+					"INSTRUCTOR",
+					createBody,
+				);
 				expect.unreachable();
 			} catch (err: unknown) {
 				expect((err as Error).message).toBe("Related resource not found.");
@@ -105,9 +110,9 @@ describe("InstanceService", () => {
 			const createBody = {
 				pveTemplateId: 1,
 				courseOfferingId: 1,
-				cpus: 4,
+				cpus: 8,
 				memoryMB: 8192,
-				diskGB: 100,
+				diskGB: 32,
 			};
 
 			// Use P2003 (foreign key constraint) for generic database error testing
@@ -118,7 +123,11 @@ describe("InstanceService", () => {
 			mockPrisma.instance.create.mockRejectedValueOnce(error);
 
 			try {
-				await instanceService.createInstanceByInstructor(userId, createBody);
+				await instanceService.createInstanceByInstructor(
+					userId,
+					"INSTRUCTOR",
+					createBody,
+				);
 				expect.unreachable();
 			} catch (err: unknown) {
 				expect((err as Error).message).toContain("Database error:");
@@ -130,9 +139,9 @@ describe("InstanceService", () => {
 			const createBody = {
 				pveTemplateId: 1,
 				courseOfferingId: 1,
-				cpus: 4,
+				cpus: 8,
 				memoryMB: 8192,
-				diskGB: 100,
+				diskGB: 32,
 			};
 
 			mockPrisma.instance.create.mockRejectedValueOnce(
@@ -140,13 +149,53 @@ describe("InstanceService", () => {
 			);
 
 			try {
-				await instanceService.createInstanceByInstructor(userId, createBody);
-				expect.unreachable();
+				await instanceService.createInstanceByInstructor(
+					userId,
+					"INSTRUCTOR",
+					createBody,
+				);
+			expect.unreachable();
 			} catch (err: unknown) {
 				expect((err as Error).message).toBe(
 					"An unexpected error occurred while creating the instance.",
 				);
 			}
+		});
+
+		it("should reject instance cpu above limit", async () => {
+			await expect(
+				instanceService.createInstanceByInstructor(1, "INSTRUCTOR", {
+					pveTemplateId: 1,
+					courseOfferingId: 1,
+					cpus: 16,
+					memoryMB: 8192,
+					diskGB: 32,
+				}),
+			).rejects.toThrow("Instance vCPU cannot exceed 8.");
+		});
+
+		it("should reject instance memory above limit", async () => {
+			await expect(
+				instanceService.createInstanceByInstructor(1, "INSTRUCTOR", {
+					pveTemplateId: 1,
+					courseOfferingId: 1,
+					cpus: 8,
+					memoryMB: 16384,
+					diskGB: 32,
+				}),
+			).rejects.toThrow("Instance memory cannot exceed 8192 MB.");
+		});
+
+		it("should reject instance disk above limit", async () => {
+			await expect(
+				instanceService.createInstanceByInstructor(1, "ADMIN", {
+					pveTemplateId: 1,
+					courseOfferingId: 1,
+					cpus: 8,
+					memoryMB: 8192,
+					diskGB: 64,
+				}),
+			).rejects.toThrow("Instance disk cannot exceed 32 GB.");
 		});
 	});
 

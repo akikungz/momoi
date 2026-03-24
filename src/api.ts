@@ -20,6 +20,7 @@ import {
 import { academicRoute } from "./routes/academic";
 import { autocompleteRoute } from "./routes/autocomplete";
 import { instanceRoute } from "./routes/instance";
+import { monitoringRoute } from "./routes/monitoring";
 import { requestRoute } from "./routes/request";
 import { storageRoute } from "./routes/storage";
 import { userRoute } from "./routes/user";
@@ -124,6 +125,10 @@ export const api = new Elysia({
 						name: "Autocomplete",
 						description: "Autocomplete options for dropdown selections",
 					},
+					{
+						name: "Monitoring",
+						description: "Prometheus-backed monitoring query endpoints",
+					},
 				],
 				...(await authOpenAPI()),
 			},
@@ -227,6 +232,7 @@ export const api = new Elysia({
 	.use(authHandler)
 	.use(userRoute(prisma, cache, authMacro))
 	.use(instanceRoute(prisma, cache, authMacro, queue))
+	.use(monitoringRoute(authMacro))
 	.use(academicRoute(prisma, cache, authMacro))
 	.use(requestRoute(prisma, cache, authMacro, queue))
 	.use(storageRoute(prisma, cache, authMacro, objectStorage))

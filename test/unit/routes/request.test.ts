@@ -263,11 +263,34 @@ describe("Request Route", () => {
 			pveTemplateId: 1,
 			cpus: 2,
 			memoryMB: 2048,
-			diskGB: 30,
+			diskGB: 8,
 		});
 
 		expect(response.status).toBe(403);
 		expect(response.data).toBeNull();
+	});
+
+	it("student cannot create request above resource limits", async () => {
+		const client = treaty(
+			requestRoute(
+				mockPrisma,
+				mockCache as any,
+				mockStudentAuth,
+				mockQueue as any,
+			),
+		);
+
+		const response = await client.requests.post({
+			title: "Need more storage",
+			description: "For lab",
+			courseOfferingId: 1,
+			pveTemplateId: 1,
+			cpus: 8,
+			memoryMB: 4096,
+			diskGB: 16,
+		});
+
+		expect(response.status).toBe(422);
 	});
 
 	it("get request audit logs returns 404 when request missing", async () => {

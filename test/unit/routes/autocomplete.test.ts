@@ -217,6 +217,29 @@ describe("Autocomplete Route", () => {
 			expect(response.data?.[0].id).toBe(offering.id);
 			expect(response.data?.[0].label).toBe("[CS101] Intro - Fall 2025");
 		});
+
+		it("should hide inactive courses from course offering options", async () => {
+			const client = treaty(
+				autocompleteRoute(mockPrisma, mockCache, mockAdminAuth),
+			);
+
+			mockPrisma.courseOffering.findMany.mockResolvedValueOnce([]);
+
+			const response = await client.autocomplete["course-offerings"].get({
+				query: {},
+			});
+
+			expect(response.status).toBe(200);
+			expect(mockPrisma.courseOffering.findMany).toHaveBeenCalledWith(
+				expect.objectContaining({
+					where: expect.objectContaining({
+						course: expect.objectContaining({
+							isActive: true,
+						}),
+					}),
+				}),
+			);
+		});
 	});
 
 	describe("Authentication", () => {

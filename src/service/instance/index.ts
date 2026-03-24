@@ -30,9 +30,10 @@ export class InstanceService {
 
 	public async createInstanceByInstructor(
 		userId: number,
+		userRole: "ADMIN" | "INSTRUCTOR",
 		body: Static<typeof CreateInstanceRequestBody>,
 	): Promise<Static<typeof CreateInstanceResponse>> {
-		return this.useCases.createInstanceByInstructor(userId, body);
+		return this.useCases.createInstanceByInstructor(userId, userRole, body);
 	}
 
 	public async getInstancesByUser(

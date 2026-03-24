@@ -48,7 +48,7 @@ describe("RequestService", () => {
 			pveTemplateId: template.id,
 			cpus: 2,
 			memoryMB: 2048,
-			diskGB: 30,
+			diskGB: 8,
 		};
 
 		mockPrisma.request.create.mockResolvedValueOnce({
@@ -290,6 +290,45 @@ describe("RequestService", () => {
 				diskGB: 1,
 			} as any),
 		).rejects.toThrow("Related resource not found for request creation.");
+	});
+
+	it("rejects request when memory exceeds student limit", async () => {
+		await expect(
+			requestService.createRequest(1, {
+				title: "x",
+				courseOfferingId: 1,
+				pveTemplateId: 1,
+				cpus: 1,
+				memoryMB: 4096,
+				diskGB: 8,
+			} as any),
+		).rejects.toThrow("Requested memory cannot exceed 2048 MB.");
+	});
+
+	it("rejects request when cpu exceeds student limit", async () => {
+		await expect(
+			requestService.createRequest(1, {
+				title: "x",
+				courseOfferingId: 1,
+				pveTemplateId: 1,
+				cpus: 8,
+				memoryMB: 2048,
+				diskGB: 8,
+			} as any),
+		).rejects.toThrow("Requested vCPU cannot exceed 4.");
+	});
+
+	it("rejects request when disk exceeds student limit", async () => {
+		await expect(
+			requestService.createRequest(1, {
+				title: "x",
+				courseOfferingId: 1,
+				pveTemplateId: 1,
+				cpus: 1,
+				memoryMB: 2048,
+				diskGB: 16,
+			} as any),
+		).rejects.toThrow("Requested disk cannot exceed 8 GB.");
 	});
 
 	it("creates extended request when student owns instance", async () => {

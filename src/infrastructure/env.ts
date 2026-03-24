@@ -56,6 +56,13 @@ export const TelemetryEnvSchema = z.object({
 	LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
 	LOG_FORMAT: z.enum(["json", "plain"]).default("plain"),
 	LOG_PRETTY: z.coerce.boolean().default(false),
+	PROMETHEUS_BASE_URL: z
+		.url({ pattern: /^http(?:s)?:\/\// })
+		.optional(),
+	PROMETHEUS_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
+	PROMETHEUS_BEARER_TOKEN: z.string().min(1).optional(),
+	PROMETHEUS_USERNAME: z.string().min(1).optional(),
+	PROMETHEUS_PASSWORD: z.string().min(1).optional(),
 });
 
 export const EnvSchema = z.object({

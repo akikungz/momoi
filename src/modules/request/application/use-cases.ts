@@ -41,6 +41,9 @@ type AuditLogResponse = Static<typeof GetRequestAuditLogsResponse>;
 type ExtendedAuditLogResponse = Static<
 	typeof GetExtendedRequestAuditLogsResponse
 >;
+const STUDENT_REQUEST_CPU_MAX = 4;
+const STUDENT_REQUEST_MEMORY_MB_MAX = 2048;
+const STUDENT_REQUEST_DISK_GB_MAX = 8;
 
 export class RequestUseCases {
 	constructor(
@@ -54,6 +57,27 @@ export class RequestUseCases {
 		userId: number,
 		body: Static<typeof CreateRequestRequestBody>,
 	): Promise<Static<typeof CreateRequestResponse>> {
+		if (body.cpus > STUDENT_REQUEST_CPU_MAX) {
+			throw new ServiceError(
+				`Requested vCPU cannot exceed ${STUDENT_REQUEST_CPU_MAX}.`,
+				400,
+			);
+		}
+
+		if (body.memoryMB > STUDENT_REQUEST_MEMORY_MB_MAX) {
+			throw new ServiceError(
+				`Requested memory cannot exceed ${STUDENT_REQUEST_MEMORY_MB_MAX} MB.`,
+				400,
+			);
+		}
+
+		if (body.diskGB > STUDENT_REQUEST_DISK_GB_MAX) {
+			throw new ServiceError(
+				`Requested disk cannot exceed ${STUDENT_REQUEST_DISK_GB_MAX} GB.`,
+				400,
+			);
+		}
+
 		try {
 			const request = await this.dataAccess.prisma.request.create({
 				data: {

@@ -87,9 +87,9 @@ describe("Instance Route - Admin", () => {
 		const response = await client.instances.post({
 			pveTemplateId: 1,
 			courseOfferingId: 1,
-			cpus: 2,
-			memoryMB: 4096,
-			diskGB: 50,
+			cpus: 8,
+			memoryMB: 8192,
+			diskGB: 32,
 		});
 
 		expect(response.status).toBe(200);
@@ -645,12 +645,54 @@ describe("Instance Route - Instructor", () => {
 			courseOfferingId: 1,
 			cpus: 4,
 			memoryMB: 8192,
-			diskGB: 100,
+			diskGB: 32,
 		});
 
 		expect(response.status).toBe(200);
 		expect(response.data).toHaveProperty("id");
 		expect(response.data).toHaveProperty("courseOffering");
+	});
+
+	it("should reject instructor instance above resource limits", async () => {
+		const client = treaty(
+			instanceRoute(
+				mockPrisma,
+				mockCache as any,
+				mockInstructorAuth,
+				mockQueue as any,
+			),
+		);
+
+		const response = await client.instances.post({
+			pveTemplateId: 1,
+			courseOfferingId: 1,
+			cpus: 4,
+			memoryMB: 8192,
+			diskGB: 64,
+		});
+
+		expect(response.status).toBe(400);
+	});
+
+	it("should reject instance above vcpu limit", async () => {
+		const client = treaty(
+			instanceRoute(
+				mockPrisma,
+				mockCache as any,
+				mockInstructorAuth,
+				mockQueue as any,
+			),
+		);
+
+		const response = await client.instances.post({
+			pveTemplateId: 1,
+			courseOfferingId: 1,
+			cpus: 16,
+			memoryMB: 8192,
+			diskGB: 32,
+		});
+
+		expect(response.status).toBe(422);
 	});
 });
 
