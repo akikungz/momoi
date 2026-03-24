@@ -28,6 +28,7 @@ export const AcademicCacheKeys = {
 		`academic:semesters:page:${page}:size:${pageSize}:name:${name ?? "all"}:from:${dateFrom ?? "none"}:to:${dateTo ?? "none"}`,
 	semesterDetail: (id: number) => `academic:semester:${id}`,
 	semesterCurrent: () => "academic:semester:current",
+	semesterNext: () => "academic:semester:next",
 	semesterListPattern: () => "academic:semesters:*",
 
 	autocompleteInstructors: () => "autocomplete:instructors:*",

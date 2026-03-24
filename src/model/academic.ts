@@ -378,6 +378,11 @@ export const GetCurrentSemesterResponse = t.Union([SemesterValue, t.Null()], {
 		"Response structure for fetching the current active semester, returns null if no current semester exists",
 });
 
+export const GetNextSemesterResponse = t.Union([SemesterValue, t.Null()], {
+	description:
+		"Response structure for fetching the next upcoming semester, returns null if no upcoming semester exists",
+});
+
 export const AddSemesterRequestBody = t.Object(
 	{
 		name: t.String({ description: "Name of the semester" }),
@@ -486,6 +491,7 @@ export const academicModel = new Elysia({ name: "academic.model" })
 	.model("SemesterByIdRequestParams", SemesterByIdRequestParams)
 	.model("GetSemesterByIdResponse", GetSemesterByIdResponse)
 	.model("GetCurrentSemesterResponse", GetCurrentSemesterResponse)
+	.model("GetNextSemesterResponse", GetNextSemesterResponse)
 	.model("AddSemesterRequestBody", AddSemesterRequestBody)
 	.model("AddSemesterResponse", AddSemesterResponse)
 	.model("EditSemesterByIdRequestBody", EditSemesterByIdRequestBody)

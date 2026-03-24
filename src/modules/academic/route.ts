@@ -31,6 +31,14 @@ export const academicRoute = (
 				},
 			},
 		)
+		.get("/semesters/next", async () => useCases.getNextSemester(), {
+			response: "GetNextSemesterResponse",
+			detail: {
+				summary: "Get next semester",
+				description: "Retrieve the next upcoming semester",
+				tags: ["Academic", "Semesters"],
+			},
+		})
 		.guard({ auth: true })
 		.onBeforeHandle(({ user, status }) => {
 			if (user.role !== "ADMIN") {

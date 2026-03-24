@@ -18,6 +18,7 @@ import type {
 	GetCurrentSemesterResponse,
 	GetInstructorMailingListQuery,
 	GetInstructorsRequestQuery,
+	GetNextSemesterResponse,
 	GetSemestersRequestQuery,
 } from "@momoi/model/academic";
 import {
@@ -550,6 +551,31 @@ export class AcademicUseCases {
 
 		const semester = await this.dataAccess.prisma.semester.findFirst({
 			where: { isCurrent: true },
+		});
+
+		if (!semester) {
+			await this.cache.set(cacheKey, "null", 600);
+			return null;
+		}
+
+		const response = mapSemester(semester);
+		await this.cache.set(cacheKey, response, 600);
+		return response;
+	}
+
+	async getNextSemester(): Promise<Static<typeof GetNextSemesterResponse>> {
+		const cacheKey = AcademicCacheKeys.semesterNext();
+		const cached = await this.cache.get<
+			Static<typeof GetNextSemesterResponse> | "null"
+		>(cacheKey);
+		if (cached !== null) {
+			return cached === "null" ? null : cached;
+		}
+
+		const today = new Date();
+		const semester = await this.dataAccess.prisma.semester.findFirst({
+			where: { startDate: { gt: today } },
+			orderBy: { startDate: "asc" },
 		});
 
 		if (!semester) {
