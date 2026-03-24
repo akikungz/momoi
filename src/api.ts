@@ -2,18 +2,12 @@ import { Elysia } from "elysia";
 
 import { cors } from "@elysiajs/cors";
 import { openapi } from "@elysiajs/openapi";
-import { opentelemetry } from "@elysiajs/opentelemetry";
 import { serverTiming } from "@elysiajs/server-timing";
-import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-grpc";
-import { IORedisInstrumentation } from "@opentelemetry/instrumentation-ioredis";
-import { PgInstrumentation } from "@opentelemetry/instrumentation-pg";
-import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-base";
 
 import { authHandler, authMacro, authOpenAPI } from "./auth";
 import { CacheModule } from "./cache";
 import { prisma } from "./database";
 import { env } from "./env";
-import { logger } from "./logger";
 import { QueueModule } from "./queue";
 import { academicRoute } from "./routes/academic";
 import { autocompleteRoute } from "./routes/autocomplete";
@@ -21,12 +15,44 @@ import { instanceRoute } from "./routes/instance";
 import { requestRoute } from "./routes/request";
 import { storageRoute } from "./routes/storage";
 import { createObjectStorageProvider } from "./storage-provider";
+import {
+  createTelemetryPlugin,
+  emitLog,
+  getErrorDetails,
+  httpMetrics,
+  SeverityNumber,
+} from "./telemetry/runtime";
 import { userRoute } from "./routes/user";
 import { ServiceError } from "./utils/error";
 
 const cache = new CacheModule();
 const queue = new QueueModule();
 const objectStorage = createObjectStorageProvider();
+const requestTelemetry = new WeakMap<
+  Request,
+  {
+    requestStartedAt: number;
+    metricAttributes: {
+      "http.request.method": string;
+      "url.path": string;
+    };
+  }
+>();
+
+const getStatusCode = (status: unknown) =>
+  typeof status === "number" ? status : 200;
+
+const getMetricPath = (request: Request, path?: string) => {
+  if (path && path.length > 0) {
+    return path;
+  }
+
+  try {
+    return new URL(request.url).pathname;
+  } catch {
+    return "/";
+  }
+};
 
 export async function shutdownApiResources() {
   const results = await Promise.allSettled([
@@ -49,6 +75,7 @@ export const api = new Elysia({
     path: "/",
   }
 })
+  .use(createTelemetryPlugin())
   .use(
     openapi({
       documentation: {
@@ -76,19 +103,6 @@ export const api = new Elysia({
       },
     })
   )
-  .use(
-    opentelemetry({
-      serviceName: env.OTEL_SERVICE_NAME,
-      instrumentations: [new PgInstrumentation(), new IORedisInstrumentation()],
-      spanProcessors: [
-        new BatchSpanProcessor(
-          new OTLPTraceExporter({
-            url: env.OTEL_EXPORTER_OTLP_ENDPOINT,
-          })
-        ),
-      ],
-    })
-  )
   .use(serverTiming())
   .use(
     cors({
@@ -98,7 +112,61 @@ export const api = new Elysia({
       allowedHeaders: ["*"]
     })
   )
+  .onRequest(({ request }) => {
+    const requestStartedAt = performance.now();
+    const metricAttributes = {
+      "http.request.method": request.method,
+      "url.path": getMetricPath(request),
+    };
+
+    requestTelemetry.set(request, {
+      requestStartedAt,
+      metricAttributes,
+    });
+    httpMetrics.activeRequests.add(1, metricAttributes);
+    emitLog(SeverityNumber.INFO, "INFO", "HTTP request started", metricAttributes);
+  })
+  .onAfterResponse(({ request, path, set }) => {
+    const telemetryState = requestTelemetry.get(request);
+    const metricAttributes = telemetryState?.metricAttributes ?? {
+      "http.request.method": request.method,
+      "url.path": getMetricPath(request, path),
+    };
+    const requestStartedAt = telemetryState?.requestStartedAt ?? performance.now();
+    const durationMs = performance.now() - requestStartedAt;
+    const statusCode = getStatusCode(set.status);
+    const attributes = {
+      ...metricAttributes,
+      "http.response.status_code": statusCode,
+      "otel.status_code": statusCode >= 500 ? "ERROR" : "OK",
+    };
+    const routePath = getMetricPath(request, path);
+
+    requestTelemetry.delete(request);
+
+    httpMetrics.recordResult(durationMs, statusCode, metricAttributes);
+    httpMetrics.activeRequests.add(-1, metricAttributes);
+
+    emitLog(
+      statusCode >= 500 ? SeverityNumber.ERROR : SeverityNumber.INFO,
+      statusCode >= 500 ? "ERROR" : "INFO",
+      "HTTP request completed",
+      {
+        ...attributes,
+        "http.request.duration_ms": Number(durationMs.toFixed(2)),
+        "http.route": routePath,
+      }
+    );
+  })
   .onError(({ error, status }) => {
+    const errorDetails = getErrorDetails(error);
+
+    emitLog(SeverityNumber.ERROR, "ERROR", "HTTP request failed", {
+      "error.message": errorDetails.message,
+      "error.name": errorDetails.name,
+      ...(errorDetails.stack ? { "error.stack": errorDetails.stack } : {}),
+    });
+
     if (error instanceof ServiceError) {
       return status(error.status, { status: error.status, message: error.message, data: error.message.startsWith("{") ? JSON.parse(error.message) : undefined });
     }
@@ -108,52 +176,6 @@ export const api = new Elysia({
     }
 
     return status(500, { status: 500, message: 'An unexpected error occurred.' });
-  })
-  .trace(({ context, onHandle }) => {
-    onHandle(async ({ error, total }) => {
-      logger.info({
-        timestamp: new Date().toISOString(),
-        method: context.request.method,
-        route: context.route,
-        url: context.request.url,
-        status: context.set.status,
-        totalTime: `${total} ms`,
-        userAgent: context.request.headers.get("user-agent") || "",
-      }, "Request handled");
-
-      const err = await error;
-      if (err) {
-        if (err instanceof Error) {
-          const cause = err.cause;
-          const causeError = cause instanceof Error ? cause : undefined;
-          logger.error({
-            timestamp: new Date().toISOString(),
-            method: context.request.method,
-            route: context.route,
-            url: context.request.url,
-            status: context.set.status,
-            errorMessage: err.message,
-            stack: err.stack,
-            causeMessage: causeError?.message,
-            causeStack: causeError?.stack,
-            cause: !causeError ? cause : undefined,
-            userAgent: context.request.headers.get("user-agent") || "",
-          }, "Error occurred");
-
-          return;
-        }
-
-        logger.error({
-          timestamp: new Date().toISOString(),
-          method: context.request.method,
-          route: context.route,
-          url: context.request.url,
-          status: context.set.status,
-          error: err,
-          userAgent: context.request.headers.get("user-agent") || "",
-        }, "Unknown error occurred");
-      }
-    });
   })
   .use(authHandler)
   .use(userRoute(prisma, cache, authMacro))

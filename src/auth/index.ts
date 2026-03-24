@@ -6,7 +6,6 @@ import { Elysia, type Context } from "elysia";
 import { CacheModule } from "@momoi/cache";
 import { prisma } from "@momoi/database";
 import { env } from "@momoi/env";
-import { logger } from "@momoi/logger";
 import { isInstructorEmail, isItDepartmentEmail } from "@momoi/utils/user";
 
 import { MockAuth } from "./mock";
@@ -66,19 +65,19 @@ export const auth = betterAuth({
     log: (level, message, ...args) => {
       switch (level) {
         case "debug":
-          logger.debug(message, ...args);
+          console.debug(message, ...args);
           break;
         case "info":
-          logger.info(message, ...args);
+          console.info(message, ...args);
           break;
         case "warn":
-          logger.warn(message, ...args);
+          console.warn(message, ...args);
           break;
         case "error":
-          logger.error(message, ...args);
+          console.error(message, ...args);
           break;
         default:
-          logger.info(message, ...args);
+          console.info(message, ...args);
       }
     },
   },

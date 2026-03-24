@@ -8,8 +8,11 @@ import {
     ReprovisionInstanceResponse
 } from "@momoi/model/instance";
 import { QueueModule } from "@momoi/queue";
+import {
+    recordInstanceOperation,
+    recordQueueJobEnqueued,
+} from "../../telemetry/runtime";
 import { handlePrismaError, ServiceError } from "@momoi/utils/error";
-import { logger } from "@momoi/logger";
 
 import type { CacheModule } from '@momoi/cache';
 import type { PrismaClient } from '@momoi/database/prisma/generated/client';
@@ -47,8 +50,14 @@ export class InstanceService {
                 { instanceId: instance.id, userId },
                 { jobId: `provision-${instance.id}`, removeOnComplete: true, removeOnFail: false }
             );
+            recordQueueJobEnqueued("provision-instance", "provision", {
+                "app.operation": "create_instance",
+            });
+            recordInstanceOperation("create", {
+                "user.role": "INSTRUCTOR",
+            });
 
-            logger.info({ instanceId: instance.id }, '📋 VM provisioning queued');
+            console.info('📋 VM provisioning queued', { instanceId: instance.id });
 
             return mapInstanceCreateToResponse(instance);
         } catch (error: unknown) {
@@ -166,12 +175,12 @@ export class InstanceService {
                 try {
                     return JSON.parse(cachedData);
                 } catch (cacheParseError: unknown) {
-                    logger.warn({ instanceId, cacheParseError }, 'Failed to parse cached instance data. Invalidating cache key.');
+                    console.warn('Failed to parse cached instance data. Invalidating cache key.', { instanceId, cacheParseError });
                     await this.cache.deleteCacheByPattern(cacheKey);
                 }
             }
         } catch (cacheReadError: unknown) {
-            logger.warn({ instanceId, cacheReadError }, 'Failed to read instance from cache. Falling back to database.');
+            console.warn('Failed to read instance from cache. Falling back to database.', { instanceId, cacheReadError });
         }
 
         try {
@@ -190,12 +199,12 @@ export class InstanceService {
             try {
                 await this.cache.createCacheKey(cacheKey, JSON.stringify(response));
             } catch (cacheWriteError: unknown) {
-                logger.warn({ instanceId, cacheWriteError }, 'Failed to cache instance response.');
+                console.warn('Failed to cache instance response.', { instanceId, cacheWriteError });
             }
 
             return response;
         } catch (error: unknown) {
-            logger.error({ instanceId, err: error }, 'Failed to retrieve instance by id.');
+            console.error('Failed to retrieve instance by id.', { instanceId, err: error });
             handlePrismaError(error, 'while retrieving the instance', { notFoundMessage: 'Instance not found.' });
         }
     }
@@ -226,12 +235,21 @@ export class InstanceService {
                     { instanceId, userId: instance.platformUserId },
                     { jobId: `deprovision-${instanceId}`, removeOnComplete: true, removeOnFail: false }
                 );
+                recordQueueJobEnqueued("deprovision-instance", "deprovision", {
+                    "app.operation": "delete_instance",
+                });
+                recordInstanceOperation("delete_queued", {
+                    "instance.has_vm": true,
+                });
 
-                logger.info({ instanceId }, '📋 VM deprovisioning queued');
+                console.info('📋 VM deprovisioning queued', { instanceId });
             } else {
                 // No VM assigned, safe to delete immediately
                 await this.prisma.instance.delete({ where: { id: instanceId } });
-                logger.info({ instanceId }, '🗑️ Instance deleted (no VM)');
+                recordInstanceOperation("delete_completed", {
+                    "instance.has_vm": false,
+                });
+                console.info('🗑️ Instance deleted (no VM)', { instanceId });
             }
 
             // Clear relevant cache entries
@@ -370,6 +388,9 @@ export class InstanceService {
                 data: { status: 'PROMOTED' },
                 select: { id: true, status: true },
             });
+            recordInstanceOperation("promote", {
+                "user.role": "ADMIN",
+            });
 
             // Create audit log entry
             await this.prisma.instanceAuditLog.create({
@@ -465,8 +486,14 @@ export class InstanceService {
                 { instanceId, userId: instance.platformUserId },
                 { jobId: `reprovision-${instanceId}`, removeOnComplete: true, removeOnFail: false }
             );
+            recordQueueJobEnqueued("provision-instance", "reprovision", {
+                "app.operation": "reprovision_instance",
+            });
+            recordInstanceOperation("reprovision", {
+                "user.role": userRole,
+            });
 
-            logger.info({ instanceId }, '📋 VM re-provisioning queued');
+            console.info('📋 VM re-provisioning queued', { instanceId });
 
             return {
                 id: updatedInstance.id,

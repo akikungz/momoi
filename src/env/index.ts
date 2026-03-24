@@ -34,7 +34,13 @@ export const S3EnvSchema = z.object({
 
 export const TelemetryEnvSchema = z.object({
   OTEL_SERVICE_NAME: z.string().default("momoi"),
-  OTEL_EXPORTER_OTLP_ENDPOINT: z.url().optional(),
+  OTEL_EXPORTER_OTLP_ENDPOINT: z.url().default("http://localhost:4317"),
+  OTEL_EXPORTER_OTLP_PROTOCOL: z.enum(["grpc", "http"]).default("grpc"),
+  OTEL_EXPORTER_OTLP_USERNAME: z.string().min(1).optional(),
+  OTEL_EXPORTER_OTLP_PASSWORD: z.string().min(1).optional(),
+  OTEL_FAIL_OPEN: z.coerce.boolean().default(true),
+  OTEL_METRIC_EXPORT_INTERVAL: z.coerce.number().int().positive().default(10000),
+  OTEL_METRIC_EXPORT_TIMEOUT: z.coerce.number().int().positive().default(5000),
   LOG_LEVEL: z
     .enum(["debug", "info", "warn", "error"])
     .default("info"),

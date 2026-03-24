@@ -21,8 +21,12 @@ import {
   UserRole,
 } from "@momoi/model/storage";
 import { buildPaginationResponse, parsePagination } from "@momoi/utils/pagination";
+import {
+  recordStorageBytes,
+  recordStorageDownloadUrlCacheResult,
+  recordStorageOperation,
+} from "../../telemetry/runtime";
 import { handlePrismaError, ServiceError } from "@momoi/utils/error";
-import { logger } from "@momoi/logger";
 import type { ObjectStorageProvider } from "@momoi/storage-provider";
 
 import type { CacheModule } from "@momoi/cache";
@@ -277,6 +281,11 @@ export class StorageService {
         return file;
       });
 
+      recordStorageOperation("create_file", {
+        "storage.file.type": created.type,
+        "storage.visibility": created.visibility,
+      });
+
       return this.mapFileItem(created);
     } catch (error: unknown) {
       handlePrismaError(error, "while creating a storage file", {
@@ -506,6 +515,12 @@ export class StorageService {
 
       return version;
     });
+    recordStorageOperation("create_version", {
+      "storage.file.kind": "versioned",
+    });
+    recordStorageBytes(body.sizeBytes, {
+      "storage.operation": "create_version",
+    });
 
     return this.mapVersionItem(created);
   }
@@ -522,6 +537,9 @@ export class StorageService {
 
     const objectKey = this.objectStorage.createObjectKey(user.id, body.filename);
     const presigned = await this.objectStorage.createUploadUrl(objectKey, body.contentType);
+    recordStorageOperation("create_upload_url", {
+      "storage.upload.kind": "file",
+    });
 
     return {
       objectKey: presigned.objectKey,
@@ -544,6 +562,10 @@ export class StorageService {
 
     const objectKey = this.objectStorage.createObjectKey(user.id, body.filename);
     const presigned = await this.objectStorage.createUploadUrl(objectKey, body.contentType);
+    recordStorageOperation("create_upload_url", {
+      "storage.upload.kind": "version",
+      "storage.file.id": fileId,
+    });
 
     return {
       objectKey: presigned.objectKey,
@@ -582,6 +604,10 @@ export class StorageService {
     }
 
     if (!this.objectStorage.enabled) {
+      recordStorageOperation("create_download_url", {
+        "storage.download.kind": "file",
+        "storage.source": "local",
+      });
       return {
         objectKey: file.latestVersion.storagePath,
         downloadUrl: file.latestVersion.storagePath,
@@ -590,6 +616,10 @@ export class StorageService {
     }
 
     const presigned = await this.getOrCreateCachedDownloadUrl(file.latestVersion.storagePath);
+    recordStorageOperation("create_download_url", {
+      "storage.download.kind": "file",
+      "storage.source": "object_storage",
+    });
     return {
       objectKey: presigned.objectKey,
       downloadUrl: presigned.url,
@@ -632,6 +662,10 @@ export class StorageService {
     }
 
     if (!this.objectStorage.enabled) {
+      recordStorageOperation("create_download_url", {
+        "storage.download.kind": "version",
+        "storage.source": "local",
+      });
       return {
         objectKey: version.storagePath,
         downloadUrl: version.storagePath,
@@ -640,6 +674,10 @@ export class StorageService {
     }
 
     const presigned = await this.getOrCreateCachedDownloadUrl(version.storagePath);
+    recordStorageOperation("create_download_url", {
+      "storage.download.kind": "version",
+      "storage.source": "object_storage",
+    });
     return {
       objectKey: presigned.objectKey,
       downloadUrl: presigned.url,
@@ -696,7 +734,7 @@ export class StorageService {
         await this.objectStorage.deleteObject(deletedObjectKey);
         await this.cache.deleteCacheKey(this.buildDownloadUrlCacheKey(deletedObjectKey));
       } catch (error) {
-        logger.warn({ error, objectKey: deletedObjectKey }, "Failed to delete object from S3-compatible storage after version delete");
+        console.warn("Failed to delete object from S3-compatible storage after version delete", { error, objectKey: deletedObjectKey });
       }
     }
 
@@ -968,6 +1006,9 @@ export class StorageService {
         if (cached) {
           const expiresAt = new Date(cached.expiresAt);
           if (expiresAt.getTime() > Date.now()) {
+            recordStorageDownloadUrlCacheResult("hit", {
+              "storage.cache.scope": "download_url",
+            });
             return {
               objectKey,
               url: cached.url,
@@ -977,8 +1018,11 @@ export class StorageService {
         }
       }
     } catch (error) {
-      logger.warn({ error, objectKey }, "Failed reading cached presigned download URL");
+      console.warn("Failed reading cached presigned download URL", { error, objectKey });
     }
+    recordStorageDownloadUrlCacheResult("miss", {
+      "storage.cache.scope": "download_url",
+    });
 
     const presigned = await this.objectStorage.createDownloadUrl(objectKey);
 
@@ -992,7 +1036,7 @@ export class StorageService {
 
         await this.cache.createCacheKey(cacheKey, JSON.stringify(payload), ttlSeconds);
       } catch (error) {
-        logger.warn({ error, objectKey }, "Failed writing cached presigned download URL");
+        console.warn("Failed writing cached presigned download URL", { error, objectKey });
       }
     }
 

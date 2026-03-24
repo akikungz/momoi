@@ -3,7 +3,7 @@
 // Node 18+ required (global fetch). No external dependencies.
 
 const DEFAULTS = {
-  base: process.env.MOMOI_BASE_URL || `http://localhost:${process.env.MOMOI_PORT || 3000}`,
+  base: process.env.MOMOI_BASE_URL || `http://localhost:${process.env.MOMOI_PORT || 3001}`,
   // Current public routes in Momoi.
   paths: ["/api/openapi/json", "/api/academic/semesters/current"],
   durationSec: 20,

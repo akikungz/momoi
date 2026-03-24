@@ -2,6 +2,7 @@ import { Queue } from "bullmq";
 import Redis from "ioredis";
 
 import { env } from "@momoi/env";
+import { setDependencyAvailability } from "../telemetry/runtime";
 
 import type {
   ProvisionInstanceJobData,
@@ -20,6 +21,7 @@ export class QueueModule {
   constructor(base_key: string = env.NODE_ENV) {
     // Initialize Redis connection
     if (!env.REDIS_URL) {
+      setDependencyAvailability("queue", false);
       throw new Error("REDIS_URL is not defined in environment variables");
     }
 
@@ -46,11 +48,14 @@ export class QueueModule {
       `${base_key}_toggle-instance-status`,
       { connection: redisConfig, defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 2000 } } }
     );
+
+    setDependencyAvailability("queue", true);
   }
 
   public async closeConnections() {
     await this.provisionInstanceQueue.close();
     await this.deprovisionInstanceQueue.close();
     await this.toggleInstanceStatusQueue.close();
+    setDependencyAvailability("queue", false);
   }
 }

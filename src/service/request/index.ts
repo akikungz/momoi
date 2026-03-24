@@ -8,6 +8,10 @@ import {
     UpdateExtendedRequestStatusResponse, UpdateRequestStatusRequestBody, UpdateRequestStatusResponse
 } from "@momoi/model/request";
 import { QueueModule } from "@momoi/queue";
+import {
+    recordQueueJobEnqueued,
+    recordRequestOperation,
+} from "../../telemetry/runtime";
 import { handlePrismaError, ServiceError } from "@momoi/utils/error";
 
 import type { CacheModule } from '@momoi/cache';
@@ -16,7 +20,6 @@ import type { PrismaClient } from '@momoi/database/prisma/generated/client';
 import { mapExtendedRequest, mapRequest } from "./mappers";
 import { EXTENDED_REQUEST_SELECT, REQUEST_SELECT } from "./selects";
 import { buildExtendedRequestFilter, buildRequestFilter, CurrentUser } from "./types";
-import { logger } from "@momoi/logger";
 
 export class RequestService {
     constructor(
@@ -44,6 +47,9 @@ export class RequestService {
             });
 
             await this.invalidateRequestCaches(userId);
+            recordRequestOperation("create", {
+                "request.type": "standard",
+            });
 
             return mapRequest(request);
         } catch (error: unknown) {
@@ -136,6 +142,11 @@ export class RequestService {
                 }
             })
         ]);
+        recordRequestOperation("status_update", {
+            "request.type": "standard",
+            "request.status": updated.status,
+            "user.role": user.role,
+        });
 
         if (updated.status === "APPROVED") {
             const instance = await this.prisma.instance.create({
@@ -149,12 +160,15 @@ export class RequestService {
                 },
             });
 
-            logger.info(`Request ${request.id} approved, created instance ${instance.id}, enqueueing provisioning job.`);
+            console.info(`Request ${request.id} approved, created instance ${instance.id}, enqueueing provisioning job.`);
 
             await this.queue.provisionInstanceQueue.add(
                 'provision',
                 { instanceId: instance.id, userId: request.requesterId }
             );
+            recordQueueJobEnqueued("provision-instance", "provision", {
+                "app.operation": "approve_request",
+            });
         }
 
         await Promise.all([
@@ -213,6 +227,9 @@ export class RequestService {
             });
 
             await this.invalidateExtendedRequestCaches(userId);
+            recordRequestOperation("create", {
+                "request.type": "extended",
+            });
 
             return mapExtendedRequest(extendedRequest);
         } catch (error: unknown) {
@@ -309,6 +326,11 @@ export class RequestService {
                 }
             })
         ]);
+        recordRequestOperation("status_update", {
+            "request.type": "extended",
+            "request.status": updated.status,
+            "user.role": user.role,
+        });
 
         if (updated.status === ApprovalActionStatus.APPROVED) {
             // TODO: Apply semester into the target instance
