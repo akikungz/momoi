@@ -41,8 +41,12 @@ This project uses a `.env` file for local configuration. The `.env.example` file
 
 - `OTEL_SERVICE_NAME` — Service name for OpenTelemetry resources.
   - Example: `momoi`
-- `OTEL_EXPORTER_OTLP_ENDPOINT` — OTLP exporter endpoint.
+- `OTEL_EXPORTER_OTLP_ENDPOINT` — OTLP gRPC collector endpoint used for traces, metrics, and logs.
   - Example: `http://localhost:4317`
+- `OTEL_METRIC_EXPORT_INTERVAL` — Metrics push interval in milliseconds.
+  - Example: `10000`
+- `OTEL_METRIC_EXPORT_TIMEOUT` — Metrics export timeout in milliseconds.
+  - Example: `5000`
 - `LOG_LEVEL` — Logging level.
   - Example: `info`
 - `LOG_FORMAT` — Log output format.

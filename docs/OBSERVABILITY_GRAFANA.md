@@ -5,11 +5,13 @@ This document explains how to analyze Momoi’s telemetry data and build a Grafa
 ## Overview
 Momoi exports three telemetry signals:
 
-- **Metrics** via Prometheus (`/metrics`) using `prom-client`.
-- **Traces** via OpenTelemetry OTLP (gRPC exporter).
-- **Logs** via Pino, optionally shipped to **Loki** with trace correlation.
+- **Metrics** via OpenTelemetry OTLP/gRPC to the collector on port `4317`.
+- **Traces** via OpenTelemetry OTLP/gRPC to the collector on port `4317`.
+- **Logs** via Pino plus OpenTelemetry OTLP/gRPC export to the collector on port `4317`.
 
 These are all wired to work together so a Grafana dashboard can correlate **route latency**, **error rates**, **trace spans**, and **logs** for any request.
+
+> Note: the runtime no longer exposes a Prometheus `/metrics` scrape endpoint. Metrics are pushed through the OpenTelemetry collector instead.
 
 ---
 ## 🚀 Grafana Stack Provisioning Guide
@@ -165,8 +167,8 @@ groups:
     rules:
       - alert: HighErrorRate
         expr: |
-          sum(rate(http_request_errors_total[5m])) 
-          / sum(rate(http_requests_total[5m])) > 0.05
+          sum(rate(momoi_http_request_errors_total[5m])) 
+          / sum(rate(momoi_http_requests_total[5m])) > 0.05
         for: 5m
         labels:
           severity: critical
@@ -176,7 +178,7 @@ groups:
 
       - alert: HighLatency
         expr: |
-          histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 2
+          histogram_quantile(0.95, sum(rate(momoi_http_request_duration_seconds_bucket[5m])) by (le)) > 2
         for: 5m
         labels:
           severity: warning
@@ -360,9 +362,9 @@ datasources:
         tags: [{ key: 'service.name', value: 'service' }]
         queries:
           - name: 'Request rate'
-            query: 'sum(rate(http_requests_total{$$__tags}[5m]))'
+            query: 'sum(rate(momoi_http_requests_total{$$__tags}[5m]))'
           - name: 'Error rate'
-            query: 'sum(rate(http_request_errors_total{$$__tags}[5m]))'
+            query: 'sum(rate(momoi_http_request_errors_total{$$__tags}[5m]))'
       serviceMap:
         datasourceUid: prometheus
       nodeGraph:
@@ -431,13 +433,13 @@ The `metricsPlugin` in `src/metrics/index.ts` exposes:
 
 | Metric                            | Type      | Labels                                         | Meaning                                   |
 | --------------------------------- | --------- | ---------------------------------------------- | ----------------------------------------- |
-| `http_requests_total`             | Counter   | `method`, `route`, `status_code`               | Total HTTP requests                       |
-| `http_request_duration_seconds`   | Histogram | `method`, `route`, `status_code`               | Request latency                           |
-| `http_request_errors_total`       | Counter   | `method`, `route`, `status_code`, `error_type` | Request errors                            |
-| `http_active_connections`         | Counter   | _none_                                         | Active connections (tracked as a counter) |
-| `log_entries_total`               | Counter   | `level`, `service`                             | Total log entries                         |
-| `log_errors_total`                | Counter   | `level`, `service`, `error_type`               | Error logs by type                        |
-| `log_processing_duration_seconds` | Histogram | `transport`, `level`                           | Log shipping duration                     |
+| `momoi_http_requests_total`             | Counter   | `method`, `route`, `status_code`               | Total HTTP requests                       |
+| `momoi_http_request_duration_seconds`   | Histogram | `method`, `route`, `status_code`               | Request latency                           |
+| `momoi_http_request_errors_total`       | Counter   | `method`, `route`, `status_code`, `error_type` | Request errors                            |
+| `momoi_http_active_connections`         | Counter   | _none_                                         | Active connections (tracked as a counter) |
+| `momoi_log_entries_total`               | Counter   | `level`, `service`                             | Total log entries                         |
+| `momoi_log_errors_total`                | Counter   | `level`, `service`, `error_type`               | Error logs by type                        |
+| `momoi_log_processing_duration_seconds` | Histogram | `transport`, `level`                           | Log shipping duration                     |
 
 ### Business & Domain Metrics
 
@@ -501,7 +503,7 @@ Defined in `src/metrics/business.ts`:
 | `momoi_active_courses_count` | Gauge | `semester`                | Active course offerings |
 | `momoi_instances_per_course` | Gauge | `course_code`, `semester` | Instances per course    |
 
-> Note: `http_active_connections` is currently implemented as a **Counter**. If you need a true live gauge, consider converting this to a `Gauge` in the future.
+> Note: `momoi_http_active_connections` is currently implemented as a **Counter**. If you need a true live gauge, consider converting this to a `Gauge` in the future.
 
 ---
 
@@ -561,55 +563,55 @@ All three should use the same `service.name` (`OTEL_SERVICE_NAME`) so dashboard 
 ### Traffic
 - **Requests per second**
   ```promql
-  sum(rate(http_requests_total[5m])) by (method, route)
+  sum(rate(momoi_http_requests_total[5m])) by (method, route)
   ```
 
 - **Top routes by traffic**
   ```promql
-  topk(10, sum(rate(http_requests_total[5m])) by (route))
+  topk(10, sum(rate(momoi_http_requests_total[5m])) by (route))
   ```
 
 ### Latency
 - **P95 latency by route**
   ```promql
-  histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, route))
+  histogram_quantile(0.95, sum(rate(momoi_http_request_duration_seconds_bucket[5m])) by (le, route))
   ```
 
 - **P99 latency overall**
   ```promql
-  histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))
+  histogram_quantile(0.99, sum(rate(momoi_http_request_duration_seconds_bucket[5m])) by (le))
   ```
 
 ### Errors
 - **Error rate (%)**
   ```promql
   100 * (
-    sum(rate(http_request_errors_total[5m]))
+    sum(rate(momoi_http_request_errors_total[5m]))
     /
-    sum(rate(http_requests_total[5m]))
+    sum(rate(momoi_http_requests_total[5m]))
   )
   ```
 
 - **Top error routes**
   ```promql
-  topk(10, sum(rate(http_request_errors_total[5m])) by (route, error_type))
+  topk(10, sum(rate(momoi_http_request_errors_total[5m])) by (route, error_type))
   ```
 
 ### Logs
 - **Log volume by level**
   ```promql
-  sum(rate(log_entries_total[5m])) by (level)
+  sum(rate(momoi_log_entries_total[5m])) by (level)
   ```
 
 - **Error logs by type**
   ```promql
-  sum(rate(log_errors_total[5m])) by (error_type)
+  sum(rate(momoi_log_errors_total[5m])) by (error_type)
   ```
 
 ### Log processing latency
 - **P95 log ship time**
   ```promql
-  histogram_quantile(0.95, sum(rate(log_processing_duration_seconds_bucket[5m])) by (le, transport))
+  histogram_quantile(0.95, sum(rate(momoi_log_processing_duration_seconds_bucket[5m])) by (le, transport))
   ```
 
 ### Traces (Jaeger)
@@ -794,7 +796,9 @@ These values control observability behavior:
 | Variable                      | Purpose                                      |
 | ----------------------------- | -------------------------------------------- |
 | `OTEL_SERVICE_NAME`           | Service name used in traces/logs             |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP gRPC endpoint for traces                |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP gRPC endpoint for traces, metrics, logs |
+| `OTEL_METRIC_EXPORT_INTERVAL` | Metrics push interval in milliseconds        |
+| `OTEL_METRIC_EXPORT_TIMEOUT`  | Metrics export timeout in milliseconds       |
 | `LOG_LEVEL`                   | Log level (`debug`, `info`, `warn`, `error`) |
 | `LOG_FORMAT`                  | Log format (`json` or `plain`)               |
 | `LOG_PRETTY`                  | Pretty logs in dev (`true`/`false`)          |
@@ -803,16 +807,16 @@ These values control observability behavior:
 
 ## 🛠️ Troubleshooting
 
-- **No metrics in Prometheus:** ensure `/metrics` is reachable and scraped.
-- **No traces:** confirm `OTEL_EXPORTER_OTLP_ENDPOINT` is reachable and OTLP gRPC is enabled.
-- **No logs in Loki:** verify your log collector (eg. Promtail) is scraping pod stdout and forwarding to Loki.
+- **No metrics:** confirm `OTEL_EXPORTER_OTLP_ENDPOINT` points at the collector gRPC listener on port `4317` and that the collector pipelines include `metrics`.
+- **No traces:** confirm `OTEL_EXPORTER_OTLP_ENDPOINT` is reachable and the collector `traces` pipeline is enabled.
+- **No logs:** confirm `OTEL_EXPORTER_OTLP_ENDPOINT` is reachable and the collector `logs` pipeline is enabled.
 - **Missing trace/log correlation:** check `traceId`/`spanId` labels in Loki and `OTEL_SERVICE_NAME` consistency.
 
 ---
 
 ## Next Improvements (Optional)
 
-- Convert `http_active_connections` to a true `Gauge`.
+- Convert `momoi_http_active_connections` to a true `Gauge`.
 - Integrate business metrics recording in service layer methods.
 - Add domain-specific span attributes (e.g., request IDs, user IDs) where appropriate.
 - Create pre-built Grafana dashboard JSON files for quick import.

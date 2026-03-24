@@ -7,9 +7,9 @@
  * Select clause for SSH key list/create responses.
  */
 export const SSH_KEY_SELECT = {
-    id: true,
-    name: true,
-    publicKey: true,
-    createdAt: true,
-    updatedAt: true,
+	id: true,
+	name: true,
+	publicKey: true,
+	createdAt: true,
+	updatedAt: true,
 } as const;
