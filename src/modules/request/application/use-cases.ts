@@ -48,7 +48,7 @@ export class RequestUseCases {
 		private readonly cache: JsonCacheStore,
 		private readonly queue: RequestQueuePort,
 		private readonly telemetry: RequestTelemetryPort,
-	) {}
+	) { }
 
 	public async createRequest(
 		userId: number,
@@ -412,6 +412,14 @@ export class RequestUseCases {
 					notes: body.reason,
 				},
 			}),
+			this.dataAccess.prisma.instanceAuditLog.create({
+				data: {
+					instanceId: extendedRequest.targetInstanceId,
+					action: `Extended request ${body.status}`,
+					performedById: user.id,
+					notes: body.reason,
+				},
+			}),
 		]);
 
 		this.telemetry.recordRequestOperation("status_update", {
@@ -421,7 +429,10 @@ export class RequestUseCases {
 		});
 
 		if (updated.status === ApprovalActionStatus.APPROVED) {
-			// TODO: Apply semester into the target instance
+			await this.dataAccess.prisma.instance.update({
+				where: { id: extendedRequest.targetInstanceId },
+				data: { semesterId: extendedRequest.nextSemesterId },
+			});
 		}
 
 		await Promise.all([

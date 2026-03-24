@@ -227,14 +227,7 @@ export const instanceRoute = (
 		)
 		.get(
 			"/:instanceId/audit-logs",
-			async ({ params, query, user, status }) => {
-				if (user.role === "STUDENT") {
-					return status(403, {
-						status: 403,
-						message: "Forbidden: Students cannot view instance audit logs",
-					});
-				}
-
+			async ({ params, query }) => {
 				return instanceUseCases.getInstanceAuditLogs(
 					params.instanceId,
 					query.page,
