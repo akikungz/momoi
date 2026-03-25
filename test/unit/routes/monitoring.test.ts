@@ -93,7 +93,7 @@ describe("Monitoring Route", () => {
 		});
 	});
 
-	it("should reject non-admin users", async () => {
+	it("should allow signed-in non-admin users", async () => {
 		const client = treaty(
 			monitoringRoute(mockStudentAuth, {
 				query,
@@ -107,8 +107,12 @@ describe("Monitoring Route", () => {
 			},
 		});
 
-		expect(response.status).toBe(403);
-		expect(query).not.toHaveBeenCalled();
+		expect(response.status).toBe(200);
+		expect(query).toHaveBeenCalledWith({
+			query: "up",
+			time: undefined,
+			timeout: undefined,
+		});
 	});
 
 	it("should reject unauthenticated users", async () => {

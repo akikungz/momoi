@@ -48,7 +48,7 @@ describe("E2E: Request Routes", () => {
 						reason: null,
 						cpus: 2,
 						memoryMB: 2048,
-						diskGB: 20,
+						diskGB: 8,
 						courseOfferingId: 1,
 						pveTemplateId: 1,
 						createdAt: new Date(),
@@ -64,7 +64,7 @@ describe("E2E: Request Routes", () => {
 						pveTemplateId: 1,
 						cpus: 2,
 						memoryMB: 2048,
-						diskGB: 20,
+						diskGB: 8,
 					});
 
 					expect(response.status).toBe(200);
@@ -83,7 +83,7 @@ describe("E2E: Request Routes", () => {
 						pveTemplateId: 1,
 						cpus: 2,
 						memoryMB: 2048,
-						diskGB: 20,
+						diskGB: 8,
 					} as any);
 
 					expect(response.status).not.toBe(200);
@@ -100,7 +100,7 @@ describe("E2E: Request Routes", () => {
 						pveTemplateId: 1,
 						cpus: 2,
 						memoryMB: 2048,
-						diskGB: 20,
+						diskGB: 8,
 					});
 
 					expect(response.status).toBe(403);
@@ -117,7 +117,7 @@ describe("E2E: Request Routes", () => {
 						pveTemplateId: 1,
 						cpus: 2,
 						memoryMB: 2048,
-						diskGB: 20,
+						diskGB: 8,
 					});
 
 					expect(response.status).toBe(403);
@@ -134,7 +134,7 @@ describe("E2E: Request Routes", () => {
 						pveTemplateId: 1,
 						cpus: 2,
 						memoryMB: 2048,
-						diskGB: 20,
+						diskGB: 8,
 					});
 
 					expect(response.status).toBe(401);
@@ -155,7 +155,7 @@ describe("E2E: Request Routes", () => {
 							requesterId: 3, // Student ID
 							cpus: 2,
 							memoryMB: 2048,
-							diskGB: 20,
+							diskGB: 8,
 							createdAt: new Date(),
 							updatedAt: new Date(),
 						},
@@ -235,20 +235,23 @@ describe("E2E: Request Routes", () => {
 						status: "PENDING",
 						requesterId: 3,
 					});
-					mockPrisma.request.update.mockResolvedValueOnce({
-						id: 1,
-						title: "Test Request",
-						status: "APPROVED",
-						requesterId: 3,
-						reviewerId: 1, // Admin ID
-						reason: "Looks good!",
-						cpus: 2,
-						memoryMB: 2048,
-						diskGB: 20,
-						createdAt: new Date(),
-						updatedAt: new Date(),
-					});
-					mockPrisma.requestAuditLog.create.mockResolvedValueOnce({});
+					mockPrisma.$transaction.mockResolvedValueOnce([
+						{
+							id: 1,
+							title: "Test Request",
+							status: "APPROVED",
+							requesterId: 3,
+							reviewerId: 1, // Admin ID
+							reason: "Looks good!",
+							cpus: 2,
+							memoryMB: 2048,
+							diskGB: 8,
+							createdAt: new Date(),
+							updatedAt: new Date(),
+						},
+						{},
+					]);
+					mockPrisma.instance.create.mockResolvedValueOnce({ id: 1 });
 
 					const response = await client.api
 						.requests({ requestId: 1 })
@@ -269,20 +272,22 @@ describe("E2E: Request Routes", () => {
 						status: "PENDING",
 						requesterId: 3,
 					});
-					mockPrisma.request.update.mockResolvedValueOnce({
-						id: 1,
-						title: "Test Request",
-						status: "REJECTED",
-						requesterId: 3,
-						reviewerId: 1,
-						reason: "Not enough resources",
-						cpus: 2,
-						memoryMB: 2048,
-						diskGB: 20,
-						createdAt: new Date(),
-						updatedAt: new Date(),
-					});
-					mockPrisma.requestAuditLog.create.mockResolvedValueOnce({});
+					mockPrisma.$transaction.mockResolvedValueOnce([
+						{
+							id: 1,
+							title: "Test Request",
+							status: "REJECTED",
+							requesterId: 3,
+							reviewerId: 1,
+							reason: "Not enough resources",
+							cpus: 2,
+							memoryMB: 2048,
+							diskGB: 8,
+							createdAt: new Date(),
+							updatedAt: new Date(),
+						},
+						{},
+					]);
 
 					const response = await client.api
 						.requests({ requestId: 1 })
@@ -309,7 +314,7 @@ describe("E2E: Request Routes", () => {
 						pveTemplateId: 1,
 						cpus: 2,
 						memoryMB: 2048,
-						diskGB: 20,
+						diskGB: 8,
 						courseOffering: {
 							course: {
 								code: "CS101",
@@ -329,12 +334,13 @@ describe("E2E: Request Routes", () => {
 							reviewerId: 2,
 							cpus: 2,
 							memoryMB: 2048,
-							diskGB: 20,
+							diskGB: 8,
 							createdAt: new Date(),
 							updatedAt: new Date(),
 						},
 						{},
 					]);
+					mockPrisma.instance.create.mockResolvedValueOnce({ id: 1 });
 
 					const response = await client.api
 						.requests({ requestId: 1 })
@@ -355,19 +361,21 @@ describe("E2E: Request Routes", () => {
 						status: "PENDING",
 						requesterId: 3, // Student's own request
 					});
-					mockPrisma.request.update.mockResolvedValueOnce({
-						id: 1,
-						title: "Test Request",
-						status: "CANCELLED",
-						requesterId: 3,
-						reason: "Changed my mind",
-						cpus: 2,
-						memoryMB: 2048,
-						diskGB: 20,
-						createdAt: new Date(),
-						updatedAt: new Date(),
-					});
-					mockPrisma.requestAuditLog.create.mockResolvedValueOnce({});
+					mockPrisma.$transaction.mockResolvedValueOnce([
+						{
+							id: 1,
+							title: "Test Request",
+							status: "CANCELLED",
+							requesterId: 3,
+							reason: "Changed my mind",
+							cpus: 2,
+							memoryMB: 2048,
+							diskGB: 8,
+							createdAt: new Date(),
+							updatedAt: new Date(),
+						},
+						{},
+					]);
 
 					const response = await client.api
 						.requests({ requestId: 1 })

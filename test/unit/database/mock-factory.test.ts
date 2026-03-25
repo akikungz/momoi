@@ -333,8 +333,8 @@ describe("Mock Factory", () => {
 			expect(request.courseOfferingId).toBe(1);
 			expect(request.pveTemplateId).toBe(1);
 			expect(request.cpus).toBe(2);
-			expect(request.memoryMB).toBe(4096);
-			expect(request.diskGB).toBe(50);
+			expect(request.memoryMB).toBe(2048);
+			expect(request.diskGB).toBe(8);
 			expect(request.status).toBe("PENDING");
 			expect(request.reviewerId).toBeNull();
 			expect(request.reason).toBeNull();
