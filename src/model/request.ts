@@ -41,7 +41,19 @@ export const SemesterSummary = t.Object(
 	{ description: "Summary of a semester" },
 );
 
-export const RequestSpecs = t.Object({
+export const RequestSpecsResponse = t.Object({
+	cpus: t.Number({
+		description: "Number of CPUs requested",
+	}),
+	memoryMB: t.Number({
+		description: "Memory requested in MB",
+	}),
+	diskGB: t.Number({
+		description: "Disk size requested in GB",
+	}),
+});
+
+export const RequestSpecsRequest = t.Object({
 	cpus: t.Number({
 		description: "Number of CPUs requested",
 		maximum: STUDENT_REQUEST_CPU_MAX,
@@ -64,7 +76,7 @@ export const RequestItem = t.Object(
 		status: ApprovalStatus,
 		reason: t.Optional(t.String({ description: "Reviewer or requester note" })),
 		courseOffering: t.Optional(CourseOfferingSummary),
-		specs: RequestSpecs,
+		specs: RequestSpecsResponse,
 		templateName: t.Optional(t.String({ description: "Chosen template name" })),
 		requesterId: t.Number({ description: "Requester platform user ID" }),
 		reviewerId: t.Optional(
@@ -92,7 +104,7 @@ export const CreateRequestRequestBody = t.Object({
 	description: t.Optional(t.String({ description: "Request description" })),
 	courseOfferingId: t.Number({ description: "Course offering ID" }),
 	pveTemplateId: t.Number({ description: "Template ID" }),
-	...RequestSpecs.properties,
+	...RequestSpecsRequest.properties,
 });
 
 export const CreateRequestResponse = RequestItem;

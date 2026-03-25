@@ -312,6 +312,49 @@ describe("Request Route", () => {
 		expect(response.status).toBe(404);
 	});
 
+	it("get requests allows legacy specs above current request limits", async () => {
+		const client = treaty(
+			requestRoute(
+				mockPrisma,
+				mockCache as any,
+				mockStudentAuth,
+				mockQueue as any,
+			),
+		);
+
+		mockPrisma.request.count.mockResolvedValueOnce(1);
+		mockPrisma.request.findMany.mockResolvedValueOnce([
+			{
+				id: 10,
+				title: "Legacy request",
+				description: "Created before limits changed",
+				status: "APPROVED",
+				reason: null,
+				courseOffering: {
+					course: { code: "CS101", title: "Intro" },
+					semester: { name: "Fall" },
+				},
+				cpus: 4,
+				memoryMB: 4096,
+				diskGB: 16,
+				pveTemplate: { name: "Debian 13" },
+				requesterId: 3,
+				reviewerId: 1,
+				createdAt: new Date(),
+				updatedAt: new Date(),
+			},
+		]);
+
+		const response = await client.requests.get({
+			page: 1,
+			pageSize: 10,
+		});
+
+		expect(response.status).toBe(200);
+		expect(response.data?.values[0].specs.memoryMB).toBe(4096);
+		expect(response.data?.values[0].specs.diskGB).toBe(16);
+	});
+
 	it("get extended request audit logs returns 404 when extended request missing", async () => {
 		const client = treaty(
 			requestRoute(
