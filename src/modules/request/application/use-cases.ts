@@ -288,16 +288,8 @@ export class RequestUseCases {
 			);
 		}
 
-		const currentDate = new Date();
-		if (currentSemesterEndDate < currentDate) {
-			throw new ServiceError(
-				"Current semester has already ended. Extended request is not allowed.",
-				400,
-			);
-		}
-
 		const nextSemester = await this.dataAccess.prisma.semester.findFirst({
-			where: { startDate: { gt: currentDate } },
+			where: { startDate: { gt: currentSemesterEndDate } },
 			orderBy: { startDate: "asc" },
 		});
 
@@ -308,9 +300,9 @@ export class RequestUseCases {
 			);
 		}
 
-		if (targetInstance.semesterId !== nextSemester.id) {
+		if (targetInstance.semesterId === nextSemester.id) {
 			throw new ServiceError(
-				"Target instance is not associated with the next upcoming semester.",
+				"Target instance is already associated with the next upcoming semester.",
 				400,
 			);
 		}

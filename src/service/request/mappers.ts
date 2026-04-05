@@ -56,12 +56,16 @@ export function mapRequest(
 export function mapExtendedRequest(
 	extendedRequest: ExtendedRequestResult,
 ): Static<typeof CreateExtendedRequestResponse> {
+	const requesterName = extendedRequest.requester?.user?.name ?? "";
+	const requesterEmail = extendedRequest.requester?.user?.email ?? "";
+
 	return {
 		id: extendedRequest.id,
 		title: extendedRequest.title,
 		description: extendedRequest.description ?? undefined,
 		status: extendedRequest.status,
 		reason: extendedRequest.reason ?? undefined,
+		targetInstanceId: extendedRequest.targetInstanceId,
 		targetInstance: {
 			id: extendedRequest.targetInstanceId,
 			hostname: extendedRequest.targetInstance?.pveVM?.hostname ?? "N/A",
@@ -77,10 +81,11 @@ export function mapExtendedRequest(
 				endDate: extendedRequest.nextSemester.endDate,
 			}
 			: undefined,
+		requesterId: extendedRequest.requesterId,
 		requester: {
 			id: extendedRequest.requesterId,
-			name: extendedRequest.requester.user.name,
-			email: extendedRequest.requester.user.email,
+			name: requesterName,
+			email: requesterEmail,
 		},
 		reviewerId: extendedRequest.reviewerId ?? undefined,
 		createdAt: extendedRequest.createdAt,
