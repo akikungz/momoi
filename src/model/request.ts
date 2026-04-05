@@ -126,10 +126,17 @@ export const ExtendedRequestItem = t.Object(
 		),
 		status: ApprovalStatus,
 		reason: t.Optional(t.String({ description: "Reviewer or requester note" })),
-		targetInstanceId: t.Number({ description: "Target instance ID" }),
+		targetInstance: t.Object({
+			id: t.Number({ description: "Target instance ID" }),
+			hostname: t.String({ description: "Target instance hostname" }),
+		}),
 		courseOffering: t.Optional(CourseOfferingSummary),
 		nextSemester: t.Optional(SemesterSummary),
-		requesterId: t.Number({ description: "Requester platform user ID" }),
+		requester: t.Object({
+			id: t.Number({ description: "Requester platform user ID" }),
+			name: t.String({ description: "Requester name" }),
+			email: t.String({ description: "Requester email" }),
+		}),
 		reviewerId: t.Optional(
 			t.Number({ description: "Reviewer platform user ID" }),
 		),

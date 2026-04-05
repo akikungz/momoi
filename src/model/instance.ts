@@ -94,6 +94,7 @@ export const InstancesData = t.Object(
 		status: InstanceStatus,
 		vmDetails: t.Optional(VMDetails),
 		provisionStatus: InstanceProvisionStatus,
+		semester: t.Optional(t.String({ description: "Semester of the instance" })),
 		...TimestampResponse.properties,
 	},
 	{ description: "Data structure representing an instance" },

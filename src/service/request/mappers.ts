@@ -62,19 +62,26 @@ export function mapExtendedRequest(
 		description: extendedRequest.description ?? undefined,
 		status: extendedRequest.status,
 		reason: extendedRequest.reason ?? undefined,
-		targetInstanceId: extendedRequest.targetInstanceId,
+		targetInstance: {
+			id: extendedRequest.targetInstanceId,
+			hostname: extendedRequest.targetInstance?.pveVM?.hostname ?? "N/A",
+		},
 		courseOffering: mapCourseOffering(
 			extendedRequest.targetInstance?.courseOffering ?? null,
 		),
 		nextSemester: extendedRequest.nextSemester
 			? {
-					id: extendedRequest.nextSemester.id,
-					name: extendedRequest.nextSemester.name,
-					startDate: extendedRequest.nextSemester.startDate,
-					endDate: extendedRequest.nextSemester.endDate,
-				}
+				id: extendedRequest.nextSemester.id,
+				name: extendedRequest.nextSemester.name,
+				startDate: extendedRequest.nextSemester.startDate,
+				endDate: extendedRequest.nextSemester.endDate,
+			}
 			: undefined,
-		requesterId: extendedRequest.requesterId,
+		requester: {
+			id: extendedRequest.requesterId,
+			name: extendedRequest.requester.user.name,
+			email: extendedRequest.requester.user.email,
+		},
 		reviewerId: extendedRequest.reviewerId ?? undefined,
 		createdAt: extendedRequest.createdAt,
 		updatedAt: extendedRequest.updatedAt,

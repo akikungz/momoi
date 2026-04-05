@@ -75,6 +75,11 @@ export const INSTANCE_LIST_SELECT = {
 	createdAt: true,
 	updatedAt: true,
 	provisionStatus: true,
+	semester: {
+		select: {
+			name: true,
+		}
+	}
 } satisfies Prisma.InstanceSelect;
 
 /**

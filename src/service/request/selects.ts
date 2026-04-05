@@ -41,6 +41,17 @@ export const EXTENDED_REQUEST_SELECT = {
 	reason: true,
 	targetInstanceId: true,
 	requesterId: true,
+	requester: {
+		select: {
+			id: true,
+			user: {
+				select: {
+					name: true,
+					email: true,
+				}
+			}
+		}
+	},
 	reviewerId: true,
 	nextSemester: {
 		select: {
@@ -56,6 +67,12 @@ export const EXTENDED_REQUEST_SELECT = {
 			courseOffering: {
 				select: COURSE_OFFERING_SELECT,
 			},
+			pveVM: {
+				select: {
+					hostname: true,
+					status: true,
+				}
+			}
 		},
 	},
 	createdAt: true,

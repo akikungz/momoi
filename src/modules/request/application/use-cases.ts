@@ -268,6 +268,7 @@ export class RequestUseCases {
 						},
 					},
 				},
+				semesterId: true,
 			},
 		});
 
@@ -287,8 +288,16 @@ export class RequestUseCases {
 			);
 		}
 
+		const currentDate = new Date();
+		if (currentSemesterEndDate < currentDate) {
+			throw new ServiceError(
+				"Current semester has already ended. Extended request is not allowed.",
+				400,
+			);
+		}
+
 		const nextSemester = await this.dataAccess.prisma.semester.findFirst({
-			where: { startDate: { gte: currentSemesterEndDate } },
+			where: { startDate: { gt: currentDate } },
 			orderBy: { startDate: "asc" },
 		});
 
@@ -296,6 +305,13 @@ export class RequestUseCases {
 			throw new ServiceError(
 				"No upcoming semester found for this extended request.",
 				404,
+			);
+		}
+
+		if (targetInstance.semesterId !== nextSemester.id) {
+			throw new ServiceError(
+				"Target instance is not associated with the next upcoming semester.",
+				400,
 			);
 		}
 
@@ -442,6 +458,16 @@ export class RequestUseCases {
 					action: `Extended request ${body.status}`,
 					performedById: user.id,
 					notes: body.reason,
+				},
+			}),
+			this.dataAccess.prisma.instance.update({
+				where: { id: extendedRequest.targetInstanceId },
+				data: {
+					...(
+						body.status === "APPROVED"
+							? { semesterId: extendedRequest.nextSemesterId }
+							: {}
+					)
 				},
 			}),
 		]);

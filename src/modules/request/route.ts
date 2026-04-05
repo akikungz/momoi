@@ -115,33 +115,6 @@ export const requestRoute = (
 		)
 		.group("/extended-requests", (app) =>
 			app
-				.post(
-					"/",
-					async ({ user, body, status }) => {
-						if (user.role !== "STUDENT") {
-							return status(403, {
-								status: 403,
-								message:
-									"Forbidden: Only students can create extended requests",
-							});
-						}
-
-						return useCases.createExtendedRequest(user.id, body);
-					},
-					{
-						body: "CreateExtendedRequestRequestBody",
-						response: {
-							200: "CreateExtendedRequestResponse",
-							403: ErrorResponse,
-						},
-						detail: {
-							summary: "Create an extended request",
-							description:
-								"Students request changes related to an existing instance",
-							tags: ["Extended Requests"],
-						},
-					},
-				)
 				.get(
 					"/",
 					async ({ user, query }) => {

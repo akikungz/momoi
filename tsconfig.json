@@ -3,8 +3,8 @@
 		"target": "ES2021",
 		"module": "ES2022",
 		"moduleResolution": "bundler",
-		"baseUrl": "./",
 		"paths": {
+			"*": ["./*"],
 			"@momoi/infrastructure/*": ["./src/infrastructure/*"],
 			"@momoi/auth": ["./src/infrastructure/auth/index.ts"],
 			"@momoi/auth/*": ["./src/infrastructure/auth/*"],

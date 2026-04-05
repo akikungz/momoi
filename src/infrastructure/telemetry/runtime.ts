@@ -1,4 +1,4 @@
-import { type Attributes, metrics, trace } from "@opentelemetry/api";
+import { DiagLogLevel, type Attributes, metrics, trace } from "@opentelemetry/api";
 import { logs, SeverityNumber } from "@opentelemetry/api-logs";
 import { OTLPLogExporter as OTLPHttpLogExporter } from "@opentelemetry/exporter-logs-otlp-http";
 import { OTLPLogExporter } from "@opentelemetry/exporter-logs-otlp-grpc";
@@ -21,6 +21,7 @@ import {
 	setAttributes,
 } from "@elysiajs/opentelemetry";
 import { Metadata } from "@grpc/grpc-js";
+import { createRequire } from "node:module";
 import { monitorEventLoopDelay } from "node:perf_hooks";
 import { env } from "@momoi/env";
 
@@ -41,6 +42,142 @@ type CounterLike = {
 type HistogramLike = {
 	record: (value: number, attributes?: TelemetryAttributes) => void;
 };
+
+type OTelCoreCompatibility = {
+	baggageUtils?: {
+		parseKeyPairsIntoRecord?: (value?: string) => Record<string, string>;
+		parsePairKeyValue?: (value: string) => [string, string] | undefined;
+	};
+	parseKeyPairsIntoRecord?: (value?: string) => Record<string, string>;
+	parsePairKeyValue?: (value: string) => [string, string] | undefined;
+	getStringFromEnv?: (key: string) => string | undefined;
+	getStringListFromEnv?: (key: string) => string[];
+	getBooleanFromEnv?: (key: string) => boolean | undefined;
+	getNumberFromEnv?: (key: string) => number | undefined;
+	diagLogLevelFromString?: (value?: string) => DiagLogLevel | undefined;
+};
+
+const require = createRequire(import.meta.url);
+
+const patchOpenTelemetryCoreCompatibility = () => {
+	const compatibility = require("@opentelemetry/core") as OTelCoreCompatibility;
+
+	// Bun currently resolves this package shape without promoting these helpers
+	// to the top-level CJS export, but the OTLP exporters expect them there.
+	if (
+		compatibility.parseKeyPairsIntoRecord === undefined &&
+		compatibility.baggageUtils?.parseKeyPairsIntoRecord
+	) {
+		Object.defineProperty(compatibility, "parseKeyPairsIntoRecord", {
+			value: compatibility.baggageUtils.parseKeyPairsIntoRecord,
+			configurable: true,
+			enumerable: true,
+			writable: true,
+		});
+	}
+
+	if (
+		compatibility.parsePairKeyValue === undefined &&
+		compatibility.baggageUtils?.parsePairKeyValue
+	) {
+		Object.defineProperty(compatibility, "parsePairKeyValue", {
+			value: compatibility.baggageUtils.parsePairKeyValue,
+			configurable: true,
+			enumerable: true,
+			writable: true,
+		});
+	}
+
+	if (compatibility.getStringFromEnv === undefined) {
+		Object.defineProperty(compatibility, "getStringFromEnv", {
+			value: (key: string) => {
+				const value = process.env[key];
+				if (value == null) {
+					return undefined;
+				}
+
+				const normalized = value.trim();
+				return normalized.length > 0 ? normalized : undefined;
+			},
+			configurable: true,
+			enumerable: true,
+			writable: true,
+		});
+	}
+
+	if (compatibility.getBooleanFromEnv === undefined) {
+		Object.defineProperty(compatibility, "getBooleanFromEnv", {
+			value: (key: string) => {
+				const value = compatibility.getStringFromEnv?.(key);
+				return value === undefined ? undefined : value.toLowerCase() === "true";
+			},
+			configurable: true,
+			enumerable: true,
+			writable: true,
+		});
+	}
+
+	if (compatibility.getNumberFromEnv === undefined) {
+		Object.defineProperty(compatibility, "getNumberFromEnv", {
+			value: (key: string) => {
+				const value = compatibility.getStringFromEnv?.(key);
+				if (value === undefined) {
+					return undefined;
+				}
+
+				const parsed = Number(value);
+				return Number.isNaN(parsed) ? undefined : parsed;
+			},
+			configurable: true,
+			enumerable: true,
+			writable: true,
+		});
+	}
+
+	if (compatibility.getStringListFromEnv === undefined) {
+		Object.defineProperty(compatibility, "getStringListFromEnv", {
+			value: (key: string) => {
+				const value = compatibility.getStringFromEnv?.(key);
+				return value === undefined
+					? []
+					: value
+							.split(",")
+							.map((item) => item.trim())
+							.filter((item) => item.length > 0);
+			},
+			configurable: true,
+			enumerable: true,
+			writable: true,
+		});
+	}
+
+	if (compatibility.diagLogLevelFromString === undefined) {
+		Object.defineProperty(compatibility, "diagLogLevelFromString", {
+			value: (value?: string) => {
+				if (!value) {
+					return undefined;
+				}
+
+				const logLevels: Record<string, DiagLogLevel> = {
+					all: DiagLogLevel.ALL,
+					verbose: DiagLogLevel.VERBOSE,
+					debug: DiagLogLevel.DEBUG,
+					info: DiagLogLevel.INFO,
+					warn: DiagLogLevel.WARN,
+					error: DiagLogLevel.ERROR,
+					none: DiagLogLevel.NONE,
+				};
+
+				return logLevels[value.toLowerCase()];
+			},
+			configurable: true,
+			enumerable: true,
+			writable: true,
+		});
+	}
+};
+
+patchOpenTelemetryCoreCompatibility();
 
 const minimumSeverityByLogLevel = {
 	debug: SeverityNumber.DEBUG,
@@ -1000,6 +1137,6 @@ export const setDependencyAvailability = (
 	dependencyAvailability[dependency] = available ? 1 : 0;
 };
 
-export const recordSpan = record;
-export const setSpanAttributes = setAttributes;
+export const recordSpan: typeof record = record;
+export const setSpanAttributes: typeof setAttributes = setAttributes;
 export { SeverityNumber };

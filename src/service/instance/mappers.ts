@@ -51,14 +51,14 @@ function mapVmDetails(
 	diskGB: number,
 ):
 	| {
-			hostname: string;
-			os: string;
-			ip: string;
-			cpus: number;
-			memoryMB: number;
-			diskGB: number;
-			vmStatus: "RUNNING" | "STOPPED" | "SUSPENDED";
-	  }
+		hostname: string;
+		os: string;
+		ip: string;
+		cpus: number;
+		memoryMB: number;
+		diskGB: number;
+		vmStatus: "RUNNING" | "STOPPED" | "SUSPENDED";
+	}
 	| undefined {
 	if (!pveVM) return undefined;
 	return {
@@ -153,6 +153,7 @@ export function mapInstanceToDetail(
 			id: proxy.id,
 			targetPort: proxy.targetPort,
 		})),
+		semester: instance.semester ? instance.semester.name : undefined,
 		createdAt: instance.createdAt,
 		updatedAt: instance.updatedAt,
 	};
