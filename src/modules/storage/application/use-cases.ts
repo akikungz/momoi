@@ -415,11 +415,6 @@ export class StorageUseCases {
 				deletedAt: true,
 				trashedAt: true,
 				latestVersionId: true,
-				latestVersion: {
-					select: {
-						storagePath: true,
-					},
-				},
 			},
 		});
 
@@ -444,7 +439,11 @@ export class StorageUseCases {
 			throw new ServiceError("File or latest version not found.", 404);
 		}
 
-		const storagePath = fileWithLegacy.latestVersion?.storagePath ?? null;
+		const storagePath =
+			fileWithLegacy.latestVersion?.storagePath ??
+			(fileWithLegacy.latestVersionId !== null
+				? String(fileWithLegacy.latestVersionId)
+				: null);
 
 		if (!storagePath) {
 			throw new ServiceError("File not found.", 404);
