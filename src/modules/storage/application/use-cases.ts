@@ -32,11 +32,6 @@ import {
 } from "@momoi/utils/pagination";
 
 import type {
-	PlatformFileViewerRole,
-	PlatformFileVisibility,
-} from "@momoi/database/prisma/generated/client";
-
-import type {
 	JsonCacheStore,
 	StorageDataAccess,
 	StorageProviderPort,
@@ -50,10 +45,8 @@ const FILE_SELECT = {
 	mimeType: true,
 	extension: true,
 	description: true,
-	parentId: true,
 	ownerId: true,
 	sizeBytes: true,
-	visibility: true,
 	createdAt: true,
 	updatedAt: true,
 	trashedAt: true,
@@ -93,6 +86,9 @@ type CachedDownloadUrl = {
 	expiresAt: string;
 };
 
+type PlatformFileVisibility = "PRIVATE" | "SHARED" | "PUBLIC";
+type PlatformFileViewerRole = "VIEWER" | "COMMENTER" | "EDITOR" | "OWNER";
+
 export class StorageUseCases {
 	constructor(
 		private readonly dataAccess: StorageDataAccess,
@@ -104,52 +100,76 @@ export class StorageUseCases {
 		return this.objectStoragePort.provider;
 	}
 
+	private get prismaUnsafe() {
+		return this.dataAccess.prisma as unknown as Record<string, any>;
+	}
+
+	private unsupportedFeature(feature: string): never {
+		throw new ServiceError(
+			`${feature} is not available in the current database schema.`,
+			501,
+		);
+	}
+
 	public async getFiles(
 		user: CurrentStorageUser,
 		query: Static<typeof GetStorageFilesRequestQuery>,
 	): Promise<Static<typeof StorageFileListResponse>> {
 		const pagination = parsePagination(query);
-		const now = new Date();
 
-		const baseWhere = {
-			parentId: query.parentId ?? null,
+		const now = new Date();
+		const where: Record<string, unknown> = {
 			type: query.type ?? undefined,
 			trashedAt: null,
 			deletedAt: null,
 		};
 
-		const where = query.sharedWithMe
-			? {
-					...baseWhere,
-					ownerId: { not: user.id },
-					platformFilePermissions: {
-						some: {
-							AND: [
-								{
-									OR: [{ platformUserId: user.id }, { email: user.email }],
-								},
-								{
-									OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-								},
-							],
-						},
-					},
-				}
-			: {
-					...baseWhere,
-					ownerId: user.id,
-				};
+		if (query.parentId) {
+			where.parentId = query.parentId;
+		}
 
-		const [totalItems, rows] = await Promise.all([
-			this.dataAccess.prisma.platformFile.count({ where }),
-			this.dataAccess.prisma.platformFile.findMany({
-				where,
-				select: FILE_SELECT,
-				orderBy: [{ type: "asc" }, { name: "asc" }],
-				skip: pagination.skip,
-				take: pagination.take,
-			}),
-		]);
+		if (query.sharedWithMe) {
+			where.ownerId = { not: user.id };
+			where.platformFilePermissions = {
+				some: {
+					AND: [
+						{
+							OR: [{ platformUserId: user.id }, { email: user.email }],
+						},
+						{
+							OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+						},
+					],
+				},
+			};
+		} else {
+			where.ownerId = user.id;
+		}
+
+		let totalItems = 0;
+		let rows: any[] = [];
+
+		try {
+			[totalItems, rows] = await Promise.all([
+				this.dataAccess.prisma.platformFile.count({ where: where as any }),
+				this.dataAccess.prisma.platformFile.findMany({
+					where: where as any,
+					select: FILE_SELECT,
+					orderBy: [{ type: "asc" }, { name: "asc" }],
+					skip: pagination.skip,
+					take: pagination.take,
+				}),
+			]);
+		} catch (error) {
+			const message = error instanceof Error ? error.message : "";
+			if (message.includes("Unknown argument `parentId`")) {
+				this.unsupportedFeature("Folder hierarchy");
+			}
+			if (message.includes("Unknown argument `platformFilePermissions`")) {
+				this.unsupportedFeature("File sharing");
+			}
+			throw error;
+		}
 
 		return {
 			values: rows.map((row) => this.mapFileItem(row)),
@@ -216,7 +236,7 @@ export class StorageUseCases {
 			user,
 			file.id,
 			file.ownerId,
-			file.visibility,
+			(file as { visibility?: PlatformFileVisibility }).visibility ?? "PRIVATE",
 		);
 		if (!accessRole) {
 			throw new ServiceError(
@@ -239,31 +259,7 @@ export class StorageUseCases {
 
 		try {
 			if (body.parentId) {
-				const parent = await this.dataAccess.prisma.platformFile.findUnique({
-					where: { id: body.parentId },
-					select: {
-						id: true,
-						ownerId: true,
-						type: true,
-						deletedAt: true,
-						trashedAt: true,
-					},
-				});
-
-				if (!parent || parent.deletedAt || parent.trashedAt) {
-					throw new ServiceError("Parent folder not found.", 404);
-				}
-
-				if (parent.ownerId !== user.id) {
-					throw new ServiceError(
-						"Forbidden: You can only create files in your own folders.",
-						403,
-					);
-				}
-
-				if (parent.type !== "FOLDER") {
-					throw new ServiceError("Parent must be a folder.", 400);
-				}
+				this.unsupportedFeature("Folder hierarchy");
 			}
 
 			const created = await this.dataAccess.prisma.$transaction(async (tx) => {
@@ -275,15 +271,18 @@ export class StorageUseCases {
 						extension: body.extension,
 						description: body.description,
 						ownerId: user.id,
-						parentId: body.parentId,
-						visibility: body.visibility ?? "PRIVATE",
 						sizeBytes: body.type === "FILE" ? (body.sizeBytes ?? 0) : 0,
 					},
 					select: FILE_SELECT,
 				});
 
 				if (body.type === "FILE" && body.storagePath) {
-					const version = await tx.platformFileVersion.create({
+					const txUnsafe = tx as unknown as Record<string, any>;
+					if (!txUnsafe.platformFileVersion) {
+						this.unsupportedFeature("File versioning");
+					}
+
+					const version = await txUnsafe.platformFileVersion.create({
 						data: {
 							platformFileId: file.id,
 							versionNumber: 1,
@@ -307,7 +306,7 @@ export class StorageUseCases {
 
 			recordStorageOperation("create_file", {
 				"storage.file.type": created.type,
-				"storage.visibility": created.visibility,
+				"storage.visibility": "PRIVATE",
 			});
 
 			return this.mapFileItem(created);
@@ -332,7 +331,6 @@ export class StorageUseCases {
 			data: {
 				name: body.name,
 				description: body.description,
-				visibility: body.visibility as PlatformFileVisibility | undefined,
 			},
 			select: FILE_SELECT,
 		});
@@ -363,45 +361,15 @@ export class StorageUseCases {
 	) {
 		this.assertCanMutateStorage(user.role);
 
-		const file = await this.requireOwnedFile(user.id, fileId);
-
 		if (parentId) {
-			const targetParent = await this.dataAccess.prisma.platformFile.findUnique(
-				{
-					where: { id: parentId },
-					select: {
-						id: true,
-						ownerId: true,
-						type: true,
-						deletedAt: true,
-						trashedAt: true,
-					},
-				},
-			);
-
-			if (!targetParent || targetParent.deletedAt || targetParent.trashedAt) {
-				throw new ServiceError("Target folder not found.", 404);
-			}
-
-			if (targetParent.ownerId !== user.id) {
-				throw new ServiceError(
-					"Forbidden: You can only move files into your own folders.",
-					403,
-				);
-			}
-
-			if (targetParent.type !== "FOLDER") {
-				throw new ServiceError("Target parent must be a folder.", 400);
-			}
-
-			if (targetParent.id === file.id) {
-				throw new ServiceError("Cannot move a file/folder into itself.", 400);
-			}
+			this.unsupportedFeature("Folder hierarchy");
 		}
+
+		const file = await this.requireOwnedFile(user.id, fileId);
 
 		const moved = await this.dataAccess.prisma.platformFile.update({
 			where: { id: file.id },
-			data: { parentId: parentId ?? null },
+			data: {},
 			select: FILE_SELECT,
 		});
 
@@ -418,33 +386,7 @@ export class StorageUseCases {
 		const source = await this.requireOwnedFile(user.id, fileId);
 
 		if (body.parentId) {
-			const targetParent = await this.dataAccess.prisma.platformFile.findUnique(
-				{
-					where: { id: body.parentId },
-					select: {
-						id: true,
-						ownerId: true,
-						type: true,
-						deletedAt: true,
-						trashedAt: true,
-					},
-				},
-			);
-
-			if (!targetParent || targetParent.deletedAt || targetParent.trashedAt) {
-				throw new ServiceError("Target folder not found.", 404);
-			}
-
-			if (targetParent.ownerId !== user.id) {
-				throw new ServiceError(
-					"Forbidden: You can only copy files into your own folders.",
-					403,
-				);
-			}
-
-			if (targetParent.type !== "FOLDER") {
-				throw new ServiceError("Target parent must be a folder.", 400);
-			}
+			this.unsupportedFeature("Folder hierarchy");
 		}
 
 		const copied = await this.dataAccess.prisma.$transaction(async (tx) => {
@@ -456,22 +398,25 @@ export class StorageUseCases {
 					extension: source.extension,
 					description: source.description,
 					ownerId: user.id,
-					parentId: body.parentId ?? source.parentId,
-					visibility: source.visibility,
 					sizeBytes: source.sizeBytes,
 				},
 				select: FILE_SELECT,
 			});
 
 			if (source.type === "FILE") {
-				const latestVersion = await tx.platformFileVersion.findFirst({
+				const txUnsafe = tx as unknown as Record<string, any>;
+				if (!txUnsafe.platformFileVersion) {
+					return newFile;
+				}
+
+				const latestVersion = await txUnsafe.platformFileVersion.findFirst({
 					where: { platformFileId: source.id },
 					orderBy: { versionNumber: "desc" },
 					select: FILE_VERSION_SELECT,
 				});
 
 				if (latestVersion) {
-					const copiedVersion = await tx.platformFileVersion.create({
+					const copiedVersion = await txUnsafe.platformFileVersion.create({
 						data: {
 							platformFileId: newFile.id,
 							versionNumber: 1,
@@ -507,7 +452,6 @@ export class StorageUseCases {
 				id: true,
 				type: true,
 				ownerId: true,
-				visibility: true,
 				deletedAt: true,
 				trashedAt: true,
 			},
@@ -525,7 +469,7 @@ export class StorageUseCases {
 			user,
 			file.id,
 			file.ownerId,
-			file.visibility,
+			"PRIVATE",
 		);
 		if (!accessRole) {
 			throw new ServiceError(
@@ -534,14 +478,19 @@ export class StorageUseCases {
 			);
 		}
 
-		const versions = await this.dataAccess.prisma.platformFileVersion.findMany({
+		const versionDelegate = this.prismaUnsafe.platformFileVersion;
+		if (!versionDelegate) {
+			this.unsupportedFeature("File versioning");
+		}
+
+		const versions = await versionDelegate.findMany({
 			where: { platformFileId: file.id },
 			select: FILE_VERSION_SELECT,
 			orderBy: { versionNumber: "desc" },
 		});
 
 		return {
-			values: versions.map((v) => this.mapVersionItem(v)),
+			values: versions.map((v: any) => this.mapVersionItem(v)),
 		};
 	}
 
@@ -557,14 +506,19 @@ export class StorageUseCases {
 			throw new ServiceError("Only files can have versions.", 400);
 		}
 
+		if (!this.prismaUnsafe.platformFileVersion) {
+			this.unsupportedFeature("File versioning");
+		}
+
 		const created = await this.dataAccess.prisma.$transaction(async (tx) => {
-			const latest = await tx.platformFileVersion.findFirst({
+			const txUnsafe = tx as unknown as Record<string, any>;
+			const latest = await txUnsafe.platformFileVersion.findFirst({
 				where: { platformFileId: file.id },
 				orderBy: { versionNumber: "desc" },
 				select: { versionNumber: true },
 			});
 
-			const version = await tx.platformFileVersion.create({
+			const version = await txUnsafe.platformFileVersion.create({
 				data: {
 					platformFileId: file.id,
 					versionNumber: (latest?.versionNumber ?? 0) + 1,
@@ -668,31 +622,56 @@ export class StorageUseCases {
 			select: {
 				id: true,
 				ownerId: true,
-				visibility: true,
 				deletedAt: true,
 				trashedAt: true,
-				latestVersion: {
-					select: {
-						storagePath: true,
-					},
-				},
+				latestVersionId: true,
 			},
 		});
 
+		const fileWithLegacy = file as
+			| ({
+					id: string;
+					ownerId: number;
+					deletedAt: Date | null;
+					trashedAt: Date | null;
+					latestVersionId: number | null;
+				} & {
+					visibility?: PlatformFileVisibility;
+					latestVersion?: { storagePath?: string | null } | null;
+				})
+			| null;
+
 		if (
-			!file ||
-			file.deletedAt ||
-			file.trashedAt ||
-			!file.latestVersion?.storagePath
+			!fileWithLegacy ||
+			fileWithLegacy.deletedAt ||
+			fileWithLegacy.trashedAt
 		) {
+			throw new ServiceError("File or latest version not found.", 404);
+		}
+
+		let storagePath = fileWithLegacy.latestVersion?.storagePath ?? null;
+		if (!storagePath && fileWithLegacy.latestVersionId) {
+			const versionDelegate = this.prismaUnsafe.platformFileVersion;
+			if (!versionDelegate) {
+				this.unsupportedFeature("File versioning");
+			}
+
+			const latestVersion = await versionDelegate.findUnique({
+				where: { id: fileWithLegacy.latestVersionId },
+				select: { storagePath: true },
+			});
+			storagePath = latestVersion?.storagePath ?? null;
+		}
+
+		if (!storagePath) {
 			throw new ServiceError("File or latest version not found.", 404);
 		}
 
 		const accessRole = await this.getAccessRole(
 			user,
-			file.id,
-			file.ownerId,
-			file.visibility,
+			fileWithLegacy.id,
+			fileWithLegacy.ownerId,
+			fileWithLegacy.visibility ?? "PRIVATE",
 		);
 		if (!accessRole) {
 			throw new ServiceError(
@@ -707,15 +686,13 @@ export class StorageUseCases {
 				"storage.source": "local",
 			});
 			return {
-				objectKey: file.latestVersion.storagePath,
-				downloadUrl: file.latestVersion.storagePath,
+				objectKey: storagePath,
+				downloadUrl: storagePath,
 				expiresAt: new Date(Date.now() + 5 * 60 * 1000),
 			};
 		}
 
-		const presigned = await this.getOrCreateCachedDownloadUrl(
-			file.latestVersion.storagePath,
-		);
+		const presigned = await this.getOrCreateCachedDownloadUrl(storagePath);
 		recordStorageOperation("create_download_url", {
 			"storage.download.kind": "file",
 			"storage.source": "object_storage",
@@ -737,7 +714,6 @@ export class StorageUseCases {
 			select: {
 				id: true,
 				ownerId: true,
-				visibility: true,
 				deletedAt: true,
 				trashedAt: true,
 			},
@@ -751,7 +727,7 @@ export class StorageUseCases {
 			user,
 			file.id,
 			file.ownerId,
-			file.visibility,
+			"PRIVATE",
 		);
 		if (!accessRole) {
 			throw new ServiceError(
@@ -760,7 +736,12 @@ export class StorageUseCases {
 			);
 		}
 
-		const version = await this.dataAccess.prisma.platformFileVersion.findUnique(
+		const versionDelegate = this.prismaUnsafe.platformFileVersion;
+		if (!versionDelegate) {
+			this.unsupportedFeature("File versioning");
+		}
+
+		const version = await versionDelegate.findUnique(
 			{
 				where: { id: versionId },
 				select: { id: true, platformFileId: true, storagePath: true },
@@ -809,10 +790,15 @@ export class StorageUseCases {
 			throw new ServiceError("Only files can have versions.", 400);
 		}
 
+		if (!this.prismaUnsafe.platformFileVersion) {
+			this.unsupportedFeature("File versioning");
+		}
+
 		let deletedObjectKey: string | null = null;
 
 		await this.dataAccess.prisma.$transaction(async (tx) => {
-			const version = await tx.platformFileVersion.findUnique({
+			const txUnsafe = tx as unknown as Record<string, any>;
+			const version = await txUnsafe.platformFileVersion.findUnique({
 				where: { id: versionId },
 				select: { id: true, platformFileId: true, storagePath: true },
 			});
@@ -823,9 +809,9 @@ export class StorageUseCases {
 
 			deletedObjectKey = version.storagePath;
 
-			await tx.platformFileVersion.delete({ where: { id: version.id } });
+			await txUnsafe.platformFileVersion.delete({ where: { id: version.id } });
 
-			const latest = await tx.platformFileVersion.findFirst({
+			const latest = await txUnsafe.platformFileVersion.findFirst({
 				where: { platformFileId: file.id },
 				orderBy: { versionNumber: "desc" },
 				select: {
@@ -866,17 +852,21 @@ export class StorageUseCases {
 		user: CurrentStorageUser,
 		fileId: string,
 	): Promise<Static<typeof GetStorageFilePermissionsResponse>> {
+		if (!this.prismaUnsafe.platformFilePermission) {
+			this.unsupportedFeature("File permissions");
+		}
+
 		await this.requireOwnedFile(user.id, fileId);
 
 		const permissions =
-			await this.dataAccess.prisma.platformFilePermission.findMany({
+			await this.prismaUnsafe.platformFilePermission.findMany({
 				where: { platformFileId: fileId },
 				select: FILE_PERMISSION_SELECT,
 				orderBy: { createdAt: "desc" },
 			});
 
 		return {
-			values: permissions.map((p) => this.mapPermissionItem(p)),
+			values: permissions.map((p: any) => this.mapPermissionItem(p)),
 		};
 	}
 
@@ -885,6 +875,10 @@ export class StorageUseCases {
 		fileId: string,
 		body: Static<typeof CreateStorageFilePermissionRequestBody>,
 	): Promise<Static<typeof StorageFilePermissionItem>> {
+		if (!this.prismaUnsafe.platformFilePermission) {
+			this.unsupportedFeature("File permissions");
+		}
+
 		await this.requireOwnedFile(user.id, fileId);
 
 		if (!body.platformUserId && !body.email) {
@@ -903,7 +897,7 @@ export class StorageUseCases {
 
 		try {
 			const created =
-				await this.dataAccess.prisma.platformFilePermission.create({
+				await this.prismaUnsafe.platformFilePermission.create({
 					data: {
 						platformFileId: fileId,
 						platformUserId: body.platformUserId,
@@ -930,10 +924,14 @@ export class StorageUseCases {
 		permissionId: number,
 		body: Static<typeof UpdateStorageFilePermissionRequestBody>,
 	): Promise<Static<typeof StorageFilePermissionItem>> {
+		if (!this.prismaUnsafe.platformFilePermission) {
+			this.unsupportedFeature("File permissions");
+		}
+
 		await this.requireOwnedFile(user.id, fileId);
 
 		const existing =
-			await this.dataAccess.prisma.platformFilePermission.findUnique({
+			await this.prismaUnsafe.platformFilePermission.findUnique({
 				where: { id: permissionId },
 				select: { id: true, platformFileId: true },
 			});
@@ -942,7 +940,7 @@ export class StorageUseCases {
 			throw new ServiceError("Permission not found.", 404);
 		}
 
-		const updated = await this.dataAccess.prisma.platformFilePermission.update({
+		const updated = await this.prismaUnsafe.platformFilePermission.update({
 			where: { id: permissionId },
 			data: {
 				permission: body.permission as PlatformFileViewerRole | undefined,
@@ -960,10 +958,14 @@ export class StorageUseCases {
 		fileId: string,
 		permissionId: number,
 	) {
+		if (!this.prismaUnsafe.platformFilePermission) {
+			this.unsupportedFeature("File permissions");
+		}
+
 		await this.requireOwnedFile(user.id, fileId);
 
 		const existing =
-			await this.dataAccess.prisma.platformFilePermission.findUnique({
+			await this.prismaUnsafe.platformFilePermission.findUnique({
 				where: { id: permissionId },
 				select: { id: true, platformFileId: true },
 			});
@@ -972,7 +974,7 @@ export class StorageUseCases {
 			throw new ServiceError("Permission not found.", 404);
 		}
 
-		await this.dataAccess.prisma.platformFilePermission.delete({
+		await this.prismaUnsafe.platformFilePermission.delete({
 			where: { id: permissionId },
 		});
 
@@ -986,10 +988,10 @@ export class StorageUseCases {
 		mimeType: string | null;
 		extension: string | null;
 		description: string | null;
-		parentId: string | null;
+		parentId?: string | null;
 		ownerId: number;
 		sizeBytes: number;
-		visibility: PlatformFileVisibility;
+		visibility?: PlatformFileVisibility;
 		createdAt: Date;
 		updatedAt: Date;
 	}) {
@@ -1003,7 +1005,7 @@ export class StorageUseCases {
 			parentId: file.parentId ?? undefined,
 			ownerId: file.ownerId,
 			sizeBytes: file.sizeBytes,
-			visibility: file.visibility,
+			visibility: (file.visibility ?? "PRIVATE") as PlatformFileVisibility,
 			createdAt: file.createdAt,
 			updatedAt: file.updatedAt,
 		};
@@ -1070,10 +1072,8 @@ export class StorageUseCases {
 				mimeType: true,
 				extension: true,
 				description: true,
-				parentId: true,
 				sizeBytes: true,
 				ownerId: true,
-				visibility: true,
 				deletedAt: true,
 				trashedAt: true,
 			},
@@ -1100,27 +1100,30 @@ export class StorageUseCases {
 
 		if (visibility === "PUBLIC") return "VIEWER";
 
+		const permissionDelegate = this.prismaUnsafe.platformFilePermission;
+		if (!permissionDelegate) {
+			return null;
+		}
+
 		const now = new Date();
+		const permission = await permissionDelegate.findFirst({
+			where: {
+				platformFileId: fileId,
+				AND: [
+					{
+						OR: [{ platformUserId: user.id }, { email: user.email }],
+					},
+					{
+						OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+					},
+				],
+			},
+			select: {
+				permission: true,
+			},
+		});
 
-		const permission =
-			await this.dataAccess.prisma.platformFilePermission.findFirst({
-				where: {
-					platformFileId: fileId,
-					AND: [
-						{
-							OR: [{ platformUserId: user.id }, { email: user.email }],
-						},
-						{
-							OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-						},
-					],
-				},
-				select: {
-					permission: true,
-				},
-			});
-
-		return permission?.permission ?? null;
+		return (permission?.permission as PlatformFileViewerRole | undefined) ?? null;
 	}
 
 	private assertCanMutateStorage(role: UserRole) {
