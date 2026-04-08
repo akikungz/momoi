@@ -427,6 +427,39 @@ describe("AcademicService", () => {
 	});
 
 	describe("Semesters", () => {
+			it("should get current semester from active flag", async () => {
+				const semester = createMockSemester({ id: 99, isCurrent: true });
+				mockCache.getCacheValue.mockResolvedValueOnce(null);
+				mockPrisma.semester.findFirst.mockResolvedValueOnce(semester);
+
+				const result = await service.getCurrentSemester();
+
+				expect(result?.id).toBe(99);
+				expect(result?.isCurrent).toBe(true);
+				expect(mockPrisma.semester.findFirst).toHaveBeenCalledTimes(1);
+			});
+
+			it("should auto-detect current semester by date range when no active semester is set", async () => {
+				const now = new Date();
+				const semester = createMockSemester({
+					id: 100,
+					isCurrent: false,
+					startDate: new Date(now.getTime() - 24 * 60 * 60 * 1000),
+					endDate: new Date(now.getTime() + 24 * 60 * 60 * 1000),
+				});
+
+				mockCache.getCacheValue.mockResolvedValueOnce(null);
+				mockPrisma.semester.findFirst
+					.mockResolvedValueOnce(null)
+					.mockResolvedValueOnce(semester);
+
+				const result = await service.getCurrentSemester();
+
+				expect(result?.id).toBe(100);
+				expect(result?.isCurrent).toBe(true);
+				expect(mockPrisma.semester.findFirst).toHaveBeenCalledTimes(2);
+			});
+
 		it("should list semesters", async () => {
 			const semester = createMockSemester({ id: 1, isCurrent: false });
 			mockCache.getCacheValue.mockResolvedValueOnce(null);

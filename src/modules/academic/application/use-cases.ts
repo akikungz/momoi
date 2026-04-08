@@ -549,16 +549,36 @@ export class AcademicUseCases {
 			return cached === "null" ? null : cached;
 		}
 
-		const semester = await this.dataAccess.prisma.semester.findFirst({
+		const activeSemester = await this.dataAccess.prisma.semester.findFirst({
 			where: { isCurrent: true },
+			orderBy: { updatedAt: "desc" },
 		});
 
-		if (!semester) {
+		if (activeSemester) {
+			const response = mapSemester(activeSemester);
+			await this.cache.set(cacheKey, response, 600);
+			return response;
+		}
+
+		const now = new Date();
+		const autoDetectedSemester =
+			await this.dataAccess.prisma.semester.findFirst({
+				where: {
+					startDate: { lte: now },
+					endDate: { gte: now },
+				},
+				orderBy: { startDate: "desc" },
+			});
+
+		if (!autoDetectedSemester) {
 			await this.cache.set(cacheKey, "null", 600);
 			return null;
 		}
 
-		const response = mapSemester(semester);
+		const response = {
+			...mapSemester(autoDetectedSemester),
+			isCurrent: true,
+		};
 		await this.cache.set(cacheKey, response, 600);
 		return response;
 	}
@@ -601,6 +621,7 @@ export class AcademicUseCases {
 
 		await Promise.all([
 			this.cache.invalidate(AcademicCacheKeys.semesterListPattern()),
+			this.cache.invalidate(AcademicCacheKeys.semesterCurrent()),
 			this.cache.invalidate(AcademicCacheKeys.autocompleteSemesters()),
 		]);
 
@@ -627,12 +648,11 @@ export class AcademicUseCases {
 					where: { id: { not: semesterId }, isCurrent: true },
 					data: { isCurrent: false },
 				});
-
-				await this.cache.invalidate(AcademicCacheKeys.semesterCurrent());
 			}
 
 			await Promise.all([
 				this.cache.invalidate(AcademicCacheKeys.semesterListPattern()),
+				this.cache.invalidate(AcademicCacheKeys.semesterCurrent()),
 				this.cache.invalidate(AcademicCacheKeys.semesterDetail(semesterId)),
 				this.cache.invalidate(AcademicCacheKeys.autocompleteSemesters()),
 				this.cache.invalidate(AcademicCacheKeys.autocompleteOfferings()),
@@ -723,6 +743,7 @@ export class AcademicUseCases {
 
 			await Promise.all([
 				this.cache.invalidate(AcademicCacheKeys.semesterListPattern()),
+				this.cache.invalidate(AcademicCacheKeys.semesterCurrent()),
 				this.cache.invalidate(AcademicCacheKeys.courseListPattern()),
 				this.cache.invalidate(AcademicCacheKeys.semesterDetail(semesterId)),
 				this.cache.invalidate(AcademicCacheKeys.autocompleteSemesters()),
