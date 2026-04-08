@@ -110,10 +110,9 @@ export const storageRoute = (
 							200: "StorageDownloadUrlResponse",
 						},
 						detail: {
-							summary: "Create latest version download URL",
-							description:
-								"Generate a signed download URL for the latest file version",
-							tags: ["Storage", "File Versions"],
+						summary: "Create download URL",
+						description: "Generate a signed download URL for a file",
+						tags: ["Storage"],
 						},
 					},
 				)
@@ -192,107 +191,6 @@ export const storageRoute = (
 					},
 				)
 				.get(
-					"/:fileId/versions",
-					async ({ user, params }) => useCases.getVersions(user, params.fileId),
-					{
-						params: t.Object({
-							fileId: t.String(),
-						}),
-						response: {
-							200: "GetStorageFileVersionsResponse",
-						},
-						detail: {
-							summary: "List file versions",
-							description: "List version history for a file",
-							tags: ["Storage", "File Versions"],
-						},
-					},
-				)
-				.post(
-					"/:fileId/upload-url",
-					async ({ user, params, body }) =>
-						useCases.createVersionUploadUrl(user, params.fileId, body),
-					{
-						params: t.Object({
-							fileId: t.String(),
-						}),
-						body: "CreateStorageUploadUrlRequestBody",
-						response: {
-							200: "StorageUploadUrlResponse",
-							400: ErrorResponse,
-							403: ErrorResponse,
-						},
-						detail: {
-							summary: "Create file version upload URL",
-							description:
-								"Generate a presigned upload URL for a new file version",
-							tags: ["Storage", "File Versions"],
-						},
-					},
-				)
-				.post(
-					"/:fileId/versions",
-					async ({ user, params, body }) =>
-						useCases.createVersion(user, params.fileId, body),
-					{
-						params: t.Object({
-							fileId: t.String(),
-						}),
-						body: "CreateStorageFileVersionRequestBody",
-						response: {
-							200: "StorageFileVersionItem",
-						},
-						detail: {
-							summary: "Create file version",
-							description: "Create a new version for a file",
-							tags: ["Storage", "File Versions"],
-						},
-					},
-				)
-				.get(
-					"/:fileId/versions/:versionId/download-url",
-					async ({ user, params }) =>
-						useCases.createVersionDownloadUrl(
-							user,
-							params.fileId,
-							params.versionId,
-						),
-					{
-						params: t.Object({
-							fileId: t.String(),
-							versionId: t.Number(),
-						}),
-						response: {
-							200: "StorageDownloadUrlResponse",
-						},
-						detail: {
-							summary: "Create file version download URL",
-							description:
-								"Generate a signed download URL for a specific file version",
-							tags: ["Storage", "File Versions"],
-						},
-					},
-				)
-				.delete(
-					"/:fileId/versions/:versionId",
-					async ({ user, params }) =>
-						useCases.deleteVersion(user, params.fileId, params.versionId),
-					{
-						params: t.Object({
-							fileId: t.String(),
-							versionId: t.Number(),
-						}),
-						response: {
-							200: t.Object({ success: t.Boolean() }),
-						},
-						detail: {
-							summary: "Delete file version",
-							description: "Delete a specific file version",
-							tags: ["Storage", "File Versions"],
-						},
-					},
-				)
-				.get(
 					"/:fileId/permissions",
 					async ({ user, params }) =>
 						useCases.getPermissions(user, params.fileId),
@@ -306,7 +204,7 @@ export const storageRoute = (
 						detail: {
 							summary: "List file permissions",
 							description: "List sharing permissions for a file (owner only)",
-							tags: ["Storage", "File Permissions"],
+							tags: ["Storage"],
 						},
 					},
 				)

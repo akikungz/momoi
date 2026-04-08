@@ -124,37 +124,6 @@ describe("E2E: Storage Routes", () => {
 		});
 	});
 
-	describe("GET /api/storage/files/:fileId/versions/:versionId/download-url", () => {
-		it("creates version download url for shared permission", async () => {
-			const { client, mockPrisma } = setupTestContext("admin");
-
-			mockPrisma.platformFile.findUnique.mockResolvedValueOnce({
-				id: "file-4",
-				ownerId: 999,
-				visibility: "SHARED",
-				deletedAt: null,
-				trashedAt: null,
-			});
-			mockPrisma.platformFilePermission.findFirst.mockResolvedValueOnce({
-				permission: "VIEWER",
-			});
-			mockPrisma.platformFileVersion.findUnique.mockResolvedValueOnce({
-				id: 10,
-				platformFileId: "file-4",
-				storagePath: "objects/file-4-v10",
-			});
-
-			const response = await client.api.storage
-				.files({ fileId: "file-4" })
-				.versions({ versionId: 10 })
-				["download-url"].get();
-
-			expect(response.status).toBe(200);
-			expect(response.data).toBeDefined();
-			expect(response.data?.objectKey).toBe("objects/file-4-v10");
-		});
-	});
-
 	describe("File CRUD Operations", () => {
 		it("updates file metadata", async () => {
 			const { client, mockPrisma } = setupTestContext("admin");
@@ -439,27 +408,6 @@ describe("E2E: Storage Routes", () => {
 	});
 
 	describe("Error Scenarios", () => {
-		it("returns 404 for version not found", async () => {
-			const { client, mockPrisma } = setupTestContext("admin");
-
-			mockPrisma.platformFile.findUnique.mockResolvedValueOnce({
-				id: "error-file-1",
-				ownerId: 1,
-				visibility: "PRIVATE",
-				deletedAt: null,
-				trashedAt: null,
-			});
-
-			mockPrisma.platformFileVersion.findUnique.mockResolvedValueOnce(null);
-
-			const response = await client.api.storage
-				.files({ fileId: "error-file-1" })
-				.versions({ versionId: 99 })
-				["download-url"].get();
-
-			expect(response.status).toBe(404);
-		});
-
 		it("returns 403 for unauthorized file access", async () => {
 			const { client, mockPrisma } = setupTestContext("admin");
 

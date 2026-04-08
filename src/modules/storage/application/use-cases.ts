@@ -4,17 +4,14 @@ import type {
 	CopyStorageFileRequestBody,
 	CreateStorageFilePermissionRequestBody,
 	CreateStorageFileRequestBody,
-	CreateStorageFileVersionRequestBody,
 	CreateStorageUploadUrlRequestBody,
 	GetStorageFilePermissionsResponse,
-	GetStorageFileVersionsResponse,
 	GetStorageFilesRequestQuery,
 	SearchStorageFilesRequestQuery,
 	StorageDownloadUrlResponse,
 	StorageFileDetailResponse,
 	StorageFileListResponse,
 	StorageFilePermissionItem,
-	StorageFileVersionItem,
 	StorageUploadUrlResponse,
 	UpdateStorageFilePermissionRequestBody,
 	UpdateStorageFileRequestBody,
@@ -51,18 +48,6 @@ const FILE_SELECT = {
 	updatedAt: true,
 	trashedAt: true,
 	deletedAt: true,
-} as const;
-
-const FILE_VERSION_SELECT = {
-	id: true,
-	platformFileId: true,
-	versionNumber: true,
-	sizeBytes: true,
-	mimeType: true,
-	storagePath: true,
-	checksumSha256: true,
-	createdById: true,
-	createdAt: true,
 } as const;
 
 const FILE_PERMISSION_SELECT = {
@@ -276,37 +261,9 @@ export class StorageUseCases {
 					select: FILE_SELECT,
 				});
 
-				if (body.type === "FILE" && body.storagePath) {
-					const txUnsafe = tx as unknown as Record<string, any>;
-					if (!txUnsafe.platformFileVersion) {
-						this.unsupportedFeature("File versioning");
-					}
 
-					const version = await txUnsafe.platformFileVersion.create({
-						data: {
-							platformFileId: file.id,
-							versionNumber: 1,
-							storagePath: body.storagePath,
-							sizeBytes: body.sizeBytes ?? 0,
-							mimeType: body.mimeType,
-							checksumSha256: body.checksumSha256,
-							createdById: user.id,
-						},
-						select: { id: true },
-					});
-
-					await tx.platformFile.update({
-						where: { id: file.id },
-						data: { latestVersionId: version.id },
-					});
-				}
 
 				return file;
-			});
-
-			recordStorageOperation("create_file", {
-				"storage.file.type": created.type,
-				"storage.visibility": "PRIVATE",
 			});
 
 			return this.mapFileItem(created);
@@ -403,38 +360,7 @@ export class StorageUseCases {
 				select: FILE_SELECT,
 			});
 
-			if (source.type === "FILE") {
-				const txUnsafe = tx as unknown as Record<string, any>;
-				if (!txUnsafe.platformFileVersion) {
-					return newFile;
-				}
 
-				const latestVersion = await txUnsafe.platformFileVersion.findFirst({
-					where: { platformFileId: source.id },
-					orderBy: { versionNumber: "desc" },
-					select: FILE_VERSION_SELECT,
-				});
-
-				if (latestVersion) {
-					const copiedVersion = await txUnsafe.platformFileVersion.create({
-						data: {
-							platformFileId: newFile.id,
-							versionNumber: 1,
-							sizeBytes: latestVersion.sizeBytes,
-							mimeType: latestVersion.mimeType,
-							storagePath: latestVersion.storagePath,
-							checksumSha256: latestVersion.checksumSha256,
-							createdById: user.id,
-						},
-						select: { id: true },
-					});
-
-					await tx.platformFile.update({
-						where: { id: newFile.id },
-						data: { latestVersionId: copiedVersion.id },
-					});
-				}
-			}
 
 			return newFile;
 		});
@@ -442,115 +368,9 @@ export class StorageUseCases {
 		return this.mapFileItem(copied);
 	}
 
-	public async getVersions(
-		user: CurrentStorageUser,
-		fileId: string,
-	): Promise<Static<typeof GetStorageFileVersionsResponse>> {
-		const file = await this.dataAccess.prisma.platformFile.findUnique({
-			where: { id: fileId },
-			select: {
-				id: true,
-				type: true,
-				ownerId: true,
-				deletedAt: true,
-				trashedAt: true,
-			},
-		});
 
-		if (!file || file.deletedAt || file.trashedAt) {
-			throw new ServiceError("File not found.", 404);
-		}
 
-		if (file.type !== "FILE") {
-			throw new ServiceError("Only files have versions.", 400);
-		}
 
-		const accessRole = await this.getAccessRole(
-			user,
-			file.id,
-			file.ownerId,
-			"PRIVATE",
-		);
-		if (!accessRole) {
-			throw new ServiceError(
-				"Forbidden: You don't have access to this file.",
-				403,
-			);
-		}
-
-		const versionDelegate = this.prismaUnsafe.platformFileVersion;
-		if (!versionDelegate) {
-			this.unsupportedFeature("File versioning");
-		}
-
-		const versions = await versionDelegate.findMany({
-			where: { platformFileId: file.id },
-			select: FILE_VERSION_SELECT,
-			orderBy: { versionNumber: "desc" },
-		});
-
-		return {
-			values: versions.map((v: any) => this.mapVersionItem(v)),
-		};
-	}
-
-	public async createVersion(
-		user: CurrentStorageUser,
-		fileId: string,
-		body: Static<typeof CreateStorageFileVersionRequestBody>,
-	): Promise<Static<typeof StorageFileVersionItem>> {
-		this.assertCanMutateStorage(user.role);
-
-		const file = await this.requireOwnedFile(user.id, fileId);
-		if (file.type !== "FILE") {
-			throw new ServiceError("Only files can have versions.", 400);
-		}
-
-		if (!this.prismaUnsafe.platformFileVersion) {
-			this.unsupportedFeature("File versioning");
-		}
-
-		const created = await this.dataAccess.prisma.$transaction(async (tx) => {
-			const txUnsafe = tx as unknown as Record<string, any>;
-			const latest = await txUnsafe.platformFileVersion.findFirst({
-				where: { platformFileId: file.id },
-				orderBy: { versionNumber: "desc" },
-				select: { versionNumber: true },
-			});
-
-			const version = await txUnsafe.platformFileVersion.create({
-				data: {
-					platformFileId: file.id,
-					versionNumber: (latest?.versionNumber ?? 0) + 1,
-					storagePath: body.storagePath,
-					sizeBytes: body.sizeBytes,
-					mimeType: body.mimeType,
-					checksumSha256: body.checksumSha256,
-					createdById: user.id,
-				},
-				select: FILE_VERSION_SELECT,
-			});
-
-			await tx.platformFile.update({
-				where: { id: file.id },
-				data: {
-					latestVersionId: version.id,
-					sizeBytes: body.sizeBytes,
-					mimeType: body.mimeType,
-				},
-			});
-
-			return version;
-		});
-		recordStorageOperation("create_version", {
-			"storage.file.kind": "versioned",
-		});
-		recordStorageBytes(body.sizeBytes, {
-			"storage.operation": "create_version",
-		});
-
-		return this.mapVersionItem(created);
-	}
 
 	public async createUploadUrl(
 		user: CurrentStorageUser,
@@ -581,37 +401,7 @@ export class StorageUseCases {
 		};
 	}
 
-	public async createVersionUploadUrl(
-		user: CurrentStorageUser,
-		fileId: string,
-		body: Static<typeof CreateStorageUploadUrlRequestBody>,
-	): Promise<Static<typeof StorageUploadUrlResponse>> {
-		this.assertCanMutateStorage(user.role);
-		await this.requireOwnedFile(user.id, fileId);
 
-		if (!this.objectStorage.enabled) {
-			throw new ServiceError("S3 storage provider is not enabled.", 400);
-		}
-
-		const objectKey = this.objectStorage.createObjectKey(
-			user.id,
-			body.filename,
-		);
-		const presigned = await this.objectStorage.createUploadUrl(
-			objectKey,
-			body.contentType,
-		);
-		recordStorageOperation("create_upload_url", {
-			"storage.upload.kind": "version",
-			"storage.file.id": fileId,
-		});
-
-		return {
-			objectKey: presigned.objectKey,
-			uploadUrl: presigned.url,
-			expiresAt: presigned.expiresAt,
-		};
-	}
 
 	public async createDownloadUrl(
 		user: CurrentStorageUser,
@@ -649,22 +439,10 @@ export class StorageUseCases {
 			throw new ServiceError("File or latest version not found.", 404);
 		}
 
-		let storagePath = fileWithLegacy.latestVersion?.storagePath ?? null;
-		if (!storagePath && fileWithLegacy.latestVersionId) {
-			const versionDelegate = this.prismaUnsafe.platformFileVersion;
-			if (!versionDelegate) {
-				this.unsupportedFeature("File versioning");
-			}
-
-			const latestVersion = await versionDelegate.findUnique({
-				where: { id: fileWithLegacy.latestVersionId },
-				select: { storagePath: true },
-			});
-			storagePath = latestVersion?.storagePath ?? null;
-		}
+		const storagePath = fileWithLegacy.latestVersion?.storagePath ?? null;
 
 		if (!storagePath) {
-			throw new ServiceError("File or latest version not found.", 404);
+			throw new ServiceError("File not found.", 404);
 		}
 
 		const accessRole = await this.getAccessRole(
@@ -704,149 +482,9 @@ export class StorageUseCases {
 		};
 	}
 
-	public async createVersionDownloadUrl(
-		user: CurrentStorageUser,
-		fileId: string,
-		versionId: number,
-	): Promise<Static<typeof StorageDownloadUrlResponse>> {
-		const file = await this.dataAccess.prisma.platformFile.findUnique({
-			where: { id: fileId },
-			select: {
-				id: true,
-				ownerId: true,
-				deletedAt: true,
-				trashedAt: true,
-			},
-		});
 
-		if (!file || file.deletedAt || file.trashedAt) {
-			throw new ServiceError("File not found.", 404);
-		}
 
-		const accessRole = await this.getAccessRole(
-			user,
-			file.id,
-			file.ownerId,
-			"PRIVATE",
-		);
-		if (!accessRole) {
-			throw new ServiceError(
-				"Forbidden: You don't have access to this file.",
-				403,
-			);
-		}
 
-		const versionDelegate = this.prismaUnsafe.platformFileVersion;
-		if (!versionDelegate) {
-			this.unsupportedFeature("File versioning");
-		}
-
-		const version = await versionDelegate.findUnique(
-			{
-				where: { id: versionId },
-				select: { id: true, platformFileId: true, storagePath: true },
-			},
-		);
-
-		if (!version || version.platformFileId !== file.id) {
-			throw new ServiceError("Version not found.", 404);
-		}
-
-		if (!this.objectStorage.enabled) {
-			recordStorageOperation("create_download_url", {
-				"storage.download.kind": "version",
-				"storage.source": "local",
-			});
-			return {
-				objectKey: version.storagePath,
-				downloadUrl: version.storagePath,
-				expiresAt: new Date(Date.now() + 5 * 60 * 1000),
-			};
-		}
-
-		const presigned = await this.getOrCreateCachedDownloadUrl(
-			version.storagePath,
-		);
-		recordStorageOperation("create_download_url", {
-			"storage.download.kind": "version",
-			"storage.source": "object_storage",
-		});
-		return {
-			objectKey: presigned.objectKey,
-			downloadUrl: presigned.url,
-			expiresAt: presigned.expiresAt,
-		};
-	}
-
-	public async deleteVersion(
-		user: CurrentStorageUser,
-		fileId: string,
-		versionId: number,
-	) {
-		this.assertCanMutateStorage(user.role);
-
-		const file = await this.requireOwnedFile(user.id, fileId);
-		if (file.type !== "FILE") {
-			throw new ServiceError("Only files can have versions.", 400);
-		}
-
-		if (!this.prismaUnsafe.platformFileVersion) {
-			this.unsupportedFeature("File versioning");
-		}
-
-		let deletedObjectKey: string | null = null;
-
-		await this.dataAccess.prisma.$transaction(async (tx) => {
-			const txUnsafe = tx as unknown as Record<string, any>;
-			const version = await txUnsafe.platformFileVersion.findUnique({
-				where: { id: versionId },
-				select: { id: true, platformFileId: true, storagePath: true },
-			});
-
-			if (!version || version.platformFileId !== file.id) {
-				throw new ServiceError("Version not found.", 404);
-			}
-
-			deletedObjectKey = version.storagePath;
-
-			await txUnsafe.platformFileVersion.delete({ where: { id: version.id } });
-
-			const latest = await txUnsafe.platformFileVersion.findFirst({
-				where: { platformFileId: file.id },
-				orderBy: { versionNumber: "desc" },
-				select: {
-					id: true,
-					sizeBytes: true,
-					mimeType: true,
-				},
-			});
-
-			await tx.platformFile.update({
-				where: { id: file.id },
-				data: {
-					latestVersionId: latest?.id ?? null,
-					sizeBytes: latest?.sizeBytes ?? 0,
-					mimeType: latest?.mimeType ?? null,
-				},
-			});
-		});
-
-		if (this.objectStorage.enabled && deletedObjectKey) {
-			try {
-				await this.objectStorage.deleteObject(deletedObjectKey);
-				await this.cache.delete(
-					this.buildDownloadUrlCacheKey(deletedObjectKey),
-				);
-			} catch (error) {
-				console.warn(
-					"Failed to delete object from S3-compatible storage after version delete",
-					{ error, objectKey: deletedObjectKey },
-				);
-			}
-		}
-
-		return { success: true };
-	}
 
 	public async getPermissions(
 		user: CurrentStorageUser,
@@ -1008,31 +646,6 @@ export class StorageUseCases {
 			visibility: (file.visibility ?? "PRIVATE") as PlatformFileVisibility,
 			createdAt: file.createdAt,
 			updatedAt: file.updatedAt,
-		};
-	}
-
-	private mapVersionItem(version: {
-		id: number;
-		platformFileId: string;
-		versionNumber: number;
-		sizeBytes: number;
-		mimeType: string | null;
-		storagePath: string;
-		checksumSha256: string | null;
-		createdById: number | null;
-		createdAt: Date;
-	}): Static<typeof StorageFileVersionItem> {
-		return {
-			id: version.id,
-			platformFileId: version.platformFileId,
-			versionNumber: version.versionNumber,
-			sizeBytes: version.sizeBytes,
-			mimeType: version.mimeType ?? undefined,
-			storagePath: version.storagePath,
-			checksumSha256: version.checksumSha256 ?? undefined,
-			createdById: version.createdById ?? undefined,
-			createdAt: version.createdAt,
-			updatedAt: version.createdAt,
 		};
 	}
 

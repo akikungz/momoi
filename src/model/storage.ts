@@ -87,29 +87,6 @@ export const CopyStorageFileRequestBody = t.Object({
 	name: t.Optional(t.String()),
 });
 
-export const StorageFileVersionItem = t.Object({
-	id: t.Number(),
-	platformFileId: t.String(),
-	versionNumber: t.Number(),
-	sizeBytes: t.Number(),
-	mimeType: t.Optional(t.String()),
-	storagePath: t.String(),
-	checksumSha256: t.Optional(t.String()),
-	createdById: t.Optional(t.Number()),
-	...TimestampResponse.properties,
-});
-
-export const GetStorageFileVersionsResponse = t.Object({
-	values: t.Array(StorageFileVersionItem),
-});
-
-export const CreateStorageFileVersionRequestBody = t.Object({
-	storagePath: t.String({ minLength: 1 }),
-	sizeBytes: t.Number({ minimum: 0 }),
-	mimeType: t.Optional(t.String()),
-	checksumSha256: t.Optional(t.String()),
-});
-
 export const CreateStorageUploadUrlRequestBody = t.Object({
 	filename: t.Optional(t.String()),
 	contentType: t.Optional(t.String()),
@@ -168,12 +145,6 @@ export const storageModel = new Elysia({ name: "storage.model" })
 	.model("UpdateStorageFileRequestBody", UpdateStorageFileRequestBody)
 	.model("MoveStorageFileRequestBody", MoveStorageFileRequestBody)
 	.model("CopyStorageFileRequestBody", CopyStorageFileRequestBody)
-	.model("StorageFileVersionItem", StorageFileVersionItem)
-	.model("GetStorageFileVersionsResponse", GetStorageFileVersionsResponse)
-	.model(
-		"CreateStorageFileVersionRequestBody",
-		CreateStorageFileVersionRequestBody,
-	)
 	.model("CreateStorageUploadUrlRequestBody", CreateStorageUploadUrlRequestBody)
 	.model("StorageUploadUrlResponse", StorageUploadUrlResponse)
 	.model("StorageDownloadUrlResponse", StorageDownloadUrlResponse)
