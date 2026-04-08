@@ -415,6 +415,11 @@ export class StorageUseCases {
 				deletedAt: true,
 				trashedAt: true,
 				latestVersionId: true,
+				latestVersion: {
+					select: {
+						storagePath: true,
+					},
+				},
 			},
 		});
 
