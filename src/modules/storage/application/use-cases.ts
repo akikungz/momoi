@@ -64,6 +64,7 @@ const FILE_PERMISSION_SELECT = {
 } as const;
 
 const DOWNLOAD_URL_CACHE_PREFIX = "storage:download-url";
+const FILE_STORAGE_PATH_CACHE_PREFIX = "storage:file-path";
 const DOWNLOAD_URL_CACHE_SAFETY_BUFFER_SECONDS = 30;
 
 type CachedDownloadUrl = {
@@ -266,6 +267,10 @@ export class StorageUseCases {
 				return file;
 			});
 
+			if (body.type === "FILE" && body.storagePath) {
+				await this.cacheFileStoragePath(created.id, body.storagePath);
+			}
+
 			return this.mapFileItem(created);
 		} catch (error: unknown) {
 			handlePrismaError(error, "while creating a storage file", {
@@ -439,15 +444,7 @@ export class StorageUseCases {
 			throw new ServiceError("File or latest version not found.", 404);
 		}
 
-		const storagePath =
-			fileWithLegacy.latestVersion?.storagePath ??
-			(fileWithLegacy.latestVersionId !== null
-				? String(fileWithLegacy.latestVersionId)
-				: null);
-
-		if (!storagePath) {
-			throw new ServiceError("File not found.", 404);
-		}
+		const storagePath = await this.resolveStoragePathForDownload(fileWithLegacy);
 
 		const accessRole = await this.getAccessRole(
 			user,
@@ -485,10 +482,6 @@ export class StorageUseCases {
 			expiresAt: presigned.expiresAt,
 		};
 	}
-
-
-
-
 
 	public async getPermissions(
 		user: CurrentStorageUser,
@@ -754,6 +747,55 @@ export class StorageUseCases {
 
 	private buildDownloadUrlCacheKey(objectKey: string): string {
 		return `${DOWNLOAD_URL_CACHE_PREFIX}:${objectKey}`;
+	}
+
+	private buildFileStoragePathCacheKey(fileId: string): string {
+		return `${FILE_STORAGE_PATH_CACHE_PREFIX}:${fileId}`;
+	}
+
+	private async cacheFileStoragePath(fileId: string, storagePath: string) {
+		const cacheKey = this.buildFileStoragePathCacheKey(fileId);
+		try {
+			await this.cache.set(
+				cacheKey,
+				{ storagePath },
+				60 * 60 * 24 * 30,
+			);
+		} catch (error) {
+			console.warn("Failed writing cached file storage path", {
+				error,
+				fileId,
+			});
+		}
+	}
+
+	private async resolveStoragePathForDownload(file: {
+		id: string;
+		latestVersionId: number | null;
+		latestVersion?: { storagePath?: string | null } | null;
+	}) {
+		if (file.latestVersion?.storagePath) {
+			return file.latestVersion.storagePath;
+		}
+
+		const cacheKey = this.buildFileStoragePathCacheKey(file.id);
+		try {
+			const cached = await this.cache.get<{ storagePath?: string }>(cacheKey);
+			if (cached?.storagePath) {
+				return cached.storagePath;
+			}
+		} catch (error) {
+			console.warn("Failed reading cached file storage path", {
+				error,
+				fileId: file.id,
+			});
+		}
+
+		if (file.latestVersionId !== null) {
+			return String(file.latestVersionId);
+		}
+
+		return file.id;
 	}
 
 	private async getOrCreateCachedDownloadUrl(objectKey: string) {
