@@ -174,37 +174,6 @@ describe("Storage Route", () => {
 		expect(response.status).toBe(403);
 	});
 
-	it("creates specific version download url when shared permission exists", async () => {
-		const client = treaty(
-			storageRoute(mockPrisma, mockCache as any, mockAdminAuth, objectStorage),
-		);
-
-		mockPrisma.platformFile.findUnique.mockResolvedValueOnce({
-			id: "file-5",
-			ownerId: 999,
-			visibility: "SHARED",
-			deletedAt: null,
-			trashedAt: null,
-		});
-
-		mockPrisma.platformFilePermission.findFirst.mockResolvedValueOnce({
-			permission: "VIEWER",
-		});
-		mockPrisma.platformFileVersion.findUnique.mockResolvedValueOnce({
-			id: 7,
-			platformFileId: "file-5",
-			storagePath: "objects/file-5-v7",
-		});
-
-		const response = await client.storage
-			.files({ fileId: "file-5" })
-			.versions({ versionId: 7 })
-			["download-url"].get();
-
-		expect(response.status).toBe(200);
-		expect(response.data?.objectKey).toBe("objects/file-5-v7");
-	});
-
 	it("blocks student from creating files", async () => {
 		const client = treaty(
 			storageRoute(

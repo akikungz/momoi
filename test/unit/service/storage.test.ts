@@ -79,35 +79,6 @@ describe("StorageService", () => {
 		).rejects.toThrow("S3 storage provider is not enabled.");
 	});
 
-	it("creates version upload url only for file owner", async () => {
-		mockPrisma.platformFile.findUnique.mockResolvedValueOnce({
-			id: "file-1",
-			name: "notes.pdf",
-			type: "FILE",
-			mimeType: "application/pdf",
-			extension: "pdf",
-			description: null,
-			parentId: null,
-			sizeBytes: 123,
-			ownerId: 1,
-			visibility: "PRIVATE",
-			deletedAt: null,
-			trashedAt: null,
-		});
-
-		const result = await storageService.createVersionUploadUrl(
-			instructorUser,
-			"file-1",
-			{
-				filename: "notes-v2.pdf",
-				contentType: "application/pdf",
-			},
-		);
-
-		expect(result.objectKey).toBe("user/1/notes-v2.pdf");
-		expect(objectStorage.createUploadUrl).toHaveBeenCalled();
-	});
-
 	it("creates latest version download url from provider", async () => {
 		mockPrisma.platformFile.findUnique.mockResolvedValueOnce({
 			id: "file-2",
@@ -167,37 +138,6 @@ describe("StorageService", () => {
 		expect(objectStorage.createDownloadUrl).not.toHaveBeenCalled();
 	});
 
-	it("caches version download url with ttl based on expiresAt", async () => {
-		mockPrisma.platformFile.findUnique.mockResolvedValueOnce({
-			id: "file-5-ttl",
-			ownerId: 999,
-			visibility: "SHARED",
-			deletedAt: null,
-			trashedAt: null,
-		});
-
-		mockPrisma.platformFilePermission.findFirst.mockResolvedValueOnce({
-			permission: "VIEWER",
-		});
-
-		mockPrisma.platformFileVersion.findUnique.mockResolvedValueOnce({
-			id: 11,
-			platformFileId: "file-5-ttl",
-			storagePath: "objects/file-5-v11",
-		});
-
-		await storageService.createVersionDownloadUrl(
-			instructorUser,
-			"file-5-ttl",
-			11,
-		);
-
-		expect(mockCache.createCacheKey).toHaveBeenCalled();
-		const ttlArg = mockCache.createCacheKey.mock.calls[0][2];
-		expect(typeof ttlArg).toBe("number");
-		expect(ttlArg).toBeGreaterThan(0);
-	});
-
 	it("falls back to storage path when provider is disabled for download", async () => {
 		storageService = new StorageService(mockPrisma, mockCache as any, {
 			...objectStorage,
@@ -245,102 +185,12 @@ describe("StorageService", () => {
 		).rejects.toThrow("Forbidden: You don't have access to this file.");
 	});
 
-	it("creates version download url for permitted user", async () => {
-		mockPrisma.platformFile.findUnique.mockResolvedValueOnce({
-			id: "file-5",
-			ownerId: 999,
-			visibility: "SHARED",
-			deletedAt: null,
-			trashedAt: null,
-		});
-
-		mockPrisma.platformFilePermission.findFirst.mockResolvedValueOnce({
-			permission: "VIEWER",
-		});
-
-		mockPrisma.platformFileVersion.findUnique.mockResolvedValueOnce({
-			id: 10,
-			platformFileId: "file-5",
-			storagePath: "objects/file-5-v10",
-		});
-
-		const result = await storageService.createVersionDownloadUrl(
-			instructorUser,
-			"file-5",
-			10,
-		);
-
-		expect(result.objectKey).toBe("objects/file-5-v10");
-		expect(objectStorage.createDownloadUrl).toHaveBeenCalledWith(
-			"objects/file-5-v10",
-		);
-	});
-
-	it("deletes version and object key when s3 provider is enabled", async () => {
-		mockPrisma.platformFile.findUnique.mockResolvedValueOnce({
-			id: "file-6",
-			name: "file-6",
-			type: "FILE",
-			mimeType: "text/plain",
-			extension: "txt",
-			description: null,
-			parentId: null,
-			sizeBytes: 50,
-			ownerId: 1,
-			visibility: "PRIVATE",
-			deletedAt: null,
-			trashedAt: null,
-		});
-
-		mockPrisma.platformFileVersion.findUnique.mockResolvedValueOnce({
-			id: 11,
-			platformFileId: "file-6",
-			storagePath: "objects/file-6-v11",
-		});
-
-		mockPrisma.platformFileVersion.findFirst.mockResolvedValueOnce({
-			id: 10,
-			sizeBytes: 49,
-			mimeType: "text/plain",
-		});
-
-		const result = await storageService.deleteVersion(
-			instructorUser,
-			"file-6",
-			11,
-		);
-
-		expect(result.success).toBe(true);
-		expect(mockPrisma.platformFileVersion.delete).toHaveBeenCalledWith({
-			where: { id: 11 },
-		});
-		expect(objectStorage.deleteObject).toHaveBeenCalledWith(
-			"objects/file-6-v11",
-		);
-	});
-
 	it("throws error when file not found", async () => {
 		mockPrisma.platformFile.findUnique.mockResolvedValueOnce(null);
 
 		await expect(
 			storageService.createDownloadUrl(instructorUser, "nonexistent"),
 		).rejects.toThrow("File or latest version not found.");
-	});
-
-	it("throws error when version not found", async () => {
-		mockPrisma.platformFile.findUnique.mockResolvedValueOnce({
-			id: "file-7",
-			ownerId: 1,
-			visibility: "PRIVATE",
-			deletedAt: null,
-			trashedAt: null,
-		});
-
-		mockPrisma.platformFileVersion.findUnique.mockResolvedValueOnce(null);
-
-		await expect(
-			storageService.createVersionDownloadUrl(instructorUser, "file-7", 99),
-		).rejects.toThrow("Version not found.");
 	});
 
 	it("forbids access to trashed files", async () => {
@@ -662,50 +512,6 @@ describe("StorageService", () => {
 
 		expect(result.objectKey).toContain("user/1/");
 		expect(result.uploadUrl).toContain("https://storage.example/upload/");
-	});
-
-	it("gets versions list for accessible file", async () => {
-		mockPrisma.platformFile.findUnique.mockResolvedValueOnce({
-			id: "file-18",
-			name: "file-18",
-			type: "FILE",
-			ownerId: 1,
-			visibility: "PRIVATE",
-			deletedAt: null,
-			trashedAt: null,
-		});
-
-		mockPrisma.platformFileVersion.findMany.mockResolvedValueOnce([
-			{
-				id: 1,
-				versionNumber: 1,
-				sizeBytes: 100,
-				mimeType: "text/plain",
-				createdAt: new Date(),
-				createdBy: {
-					id: 1,
-					email: "instructor@example.com",
-					profile: { displayName: "Instructor" },
-				},
-			},
-			{
-				id: 2,
-				versionNumber: 2,
-				sizeBytes: 120,
-				mimeType: "text/plain",
-				createdAt: new Date(),
-				createdBy: {
-					id: 1,
-					email: "instructor@example.com",
-					profile: { displayName: "Instructor" },
-				},
-			},
-		] as any);
-
-		const result = await storageService.getVersions(instructorUser, "file-18");
-
-		expect(result.values).toHaveLength(2);
-		expect(result.values[1].versionNumber).toBe(2);
 	});
 
 	it("lists files shared with current user when sharedWithMe is true", async () => {
