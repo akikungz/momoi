@@ -692,7 +692,7 @@ describe("Instance Route - Instructor", () => {
 			diskGB: 32,
 		});
 
-		expect(response.status).toBe(422);
+		expect(response.status).toBe(400);
 	});
 });
 
