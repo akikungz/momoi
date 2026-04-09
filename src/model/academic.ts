@@ -45,6 +45,9 @@ export const CourseValue = t.Object(
 		isActive: t.Boolean({
 			description: "Indicates if the course is currently active",
 		}),
+		isProjectBased: t.Boolean({
+			description: "Indicates if the course is project based",
+		}),
 		...TimestampResponse.properties,
 	},
 	{ description: "Represents a course offered in the academic system" },
@@ -246,6 +249,9 @@ export const GetCourseByIdResponse = t.Object(
 		isActive: t.Boolean({
 			description: "Indicates if the course is currently active",
 		}),
+		isProjectBased: t.Boolean({
+			description: "Indicates if the course is project based",
+		}),
 		instructors: t.Array(InstructorValue, {
 			description: "List of instructors teaching the course",
 		}),
@@ -264,6 +270,9 @@ export const AddCourseRequestBody = t.Object(
 		description: t.Optional(
 			t.String({ description: "Description of the course" }),
 		),
+		isProjectBased: t.Optional(
+			t.Boolean({ description: "Indicates if the course is project based" }),
+		),
 	},
 	{ description: "Request body for adding a new course" },
 );
@@ -281,6 +290,9 @@ export const EditCourseByIdRequestBody = t.Object(
 		),
 		isActive: t.Optional(
 			t.Boolean({ description: "Indicates if the course is currently active" }),
+		),
+		isProjectBased: t.Optional(
+			t.Boolean({ description: "Indicates if the course is project based" }),
 		),
 	},
 	{ description: "Request body for editing course details" },

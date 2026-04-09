@@ -323,6 +323,7 @@ export class AcademicUseCases {
 				code: body.code,
 				title: body.title,
 				description: body.description ?? undefined,
+				isProjectBased: body.isProjectBased ?? undefined,
 			},
 		});
 
@@ -347,6 +348,7 @@ export class AcademicUseCases {
 					title: body.title ?? undefined,
 					description: body.description ?? undefined,
 					isActive: body.isActive ?? undefined,
+					isProjectBased: body.isProjectBased ?? undefined,
 				},
 			});
 
@@ -549,23 +551,12 @@ export class AcademicUseCases {
 			return cached === "null" ? null : cached;
 		}
 
-		const activeSemester = await this.dataAccess.prisma.semester.findFirst({
-			where: { isCurrent: true },
-			orderBy: { updatedAt: "desc" },
-		});
-
-		if (activeSemester) {
-			const response = mapSemester(activeSemester);
-			await this.cache.set(cacheKey, response, 600);
-			return response;
-		}
-
-		const now = new Date();
+		const currentDate = new Date();
 		const autoDetectedSemester =
 			await this.dataAccess.prisma.semester.findFirst({
 				where: {
-					startDate: { lte: now },
-					endDate: { gte: now },
+					startDate: { lte: currentDate },
+					endDate: { gte: currentDate },
 				},
 				orderBy: { startDate: "desc" },
 			});
@@ -642,13 +633,6 @@ export class AcademicUseCases {
 					isCurrent: body.isCurrent ?? undefined,
 				},
 			});
-
-			if (updated.isCurrent) {
-				await this.dataAccess.prisma.semester.updateMany({
-					where: { id: { not: semesterId }, isCurrent: true },
-					data: { isCurrent: false },
-				});
-			}
 
 			await Promise.all([
 				this.cache.invalidate(AcademicCacheKeys.semesterListPattern()),

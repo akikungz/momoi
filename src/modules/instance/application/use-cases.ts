@@ -1,4 +1,5 @@
 import type { Static } from "elysia";
+import type { ReverseProxyType as PrismaReverseProxyType } from "@momoi/database/prisma/generated/enums";
 
 import type {
 	CreateInstanceRequestBody,
@@ -8,13 +9,19 @@ import type {
 	DeleteInstanceResponse,
 	DeleteReverseProxyResponse,
 	GetInstanceAuditLogsResponse,
+	GetInstanceMonitoringResponse,
 	GetInstanceResponse,
 	GetInstancesRequestQuery,
 	GetInstancesResponse,
+	InstanceStatusActionResponse,
 	GetReverseProxiesResponse,
 	PromoteInstanceResponse,
 	ReprovisionInstanceResponse,
 } from "@momoi/model/instance";
+import type {
+	PrometheusQueryPort,
+	PrometheusQueryResponse,
+} from "@momoi/modules/monitoring/application/ports";
 import { handlePrismaError, ServiceError } from "@momoi/utils/error";
 import {
 	mapInstanceCreateToResponse,
@@ -46,6 +53,7 @@ export class InstanceUseCases {
 		private readonly cache: JsonCacheStore,
 		private readonly queue: InstanceQueuePort,
 		private readonly telemetry: InstanceTelemetryPort,
+		private readonly monitoring: PrometheusQueryPort,
 	) {}
 
 	public async createInstanceByInstructor(
@@ -239,6 +247,112 @@ export class InstanceUseCases {
 		}
 	}
 
+	public async getInstanceMonitoring(
+		instanceId: number,
+	): Promise<Static<typeof GetInstanceMonitoringResponse>> {
+		let instance: {
+			id: number;
+			pveVM: {
+				vmId: number;
+				hostname: string;
+			} | null;
+		} | null = null;
+
+		try {
+			instance = await this.dataAccess.prisma.instance.findUnique({
+				where: { id: instanceId },
+				select: {
+					id: true,
+					pveVM: {
+						select: {
+							vmId: true,
+							hostname: true,
+						},
+					},
+				},
+			});
+		} catch (error: unknown) {
+			handlePrismaError(error, "while retrieving instance monitoring", {
+				notFoundMessage: "Instance not found.",
+			});
+		}
+
+		if (!instance) {
+			throw new ServiceError("Instance not found.", 404);
+		}
+
+		if (!instance.pveVM) {
+			throw new ServiceError(
+				"Monitoring is unavailable until the instance has an assigned VM.",
+				409,
+			);
+		}
+
+		const pveVM = instance.pveVM;
+
+		const generatedAt = new Date().toISOString();
+		const queries = {
+			uptimeSeconds: "otelcol_proxmox_vm_uptime_seconds",
+			cpuPercent: "otelcol_proxmox_vm_cpu_percent",
+			memoryUsedBytes: "otelcol_proxmox_vm_mem_bytes",
+			memoryCapacityBytes: "otelcol_proxmox_vm_maxmem_bytes",
+		} as const;
+
+		const responses = Object.fromEntries(
+			await Promise.all(
+				Object.entries(queries).map(async ([key, query]) => [
+					key,
+					await this.monitoring.query({ query, time: generatedAt }),
+				]),
+			),
+		) as Record<keyof typeof queries, PrometheusQueryResponse>;
+
+		const metrics = Object.fromEntries(
+			Object.keys(queries).map((key) => {
+				const metricKey = key as keyof typeof queries;
+				const sample = this.findVmMetricSample(
+					responses[metricKey],
+					pveVM.vmId,
+					pveVM.hostname,
+				);
+
+				return [
+					metricKey,
+					{
+						sample,
+						value: this.extractMetricValue(sample),
+					},
+				];
+			}),
+		) as Record<
+			keyof typeof queries,
+			{
+				sample: unknown;
+				value: number | null;
+			}
+		>;
+
+		return {
+			generatedAt,
+			instanceId: instance.id,
+			vmId: pveVM.vmId,
+			hostname: pveVM.hostname,
+			summary: {
+				uptimeSeconds: metrics.uptimeSeconds.value,
+				cpuPercent: metrics.cpuPercent.value,
+				memoryUsedBytes: metrics.memoryUsedBytes.value,
+				memoryCapacityBytes: metrics.memoryCapacityBytes.value,
+			},
+			queries,
+			details: {
+				uptimeSeconds: metrics.uptimeSeconds.sample,
+				cpuPercent: metrics.cpuPercent.sample,
+				memoryUsedBytes: metrics.memoryUsedBytes.sample,
+				memoryCapacityBytes: metrics.memoryCapacityBytes.sample,
+			},
+		};
+	}
+
 	public async createReverseProxy(
 		instanceId: number,
 		body: Static<typeof CreateReverseProxyRequestBody>,
@@ -258,7 +372,7 @@ export class InstanceUseCases {
 					data: {
 						instanceId,
 						targetPort: body.targetPort,
-						type: body.type,
+						type: this.toPrismaReverseProxyType(body.type),
 						description: body.description,
 					},
 					select: {
@@ -347,6 +461,27 @@ export class InstanceUseCases {
 				notFoundMessage: "Reverse proxy not found.",
 			});
 		}
+	}
+
+	public async startInstance(
+		instanceId: number,
+		performedById: number,
+	): Promise<Static<typeof InstanceStatusActionResponse>> {
+		return this.changeInstanceStatus(instanceId, performedById, "start");
+	}
+
+	public async stopInstance(
+		instanceId: number,
+		performedById: number,
+	): Promise<Static<typeof InstanceStatusActionResponse>> {
+		return this.changeInstanceStatus(instanceId, performedById, "stop");
+	}
+
+	public async restartInstance(
+		instanceId: number,
+		performedById: number,
+	): Promise<Static<typeof InstanceStatusActionResponse>> {
+		return this.changeInstanceStatus(instanceId, performedById, "restart");
 	}
 
 	public async promoteInstance(
@@ -646,5 +781,198 @@ export class InstanceUseCases {
 					courseOffering: courseFilter,
 				};
 		}
+	}
+
+	private findVmMetricSample(
+		response: PrometheusQueryResponse,
+		vmId: number,
+		hostname: string,
+	) {
+		if (
+			response.data.resultType !== "vector" ||
+			!Array.isArray(response.data.result)
+		) {
+			return null;
+		}
+
+		const normalizedVmId = String(vmId);
+
+		return (
+			response.data.result.find((item) => {
+				if (
+					typeof item !== "object" ||
+					item === null ||
+					!("metric" in item) ||
+					typeof item.metric !== "object" ||
+					item.metric === null
+				) {
+					return false;
+				}
+
+				const metric = item.metric as Record<string, string>;
+				const identifierCandidates = [
+					metric.id,
+					metric.vmid,
+					metric.vmId,
+					metric.vm_id,
+				].filter((value): value is string => Boolean(value));
+
+				if (
+					identifierCandidates.some(
+						(value) =>
+							value === normalizedVmId || value.endsWith(`/${normalizedVmId}`),
+					)
+				) {
+					return true;
+				}
+
+				return [metric.name, metric.hostname].some(
+					(value) => value === hostname,
+				);
+			}) ?? null
+		);
+	}
+
+	private extractMetricValue(sample: unknown) {
+		if (
+			typeof sample !== "object" ||
+			sample === null ||
+			!("value" in sample)
+		) {
+			return null;
+		}
+
+		const value = sample.value;
+		if (Array.isArray(value) && value.length >= 2) {
+			return this.parseMetricNumber(value[1]);
+		}
+
+		return this.parseMetricNumber(value);
+	}
+
+	private parseMetricNumber(value: unknown) {
+		if (typeof value === "number") {
+			return Number.isFinite(value) ? value : null;
+		}
+
+		if (typeof value === "string") {
+			const parsed = Number(value);
+			return Number.isFinite(parsed) ? parsed : null;
+		}
+
+		return null;
+	}
+
+	private async changeInstanceStatus(
+		instanceId: number,
+		performedById: number,
+		action: "start" | "stop" | "restart",
+	): Promise<Static<typeof InstanceStatusActionResponse>> {
+		try {
+			const instance = await this.dataAccess.prisma.instance.findUnique({
+				where: { id: instanceId },
+				select: { id: true, status: true },
+			});
+
+			if (!instance) {
+				throw new ServiceError("Instance not found.", 404);
+			}
+
+			if (instance.status === "DELETED") {
+				throw new ServiceError("Deleted instances cannot be updated.", 400);
+			}
+
+			if (instance.status === "PENDING") {
+				throw new ServiceError(
+					"Pending instances cannot be updated yet.",
+					400,
+				);
+			}
+
+			if (instance.status !== "ACTIVE" && instance.status !== "INACTIVE") {
+				throw new ServiceError(
+					`Instance cannot perform ${action} from ${instance.status} status.`,
+					400,
+				);
+			}
+
+			const transitions = {
+				start: {
+					from: ["INACTIVE"] as const,
+					to: "ACTIVE" as const,
+					auditAction: "STARTED",
+					message: "Instance successfully started.",
+					verb: "started",
+				},
+				stop: {
+					from: ["ACTIVE"] as const,
+					to: "INACTIVE" as const,
+					auditAction: "STOPPED",
+					message: "Instance successfully stopped.",
+					verb: "stopped",
+				},
+				restart: {
+					from: ["ACTIVE"] as const,
+					to: "ACTIVE" as const,
+					auditAction: "RESTARTED",
+					message: "Instance successfully restarted.",
+					verb: "restarted",
+				},
+			} satisfies Record<
+				"start" | "stop" | "restart",
+				{
+					from: readonly ("ACTIVE" | "INACTIVE")[];
+					to: "ACTIVE" | "INACTIVE";
+					auditAction: string;
+					message: string;
+					verb: string;
+				}
+			>;
+
+			const transition = transitions[action];
+
+			if (!transition.from.includes(instance.status)) {
+				throw new ServiceError(
+					`Instance cannot be ${transition.verb} from ${instance.status} status.`,
+					400,
+				);
+			}
+
+			const updatedInstance = await this.dataAccess.prisma.instance.update({
+				where: { id: instanceId },
+				data: { status: transition.to },
+				select: { id: true, status: true },
+			});
+
+			await this.dataAccess.prisma.instanceAuditLog.create({
+				data: {
+					instanceId,
+					action: transition.auditAction,
+					performedById,
+					notes: `Instance ${action} action requested`,
+				},
+			});
+
+			await Promise.all([
+				this.cache.invalidate(InstanceCacheKeys.detailPattern(instanceId)),
+				this.cache.invalidate(InstanceCacheKeys.auditLogsPattern(instanceId)),
+			]);
+
+			this.telemetry.recordInstanceOperation(action);
+
+			return {
+				id: updatedInstance.id,
+				status: updatedInstance.status,
+				message: transition.message,
+			};
+		} catch (error: unknown) {
+			handlePrismaError(error, `while trying to ${action} the instance`, {
+				notFoundMessage: "Instance not found.",
+			});
+		}
+	}
+
+	private toPrismaReverseProxyType(type: string): PrismaReverseProxyType {
+		return type === "HTTPS" ? "HTTP" : (type as PrismaReverseProxyType);
 	}
 }

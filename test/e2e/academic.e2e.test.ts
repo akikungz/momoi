@@ -580,7 +580,7 @@ describe("E2E: Academic Routes", () => {
 					expect(response.data?.isCurrent).toBe(true);
 				});
 
-				it("should auto-detect current semester by date range when no active semester is set", async () => {
+				it("should auto-detect current semester by date range", async () => {
 					const { client, mockPrisma } = setupTestContext("admin");
 
 					const now = new Date();
@@ -592,9 +592,9 @@ describe("E2E: Academic Routes", () => {
 						endDate: new Date(now.getTime() + 24 * 60 * 60 * 1000),
 					});
 
-					mockPrisma.semester.findFirst
-						.mockResolvedValueOnce(null)
-						.mockResolvedValueOnce(autoDetectedSemester);
+					mockPrisma.semester.findFirst.mockResolvedValueOnce(
+						autoDetectedSemester,
+					);
 
 					const response = await client.api.academic.semesters.current.get();
 

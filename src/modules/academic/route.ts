@@ -27,7 +27,7 @@ export const academicRoute = (
 				detail: {
 					summary: "Get current semester",
 					description:
-						"Retrieve the current semester (active flag or auto-detected by date range)",
+						"Retrieve the current semester auto-detected by current date within semester date range",
 					tags: ["Academic", "Semesters"],
 				},
 			},

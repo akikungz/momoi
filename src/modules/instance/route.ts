@@ -123,6 +123,48 @@ export const instanceRoute = (
 				},
 			},
 		)
+		.post(
+			"/:instanceId/start",
+			async ({ params, user }) =>
+				instanceUseCases.startInstance(params.instanceId, user.id),
+			{
+				params: "InstanceStatusActionRequestParams",
+				response: "InstanceStatusActionResponse",
+				detail: {
+					summary: "Start instance",
+					description: "Start a specific instance by ID",
+					tags: ["Instances"],
+				},
+			},
+		)
+		.post(
+			"/:instanceId/stop",
+			async ({ params, user }) =>
+				instanceUseCases.stopInstance(params.instanceId, user.id),
+			{
+				params: "InstanceStatusActionRequestParams",
+				response: "InstanceStatusActionResponse",
+				detail: {
+					summary: "Stop instance",
+					description: "Stop a specific instance by ID",
+					tags: ["Instances"],
+				},
+			},
+		)
+		.post(
+			"/:instanceId/restart",
+			async ({ params, user }) =>
+				instanceUseCases.restartInstance(params.instanceId, user.id),
+			{
+				params: "InstanceStatusActionRequestParams",
+				response: "InstanceStatusActionResponse",
+				detail: {
+					summary: "Restart instance",
+					description: "Restart a specific instance by ID",
+					tags: ["Instances"],
+				},
+			},
+		)
 		.delete(
 			"/:instanceId",
 			async ({ params }) => instanceUseCases.deleteInstance(params.instanceId),
@@ -300,5 +342,27 @@ export const instanceRoute = (
 					tags: ["Instances", "Extended Requests"],
 				},
 			},
-		);
+		)
+		.get(
+			"/:instanceId/monitoring",
+			async ({ params }) =>
+				instanceUseCases.getInstanceMonitoring(params.instanceId),
+			{
+				params: "GetInstanceRequestParams",
+				response: {
+					200: "GetInstanceMonitoringResponse",
+					404: ErrorResponse,
+					409: ErrorResponse,
+					502: ErrorResponse,
+					503: ErrorResponse,
+					504: ErrorResponse,
+				},
+				detail: {
+					summary: "Get monitoring data for an instance",
+					description:
+						"Retrieve Prometheus-backed runtime monitoring metrics for a specific instance.",
+					tags: ["Instances", "Monitoring"],
+				},
+			},
+		)
 };

@@ -193,17 +193,19 @@ describe("Academic Route", () => {
 			academicRoute(mockPrisma, mockCache as any, mockAdminAuth),
 		);
 
-		const course = createMockCourse({ id: 10 });
+		const course = createMockCourse({ id: 10, isProjectBased: true });
 		mockPrisma.course.create.mockResolvedValueOnce(course);
 
 		const response = await client.academic.courses.post({
 			code: course.code,
 			title: course.title,
 			description: course.description ?? undefined,
+			isProjectBased: true,
 		});
 
 		expect(response.status).toBe(200);
 		expect(response.data?.id).toBe(course.id);
+		expect(response.data?.isProjectBased).toBe(true);
 	});
 
 	it("should list courses", async () => {
@@ -285,6 +287,7 @@ describe("Academic Route", () => {
 				},
 			],
 			isActive: true,
+			isProjectBased: false,
 			createdAt: new Date(),
 			updatedAt: new Date(),
 		};
@@ -304,13 +307,14 @@ describe("Academic Route", () => {
 		);
 
 		mockPrisma.course.update.mockResolvedValueOnce(
-			createMockCourse({ id: 1, title: "Updated" }),
+			createMockCourse({ id: 1, title: "Updated", isProjectBased: true }),
 		);
 		const editRes = await client.academic
 			.courses({ courseId: 1 })
-			.patch({ title: "Updated" });
+			.patch({ title: "Updated", isProjectBased: true });
 		expect(editRes.status).toBe(200);
 		expect(editRes.data?.title).toBe("Updated");
+		expect(editRes.data?.isProjectBased).toBe(true);
 	});
 
 	it("should edit course instructors", async () => {
@@ -531,6 +535,7 @@ describe("Academic Route", () => {
 					title: "Intro",
 					description: "",
 					isActive: true,
+					isProjectBased: false,
 					createdAt: new Date(),
 					updatedAt: new Date(),
 				},

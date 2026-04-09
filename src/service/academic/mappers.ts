@@ -13,6 +13,19 @@ import type {
 	Semester,
 } from "./types";
 
+function resolveSemesterCurrentByDate(semester: {
+	startDate: Date;
+	endDate: Date;
+	isCurrent?: unknown;
+}): boolean {
+	if (typeof semester.isCurrent === "boolean") {
+		return semester.isCurrent;
+	}
+
+	const now = new Date();
+	return semester.startDate <= now && semester.endDate >= now;
+}
+
 // -------------------- Mailing List Mappers --------------------
 
 /**
@@ -100,6 +113,7 @@ export function mapCourse(course: PrismaCourse): Course {
 		title: course.title,
 		description: course.description ?? undefined,
 		isActive: course.isActive,
+		isProjectBased: course.isProjectBased,
 		createdAt: course.createdAt,
 		updatedAt: course.updatedAt,
 	};
@@ -124,6 +138,7 @@ export function mapCourseDetail(
 		instructors: course.instructors.map(mapInstructor),
 		semesters: course.courseOfferings.map((co) => mapSemester(co.semester)),
 		isActive: course.isActive,
+		isProjectBased: course.isProjectBased,
 		createdAt: course.createdAt,
 		updatedAt: course.updatedAt,
 	};
@@ -140,7 +155,9 @@ export function mapSemester(semester: PrismaSemester): Semester {
 		name: semester.name,
 		startDate: semester.startDate,
 		endDate: semester.endDate,
-		isCurrent: semester.isCurrent,
+		isCurrent: resolveSemesterCurrentByDate(
+			semester as PrismaSemester & { isCurrent?: unknown },
+		),
 		createdAt: semester.createdAt,
 		updatedAt: semester.updatedAt,
 	};
@@ -159,7 +176,9 @@ export function mapSemesterDetail(semester: SemesterWithCourses) {
 		name: semester.name,
 		startDate: semester.startDate,
 		endDate: semester.endDate,
-		isCurrent: semester.isCurrent,
+		isCurrent: resolveSemesterCurrentByDate(
+			semester as SemesterWithCourses & { isCurrent?: unknown },
+		),
 		courses: semester.courseOfferings.map((co) => mapCourse(co.course)),
 		createdAt: semester.createdAt,
 		updatedAt: semester.updatedAt,

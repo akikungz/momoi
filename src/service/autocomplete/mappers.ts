@@ -79,7 +79,7 @@ export function mapTemplateOption(
 
 type OfferingWithRelations = {
 	id: number;
-	course: Pick<Course, "code" | "title">;
+	course: Pick<Course, "code" | "title" | "isProjectBased">;
 	semester: Pick<Semester, "name">;
 };
 
@@ -93,5 +93,6 @@ export function mapOfferingOption(
 	return {
 		id: offering.id,
 		label: `[${offering.course.code}] ${offering.course.title} - ${offering.semester.name}`,
+		isProjectBased: offering.course.isProjectBased,
 	};
 }

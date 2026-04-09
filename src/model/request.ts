@@ -3,9 +3,9 @@ import { Elysia, t } from "elysia";
 import { PaginationRequest, PaginationResponse } from "./shared/pagination";
 import { TimestampResponse } from "./shared/timestamp";
 
-const STUDENT_REQUEST_CPU_MAX = 4;
-const STUDENT_REQUEST_MEMORY_MB_MAX = 2048;
-const STUDENT_REQUEST_DISK_GB_MAX = 8;
+const PROJECT_BASED_REQUEST_CPU_MAX = 8;
+const PROJECT_BASED_REQUEST_MEMORY_MB_MAX = 8192;
+const PROJECT_BASED_REQUEST_DISK_GB_MAX = 32;
 
 export const ApprovalStatus = t.Union(
 	[
@@ -56,15 +56,15 @@ export const RequestSpecsResponse = t.Object({
 export const RequestSpecsRequest = t.Object({
 	cpus: t.Number({
 		description: "Number of CPUs requested",
-		maximum: STUDENT_REQUEST_CPU_MAX,
+		maximum: PROJECT_BASED_REQUEST_CPU_MAX,
 	}),
 	memoryMB: t.Number({
 		description: "Memory requested in MB",
-		maximum: STUDENT_REQUEST_MEMORY_MB_MAX,
+		maximum: PROJECT_BASED_REQUEST_MEMORY_MB_MAX,
 	}),
 	diskGB: t.Number({
 		description: "Disk size requested in GB",
-		maximum: STUDENT_REQUEST_DISK_GB_MAX,
+		maximum: PROJECT_BASED_REQUEST_DISK_GB_MAX,
 	}),
 });
 

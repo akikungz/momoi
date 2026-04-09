@@ -81,6 +81,55 @@ describe("Request Route", () => {
 		expect(response.data?.courseOffering?.courseCode).toBe(course.code);
 	});
 
+	it("student can create higher-spec request for project-based course", async () => {
+		const client = treaty(
+			requestRoute(
+				mockPrisma,
+				mockCache as any,
+				mockStudentAuth,
+				mockQueue as any,
+			),
+		);
+
+		const course = createMockCourse({ id: 1, isProjectBased: true });
+		const template = createMockPVETemplate({ id: 2, name: "Ubuntu" });
+		const created = createMockRequest({
+			id: 110,
+			requesterId: 3,
+			courseOfferingId: 1,
+			pveTemplateId: template.id,
+			cpus: 6,
+			memoryMB: 4096,
+			diskGB: 16,
+		});
+
+		mockPrisma.courseOffering.findUnique.mockResolvedValueOnce({
+			course: { isProjectBased: true },
+		});
+		mockPrisma.request.create.mockResolvedValueOnce({
+			...created,
+			courseOffering: {
+				course: { code: course.code, title: course.title },
+				semester: { name: "Fall" },
+			},
+			pveTemplate: { name: template.name },
+		});
+
+		const response = await client.requests.post({
+			title: created.title,
+			description: created.description ?? undefined,
+			courseOfferingId: created.courseOfferingId,
+			pveTemplateId: created.pveTemplateId,
+			cpus: created.cpus,
+			memoryMB: created.memoryMB,
+			diskGB: created.diskGB,
+		});
+
+		expect(response.status).toBe(200);
+		expect(response.data).not.toBeNull();
+		expect(response.data?.id).toBe(created.id);
+	});
+
 	it("instructor can approve request for their course", async () => {
 		const client = treaty(
 			requestRoute(
@@ -280,6 +329,10 @@ describe("Request Route", () => {
 			),
 		);
 
+		mockPrisma.courseOffering.findUnique.mockResolvedValueOnce({
+			course: { isProjectBased: false },
+		});
+
 		const response = await client.requests.post({
 			title: "Need more storage",
 			description: "For lab",
@@ -290,7 +343,7 @@ describe("Request Route", () => {
 			diskGB: 16,
 		});
 
-		expect(response.status).toBe(422);
+		expect(response.status).toBe(400);
 	});
 
 	it("get request audit logs returns 404 when request missing", async () => {
@@ -439,12 +492,16 @@ describe("Request Route", () => {
 		);
 
 		const instance = createMockInstance({ id: 50, platformUserId: 3 });
-		const currentSemesterEnd = new Date("2024-05-30T00:00:00.000Z");
 		mockPrisma.instance.findUnique.mockResolvedValueOnce({
 			platformUserId: instance.platformUserId,
-			courseOffering: {
-				semester: { id: 201, endDate: currentSemesterEnd },
-			},
+			semesterId: 201,
+		});
+
+		mockPrisma.semester.findFirst.mockResolvedValueOnce({
+			id: 201,
+			name: "Spring 2024",
+			startDate: new Date("2024-01-15T00:00:00.000Z"),
+			endDate: new Date("2024-05-30T00:00:00.000Z"),
 		});
 
 		const nextSemester = {

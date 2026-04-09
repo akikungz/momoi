@@ -21,6 +21,9 @@ export const AutocompleteOption = t.Object(
 	{
 		id: t.Number({ description: "Unique identifier for the option" }),
 		label: t.String({ description: "Display label for the option" }),
+		isProjectBased: t.Optional(
+			t.Boolean({ description: "Whether the course offering is project-based" }),
+		),
 	},
 	{ description: "A single autocomplete option" },
 );

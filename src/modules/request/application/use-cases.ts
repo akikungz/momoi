@@ -45,6 +45,10 @@ const STUDENT_REQUEST_CPU_MAX = 4;
 const STUDENT_REQUEST_MEMORY_MB_MAX = 2048;
 const STUDENT_REQUEST_DISK_GB_MAX = 8;
 
+const PROJECT_BASED_REQUEST_CPU_MAX = 8;
+const PROJECT_BASED_REQUEST_MEMORY_MB_MAX = 8192;
+const PROJECT_BASED_REQUEST_DISK_GB_MAX = 32;
+
 export class RequestUseCases {
 	constructor(
 		private readonly dataAccess: RequestDataAccess,
@@ -57,25 +61,63 @@ export class RequestUseCases {
 		userId: number,
 		body: Static<typeof CreateRequestRequestBody>,
 	): Promise<Static<typeof CreateRequestResponse>> {
-		if (body.cpus > STUDENT_REQUEST_CPU_MAX) {
-			throw new ServiceError(
-				`Requested vCPU cannot exceed ${STUDENT_REQUEST_CPU_MAX}.`,
-				400,
+		const exceedsStudentLimit =
+			body.cpus > STUDENT_REQUEST_CPU_MAX ||
+			body.memoryMB > STUDENT_REQUEST_MEMORY_MB_MAX ||
+			body.diskGB > STUDENT_REQUEST_DISK_GB_MAX;
+
+		let cpuMax = STUDENT_REQUEST_CPU_MAX;
+		let memoryMax = STUDENT_REQUEST_MEMORY_MB_MAX;
+		let diskMax = STUDENT_REQUEST_DISK_GB_MAX;
+
+		if (exceedsStudentLimit) {
+			const courseOffering =
+				await this.dataAccess.prisma.courseOffering.findUnique({
+					where: { id: body.courseOfferingId },
+					select: {
+						course: {
+							select: {
+								isProjectBased: true,
+							},
+						},
+					},
+				});
+
+			if (!courseOffering) {
+				throw new ServiceError(
+					"Related resource not found for request creation.",
+					404,
+				);
+			}
+
+			if (courseOffering.course.isProjectBased) {
+				cpuMax = PROJECT_BASED_REQUEST_CPU_MAX;
+				memoryMax = PROJECT_BASED_REQUEST_MEMORY_MB_MAX;
+				diskMax = PROJECT_BASED_REQUEST_DISK_GB_MAX;
+			}
+		}
+
+		let validationErrors = [];
+		if (body.cpus > cpuMax) {
+			validationErrors.push(
+				`Requested vCPU cannot exceed ${cpuMax}.`,
 			);
 		}
 
-		if (body.memoryMB > STUDENT_REQUEST_MEMORY_MB_MAX) {
-			throw new ServiceError(
-				`Requested memory cannot exceed ${STUDENT_REQUEST_MEMORY_MB_MAX} MB.`,
-				400,
+		if (body.memoryMB > memoryMax) {
+			validationErrors.push(
+				`Requested memory cannot exceed ${memoryMax} MB.`,
 			);
 		}
 
-		if (body.diskGB > STUDENT_REQUEST_DISK_GB_MAX) {
-			throw new ServiceError(
-				`Requested disk cannot exceed ${STUDENT_REQUEST_DISK_GB_MAX} GB.`,
-				400,
+		if (body.diskGB > diskMax) {
+			validationErrors.push(
+				`Requested disk cannot exceed ${diskMax} GB.`,
 			);
+		}
+
+		if (validationErrors.length > 0) {
+			throw new ServiceError(validationErrors.join(", "), 400);
 		}
 
 		try {
@@ -261,13 +303,6 @@ export class RequestUseCases {
 			where: { id: body.targetInstanceId },
 			select: {
 				platformUserId: true,
-				courseOffering: {
-					select: {
-						semester: {
-							select: { id: true, endDate: true },
-						},
-					},
-				},
 				semesterId: true,
 			},
 		});
@@ -279,9 +314,16 @@ export class RequestUseCases {
 			);
 		}
 
-		const currentSemesterEndDate =
-			targetInstance.courseOffering?.semester?.endDate;
-		if (!currentSemesterEndDate) {
+		const now = new Date();
+		const currentSemester = await this.dataAccess.prisma.semester.findFirst({
+			where: {
+				startDate: { lte: now },
+				endDate: { gte: now },
+			},
+			orderBy: { startDate: "desc" },
+		});
+
+		if (!currentSemester) {
 			throw new ServiceError(
 				"Unable to determine current semester for the instance.",
 				400,
@@ -289,7 +331,7 @@ export class RequestUseCases {
 		}
 
 		const nextSemester = await this.dataAccess.prisma.semester.findFirst({
-			where: { startDate: { gt: currentSemesterEndDate } },
+			where: { startDate: { gt: currentSemester.endDate } },
 			orderBy: { startDate: "asc" },
 		});
 

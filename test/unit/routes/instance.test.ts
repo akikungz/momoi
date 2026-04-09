@@ -791,13 +791,17 @@ describe("Instance Route - Student", () => {
 		);
 
 		const instance = createMockInstance({ id: 50, platformUserId: 3 });
-		const currentSemesterEnd = new Date("2024-05-30T00:00:00.000Z");
 
 		mockPrisma.instance.findUnique.mockResolvedValueOnce({
 			platformUserId: instance.platformUserId,
-			courseOffering: {
-				semester: { id: 201, endDate: currentSemesterEnd },
-			},
+			semesterId: 201,
+		});
+
+		mockPrisma.semester.findFirst.mockResolvedValueOnce({
+			id: 201,
+			name: "Spring 2024",
+			startDate: new Date("2024-01-15T00:00:00.000Z"),
+			endDate: new Date("2024-05-30T00:00:00.000Z"),
 		});
 
 		const nextSemester = {

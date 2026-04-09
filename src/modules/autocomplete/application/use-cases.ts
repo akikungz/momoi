@@ -43,7 +43,7 @@ export class AutocompleteUseCases {
 				: undefined,
 			take: limit,
 			orderBy: { code: "asc" },
-			select: { id: true, code: true, title: true },
+			select: { id: true, code: true, title: true, isProjectBased: true },
 		});
 
 		const response = courses.map(mapCourseOption);
@@ -142,17 +142,23 @@ export class AutocompleteUseCases {
 		const cached = await this.cache.get<AutocompleteOptionType[]>(cacheKey);
 		if (cached) return cached;
 
+		const currentDate = new Date();
+
 		const offerings = await this.dataAccess.prisma.courseOffering.findMany({
 			where: {
 				course: {
 					isActive: true,
+				},
+				semester: {
+					endDate: { gte: currentDate },
+					startDate: { lte: currentDate },
 				},
 				...(search
 					? {
 							OR: [
 								{ course: { code: { contains: search, mode: "insensitive" } } },
 								{ course: { title: { contains: search, mode: "insensitive" } } },
-								{ semester: { name: { contains: search, mode: "insensitive" } } },
+								{ semester: {name: { contains: search, mode: "insensitive" } } },
 							],
 						}
 					: {}),
@@ -161,7 +167,7 @@ export class AutocompleteUseCases {
 			orderBy: { semester: { startDate: "desc" } },
 			select: {
 				id: true,
-				course: { select: { code: true, title: true } },
+				course: { select: { code: true, title: true, isProjectBased: true } },
 				semester: { select: { name: true } },
 			},
 		});

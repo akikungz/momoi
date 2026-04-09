@@ -293,6 +293,10 @@ describe("RequestService", () => {
 	});
 
 	it("rejects request when memory exceeds student limit", async () => {
+		mockPrisma.courseOffering.findUnique.mockResolvedValueOnce({
+			course: { isProjectBased: false },
+		});
+
 		await expect(
 			requestService.createRequest(1, {
 				title: "x",
@@ -306,6 +310,10 @@ describe("RequestService", () => {
 	});
 
 	it("rejects request when cpu exceeds student limit", async () => {
+		mockPrisma.courseOffering.findUnique.mockResolvedValueOnce({
+			course: { isProjectBased: false },
+		});
+
 		await expect(
 			requestService.createRequest(1, {
 				title: "x",
@@ -319,6 +327,10 @@ describe("RequestService", () => {
 	});
 
 	it("rejects request when disk exceeds student limit", async () => {
+		mockPrisma.courseOffering.findUnique.mockResolvedValueOnce({
+			course: { isProjectBased: false },
+		});
+
 		await expect(
 			requestService.createRequest(1, {
 				title: "x",
@@ -331,16 +343,77 @@ describe("RequestService", () => {
 		).rejects.toThrow("Requested disk cannot exceed 8 GB.");
 	});
 
+	it("allows higher specs for project-based courses", async () => {
+		const course = createMockCourse({ id: 1, isProjectBased: true });
+		const template = createMockPVETemplate({ id: 1, name: "Ubuntu" });
+
+		mockPrisma.courseOffering.findUnique.mockResolvedValueOnce({
+			course: { isProjectBased: true },
+		});
+		mockPrisma.request.create.mockResolvedValueOnce({
+			id: 120,
+			title: "project req",
+			description: null,
+			status: "PENDING",
+			reason: null,
+			cpus: 6,
+			memoryMB: 4096,
+			diskGB: 16,
+			requesterId: 1,
+			reviewerId: null,
+			courseOffering: {
+				course: { code: course.code, title: course.title },
+				semester: { name: "Fall" },
+			},
+			pveTemplate: { name: template.name },
+			createdAt: new Date(),
+			updatedAt: new Date(),
+		});
+
+		const result = await requestService.createRequest(1, {
+			title: "project req",
+			courseOfferingId: 1,
+			pveTemplateId: 1,
+			cpus: 6,
+			memoryMB: 4096,
+			diskGB: 16,
+		} as any);
+
+		expect(result.id).toBe(120);
+	});
+
+	it("rejects project-based request when exceeding project limits", async () => {
+		mockPrisma.courseOffering.findUnique.mockResolvedValueOnce({
+			course: { isProjectBased: true },
+		});
+
+		await expect(
+			requestService.createRequest(1, {
+				title: "x",
+				courseOfferingId: 1,
+				pveTemplateId: 1,
+				cpus: 9,
+				memoryMB: 4096,
+				diskGB: 16,
+			} as any),
+		).rejects.toThrow("Requested vCPU cannot exceed 8.");
+	});
+
 	it("creates extended request when student owns instance", async () => {
 		const ownerId = 5;
 		const instance = createMockInstance({ id: 22, platformUserId: ownerId });
-		const currentSemesterEnd = new Date("2024-05-31T00:00:00.000Z");
 		mockPrisma.instance.findUnique.mockResolvedValueOnce({
 			platformUserId: instance.platformUserId,
-			courseOffering: {
-				semester: { id: 91, endDate: currentSemesterEnd },
-			},
+			semesterId: 91,
 		});
+
+		const currentSemester = {
+			id: 91,
+			name: "Spring 2024",
+			startDate: new Date("2024-01-10T00:00:00.000Z"),
+			endDate: new Date("2024-05-31T00:00:00.000Z"),
+		};
+		mockPrisma.semester.findFirst.mockResolvedValueOnce(currentSemester);
 
 		const nextSemester = {
 			id: 101,
@@ -390,14 +463,19 @@ describe("RequestService", () => {
 	it("throws when no upcoming semester exists", async () => {
 		const ownerId = 6;
 		const instance = createMockInstance({ id: 23, platformUserId: ownerId });
-		const currentSemesterEnd = new Date("2024-05-31T00:00:00.000Z");
 
 		mockPrisma.instance.findUnique.mockResolvedValueOnce({
 			platformUserId: instance.platformUserId,
-			courseOffering: {
-				semester: { id: 92, endDate: currentSemesterEnd },
-			},
+			semesterId: 92,
 		});
+
+		const currentSemester = {
+			id: 92,
+			name: "Spring 2024",
+			startDate: new Date("2024-01-10T00:00:00.000Z"),
+			endDate: new Date("2024-05-31T00:00:00.000Z"),
+		};
+		mockPrisma.semester.findFirst.mockResolvedValueOnce(currentSemester);
 
 		mockPrisma.semester.findFirst.mockResolvedValueOnce(null);
 

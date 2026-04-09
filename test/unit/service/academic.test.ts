@@ -285,6 +285,7 @@ describe("AcademicService", () => {
 				instructors: [],
 				semesters: [],
 				isActive: true,
+				isProjectBased: false,
 				createdAt: new Date(),
 				updatedAt: new Date(),
 			};
@@ -319,6 +320,21 @@ describe("AcademicService", () => {
 			expect(mockCache.deleteCacheByPattern).toHaveBeenCalledWith(
 				"academic:courses:*",
 			);
+		});
+
+		it("should add project-based course", async () => {
+			const course = createMockCourse({ id: 10, isProjectBased: true });
+			mockPrisma.course.create.mockResolvedValueOnce(course);
+
+			const result = await service.addCourse({
+				code: course.code,
+				title: course.title,
+				description: course.description ?? undefined,
+				isProjectBased: true,
+			});
+
+			expect(result.id).toBe(course.id);
+			expect(result.isProjectBased).toBe(true);
 		});
 
 		it("should edit course instructors", async () => {
@@ -371,6 +387,18 @@ describe("AcademicService", () => {
 			expect(mockCache.deleteCacheByPattern).toHaveBeenCalledWith(
 				"academic:courses:*",
 			);
+		});
+
+		it("should edit course to project-based", async () => {
+			const course = createMockCourse({ id: 1, isProjectBased: true });
+			mockPrisma.course.update.mockResolvedValueOnce(course);
+
+			const result = await service.editCourseById(1, {
+				isProjectBased: true,
+			});
+
+			expect(result.id).toBe(course.id);
+			expect(result.isProjectBased).toBe(true);
 		});
 
 		it("should throw error when editing non-existent course", async () => {
@@ -427,7 +455,7 @@ describe("AcademicService", () => {
 	});
 
 	describe("Semesters", () => {
-			it("should get current semester from active flag", async () => {
+			it("should get current semester by current date range", async () => {
 				const semester = createMockSemester({ id: 99, isCurrent: true });
 				mockCache.getCacheValue.mockResolvedValueOnce(null);
 				mockPrisma.semester.findFirst.mockResolvedValueOnce(semester);
@@ -439,7 +467,7 @@ describe("AcademicService", () => {
 				expect(mockPrisma.semester.findFirst).toHaveBeenCalledTimes(1);
 			});
 
-			it("should auto-detect current semester by date range when no active semester is set", async () => {
+			it("should auto-detect current semester by date range", async () => {
 				const now = new Date();
 				const semester = createMockSemester({
 					id: 100,
@@ -449,15 +477,13 @@ describe("AcademicService", () => {
 				});
 
 				mockCache.getCacheValue.mockResolvedValueOnce(null);
-				mockPrisma.semester.findFirst
-					.mockResolvedValueOnce(null)
-					.mockResolvedValueOnce(semester);
+				mockPrisma.semester.findFirst.mockResolvedValueOnce(semester);
 
 				const result = await service.getCurrentSemester();
 
 				expect(result?.id).toBe(100);
 				expect(result?.isCurrent).toBe(true);
-				expect(mockPrisma.semester.findFirst).toHaveBeenCalledTimes(2);
+				expect(mockPrisma.semester.findFirst).toHaveBeenCalledTimes(1);
 			});
 
 		it("should list semesters", async () => {

@@ -4,6 +4,7 @@ import { PaginationRequest, PaginationResponse } from "./shared/pagination";
 import { TimestampResponse } from "./shared/timestamp";
 
 const INSTANCE_CREATE_CPU_MAX = 8;
+const NullableNumber = t.Union([t.Number(), t.Null()]);
 
 export const InstanceStatus = t.Union(
 	[
@@ -157,7 +158,6 @@ export const CreateInstanceRequestBody = t.Object({
 	),
 	cpus: t.Number({
 		description: "Number of CPUs to allocate to the instance",
-		maximum: INSTANCE_CREATE_CPU_MAX,
 	}),
 	memoryMB: t.Number({
 		description: "Amount of memory (in MB) to allocate to the instance",
@@ -255,6 +255,18 @@ export const PromoteInstanceResponse = t.Object({
 	message: t.String({ description: "Success message" }),
 });
 
+export const InstanceStatusActionRequestParams = t.Object({
+	instanceId: t.Number({
+		description: "Unique identifier for the instance to update",
+	}),
+});
+
+export const InstanceStatusActionResponse = t.Object({
+	id: t.Number({ description: "Unique identifier for the instance" }),
+	status: InstanceStatus,
+	message: t.String({ description: "Success message" }),
+});
+
 export const InstanceAuditLogItem = t.Object(
 	{
 		id: t.Number({ description: "Unique identifier for the audit log entry" }),
@@ -291,6 +303,35 @@ export const ReprovisionInstanceResponse = t.Object({
 	message: t.String({ description: "Success message" }),
 });
 
+export const GetInstanceMonitoringResponse = t.Object({
+	generatedAt: t.String({
+		description: "Timestamp used for the Prometheus instant queries",
+	}),
+	instanceId: t.Number({ description: "Unique identifier for the instance" }),
+	vmId: t.Number({ description: "Proxmox VM identifier for the instance" }),
+	hostname: t.String({
+		description: "Hostname of the provisioned virtual machine",
+	}),
+	summary: t.Object({
+		uptimeSeconds: NullableNumber,
+		cpuPercent: NullableNumber,
+		memoryUsedBytes: NullableNumber,
+		memoryCapacityBytes: NullableNumber,
+	}),
+	queries: t.Record(
+		t.String(),
+		t.String({
+			description: "PromQL used for each instance monitoring field",
+		}),
+	),
+	details: t.Record(
+		t.String(),
+		t.Any({
+			description: "Raw Prometheus sample payload for the instance metric",
+		}),
+	),
+});
+
 // Common params for routes that only need instanceId
 export const InstanceIdParams = t.Object({
 	instanceId: t.Number({ description: "Unique identifier for the instance" }),
@@ -325,9 +366,15 @@ export const instanceModel = new Elysia({ name: "instance.model" })
 	.model("DeleteReverseProxyResponse", DeleteReverseProxyResponse)
 	.model("PromoteInstanceRequestParams", PromoteInstanceRequestParams)
 	.model("PromoteInstanceResponse", PromoteInstanceResponse)
+	.model(
+		"InstanceStatusActionRequestParams",
+		InstanceStatusActionRequestParams,
+	)
+	.model("InstanceStatusActionResponse", InstanceStatusActionResponse)
 	.model("GetInstanceAuditLogsResponse", GetInstanceAuditLogsResponse)
 	.model("ReprovisionInstanceRequestParams", ReprovisionInstanceRequestParams)
 	.model("ReprovisionInstanceResponse", ReprovisionInstanceResponse)
+	.model("GetInstanceMonitoringResponse", GetInstanceMonitoringResponse)
 	.model("InstanceIdParams", InstanceIdParams)
 	.model("AuditLogsQuery", AuditLogsQuery)
 	.model("InstanceExtendedRequestParams", InstanceExtendedRequestParams);

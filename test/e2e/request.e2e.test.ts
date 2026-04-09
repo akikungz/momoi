@@ -450,18 +450,19 @@ describe("E2E: Request Routes", () => {
 				it("should create an extended request", async () => {
 					const { client, mockPrisma } = setupTestContext("student");
 
-					// Service checks instance ownership and semester info
+					// Service checks instance ownership
 					mockPrisma.instance.findUnique.mockResolvedValueOnce({
 						id: 1,
 						platformUserId: 3, // Student's ID matches
-						courseOffering: {
-							semester: {
-								id: 1,
-								endDate: new Date("2024-12-15"),
-							},
-						},
+						semesterId: 1,
 					});
-					// Service finds next semester
+					// Service finds current semester by date, then next semester
+					mockPrisma.semester.findFirst.mockResolvedValueOnce({
+						id: 1,
+						name: "Fall 2024",
+						startDate: new Date("2024-08-15"),
+						endDate: new Date("2024-12-15"),
+					});
 					mockPrisma.semester.findFirst.mockResolvedValueOnce({
 						id: 2,
 						name: "Spring 2025",

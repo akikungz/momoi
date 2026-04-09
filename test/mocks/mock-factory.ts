@@ -151,6 +151,7 @@ export function createMockCourse(overrides?: Partial<Course>): Course {
 		title: `Test Course ${id}`,
 		description: `Description for course ${id}`,
 		isActive: overrides?.isActive ?? true,
+		isProjectBased: overrides?.isProjectBased ?? false,
 		createdAt: new Date(),
 		updatedAt: new Date(),
 		...overrides,

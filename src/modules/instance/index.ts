@@ -1,5 +1,6 @@
 import type { CacheModule } from "@momoi/cache";
 import type { PrismaClient } from "@momoi/database/prisma/generated/client";
+import { PrometheusMonitoringClient } from "@momoi/modules/monitoring/infrastructure/prometheus-monitoring-client";
 import type { QueueModule } from "@momoi/queue";
 
 import { InstanceUseCases } from "./application/use-cases";
@@ -18,6 +19,7 @@ export function createInstanceUseCases(
 		new CacheJsonStore(cache),
 		new QueueInstancePort(queue),
 		new RuntimeInstanceTelemetry(),
+		new PrometheusMonitoringClient(),
 	);
 }
 
