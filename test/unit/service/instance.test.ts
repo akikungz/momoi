@@ -701,9 +701,9 @@ describe("InstanceService", () => {
 			expect(result.message).toBe("Instance successfully stopped.");
 			expect(mockQueue.toggleInstanceStatusQueue.add).toHaveBeenCalledTimes(1);
 			expect(mockQueue.toggleInstanceStatusQueue.add).toHaveBeenCalledWith(
-				"toggle",
+				"toggle-status",
 				{ instanceId, userId: performedById, status: "STOP" },
-				expect.objectContaining({ jobId: `toggle-stop-${instanceId}` }),
+				expect.objectContaining({ jobId: `toggle-status-stop-${instanceId}` }),
 			);
 		});
 	});
