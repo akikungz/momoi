@@ -28,4 +28,17 @@ export class QueueInstancePort implements InstanceQueuePort {
 			{ jobId, removeOnComplete: true, removeOnFail: false },
 		);
 	}
+
+	async enqueueToggleInstanceStatus(
+		instanceId: number,
+		userId: number,
+		status: "START" | "STOP" | "RESTART",
+		jobId: string,
+	) {
+		await this.queue.toggleInstanceStatusQueue.add(
+			"toggle-status",
+			{ instanceId, userId, status },
+			{ jobId, removeOnComplete: true, removeOnFail: false },
+		);
+	}
 }

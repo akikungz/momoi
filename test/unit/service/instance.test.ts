@@ -1,19 +1,23 @@
-import { beforeEach, describe, expect, it } from "bun:test";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 
 import { MockCache } from "@momoi/cache/mock";
 import { PrismaClientKnownRequestError } from "@momoi/database/prisma/generated/internal/prismaNamespace";
 import { createMockPrisma } from "@test/mocks";
 import { createMockScenario, resetMockFactoryCounters } from "@test/mocks";
 
+import { createInstanceUseCases } from "@momoi/modules/instance";
 import { InstanceService } from "@momoi/service/instance";
 
 // Mock queue module
 const createMockQueue = () => ({
 	provisionInstanceQueue: {
-		add: async () => ({ id: "mock-job-id" }),
+		add: mock(async () => ({ id: "mock-job-id" })),
 	},
 	deprovisionInstanceQueue: {
-		add: async () => ({ id: "mock-job-id" }),
+		add: mock(async () => ({ id: "mock-job-id" })),
+	},
+	toggleInstanceStatusQueue: {
+		add: mock(async () => ({ id: "mock-job-id" })),
 	},
 });
 
@@ -659,6 +663,48 @@ describe("InstanceService", () => {
 			expect(result.reverseProxy).toHaveLength(1);
 			expect(result.reverseProxy[0].id).toBe(5);
 			expect(result.reverseProxy[0].targetPort).toBe(3000);
+		});
+	});
+
+	describe("instance status actions", () => {
+		it("should stop a running instance", async () => {
+			const instanceId = 1;
+			const performedById = 42;
+			const instanceUseCases = createInstanceUseCases(
+				mockPrisma as any,
+				mockCache as any,
+				mockQueue as any,
+			);
+
+			mockPrisma.instance.findUnique.mockResolvedValueOnce({
+				id: instanceId,
+				status: "ACTIVE",
+				pveVM: {
+					status: "RUNNING",
+				},
+			});
+			mockPrisma.instance.update.mockResolvedValueOnce({
+				id: instanceId,
+				pveVM: {
+					status: "STOPPED",
+				},
+			});
+			mockPrisma.instanceAuditLog.create.mockResolvedValueOnce({ id: 1 });
+
+			const result = await instanceUseCases.stopInstance(
+				instanceId,
+				performedById,
+			);
+
+			expect(result.id).toBe(instanceId);
+			expect(result.status).toBe("STOPPED");
+			expect(result.message).toBe("Instance successfully stopped.");
+			expect(mockQueue.toggleInstanceStatusQueue.add).toHaveBeenCalledTimes(1);
+			expect(mockQueue.toggleInstanceStatusQueue.add).toHaveBeenCalledWith(
+				"toggle",
+				{ instanceId, userId: performedById, status: "STOP" },
+				expect.objectContaining({ jobId: `toggle-stop-${instanceId}` }),
+			);
 		});
 	});
 

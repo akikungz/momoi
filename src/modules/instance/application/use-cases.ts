@@ -1,5 +1,6 @@
 import type { Static } from "elysia";
 import type { ReverseProxyType as PrismaReverseProxyType } from "@momoi/database/prisma/generated/enums";
+import type { PVEVMStatus } from "@momoi/database/prisma/generated/enums";
 
 import type {
 	CreateInstanceRequestBody,
@@ -871,7 +872,15 @@ export class InstanceUseCases {
 		try {
 			const instance = await this.dataAccess.prisma.instance.findUnique({
 				where: { id: instanceId },
-				select: { id: true, status: true },
+				select: {
+					id: true,
+					status: true,
+					pveVM: {
+						select: {
+							status: true,
+						},
+					},
+				},
 			});
 
 			if (!instance) {
@@ -889,31 +898,39 @@ export class InstanceUseCases {
 				);
 			}
 
-			if (instance.status !== "ACTIVE" && instance.status !== "INACTIVE") {
+			if (!instance.pveVM) {
+				throw new ServiceError("Instance VM not found.", 409);
+			}
+
+			if (
+				instance.pveVM.status !== "RUNNING" &&
+				instance.pveVM.status !== "STOPPED" &&
+				instance.pveVM.status !== "SUSPENDED"
+			) {
 				throw new ServiceError(
-					`Instance cannot perform ${action} from ${instance.status} status.`,
+					`Instance cannot perform ${action} from ${instance.pveVM.status} status.`,
 					400,
 				);
 			}
 
 			const transitions = {
 				start: {
-					from: ["INACTIVE"] as const,
-					to: "ACTIVE" as const,
+					from: ["STOPPED", "SUSPENDED"] as const,
+					to: "RUNNING" as const,
 					auditAction: "STARTED",
 					message: "Instance successfully started.",
 					verb: "started",
 				},
 				stop: {
-					from: ["ACTIVE"] as const,
-					to: "INACTIVE" as const,
+					from: ["RUNNING"] as const,
+					to: "STOPPED" as const,
 					auditAction: "STOPPED",
 					message: "Instance successfully stopped.",
 					verb: "stopped",
 				},
 				restart: {
-					from: ["ACTIVE"] as const,
-					to: "ACTIVE" as const,
+					from: ["RUNNING"] as const,
+					to: "RUNNING" as const,
 					auditAction: "RESTARTED",
 					message: "Instance successfully restarted.",
 					verb: "restarted",
@@ -921,8 +938,8 @@ export class InstanceUseCases {
 			} satisfies Record<
 				"start" | "stop" | "restart",
 				{
-					from: readonly ("ACTIVE" | "INACTIVE")[];
-					to: "ACTIVE" | "INACTIVE";
+					from: readonly ("RUNNING" | "STOPPED" | "SUSPENDED")[];
+					to: "RUNNING" | "STOPPED" | "SUSPENDED";
 					auditAction: string;
 					message: string;
 					verb: string;
@@ -931,17 +948,30 @@ export class InstanceUseCases {
 
 			const transition = transitions[action];
 
-			if (!transition.from.includes(instance.status)) {
+			if (!(transition.from as readonly PVEVMStatus[]).includes(instance.pveVM.status)) {
 				throw new ServiceError(
-					`Instance cannot be ${transition.verb} from ${instance.status} status.`,
+					`Instance cannot be ${transition.verb} from ${instance.pveVM.status} status.`,
 					400,
 				);
 			}
 
 			const updatedInstance = await this.dataAccess.prisma.instance.update({
 				where: { id: instanceId },
-				data: { status: transition.to },
-				select: { id: true, status: true },
+				data: {
+					pveVM: {
+						update: {
+							status: transition.to,
+						},
+					},
+				},
+				select: {
+					id: true,
+					pveVM: {
+						select: {
+							status: true,
+						},
+					},
+				},
 			});
 
 			await this.dataAccess.prisma.instanceAuditLog.create({
@@ -958,11 +988,25 @@ export class InstanceUseCases {
 				this.cache.invalidate(InstanceCacheKeys.auditLogsPattern(instanceId)),
 			]);
 
+			await this.queue.enqueueToggleInstanceStatus(
+				instanceId,
+				performedById,
+				action.toUpperCase() as "START" | "STOP" | "RESTART",
+				`toggle-status-${action}-${instanceId}`,
+			);
+			this.telemetry.recordQueueJobEnqueued(
+				"toggle-instance-status",
+				"toggle-status",
+				{
+					"app.operation": `change_instance_status_${action}`,
+				},
+			);
+
 			this.telemetry.recordInstanceOperation(action);
 
 			return {
 				id: updatedInstance.id,
-				status: updatedInstance.status,
+				status: updatedInstance.pveVM?.status ?? transition.to,
 				message: transition.message,
 			};
 		} catch (error: unknown) {

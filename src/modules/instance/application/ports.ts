@@ -21,6 +21,12 @@ export interface InstanceQueuePort {
 		userId: number,
 		jobId: string,
 	): Promise<void>;
+	enqueueToggleInstanceStatus(
+		instanceId: number,
+		userId: number,
+		status: "START" | "STOP" | "RESTART",
+		jobId: string,
+	): Promise<void>;
 }
 
 export interface InstanceTelemetryPort {

@@ -263,7 +263,7 @@ export const InstanceStatusActionRequestParams = t.Object({
 
 export const InstanceStatusActionResponse = t.Object({
 	id: t.Number({ description: "Unique identifier for the instance" }),
-	status: InstanceStatus,
+	status: VMStatus,
 	message: t.String({ description: "Success message" }),
 });
 
